@@ -2,6 +2,7 @@ import { T } from './tuning'
 import type { Ship } from './ship'
 import type { Wind } from './wind'
 import { angleDiff, clamp, wrapAngle } from '../core/math'
+import { landRadius, type Island, type Terrain } from './terrain'
 
 /**
  * An enemy captain, bound by exactly the same wind the player is. This is the
@@ -14,7 +15,7 @@ export class CaptainAI {
   private tackSide: -1 | 1 = 1
   private sinceTack = 99
 
-  think(self: Ship, target: Ship, wind: Wind, dt: number) {
+  think(self: Ship, target: Ship, wind: Wind, terrain: Terrain, dt: number) {
     this.sinceTack += dt
     if (self.sunk) return
 
@@ -25,14 +26,59 @@ export class CaptainAI {
 
     const desired = this.desiredHeading(self, bearing, dist)
     const sailable = this.nearestSailable(desired, bearing, wind)
+    // Land overrides everything. A captain who holds a perfect firing course
+    // onto a reef is not a captain.
+    const clear = this.avoidLand(self, sailable, terrain)
 
     // Proportional helm: ease off as we come onto the new heading so she
     // settles rather than weaving.
-    const error = angleDiff(sailable, self.heading)
+    const error = angleDiff(clear, self.heading)
     self.aiSteer = clamp(error * 1.8, -1, 1)
 
     // Shorten sail for the knife fight; crack on when there is ground to make.
     self.sailOrder = dist < T.aiStandoff * 1.25 ? 1 : 2
+  }
+
+  /**
+   * Steer around a shore rather than into it.
+   *
+   * Steering behaviour, not pathfinding: these captains only need to look
+   * competent for the half-minute they are on screen, and a navigation mesh
+   * over infinite procedural terrain would cost far more than it returns. The
+   * ship grazes past an obstacle along its tangent, which rounds a headland
+   * naturally and never produces the stuttering of a replanned path.
+   */
+  private avoidLand(self: Ship, desired: number, terrain: Terrain): number {
+    const look = T.aiLandLookahead
+    // Deep hulls must respect the shoals too, not just the beach.
+    const margin = 30 + 70 * self.cls.draught
+
+    let island: Island | null = null
+    for (const t of [0.35, 0.7, 1]) {
+      const probe = terrain.probe({
+        x: self.pos.x + Math.cos(desired) * look * t,
+        y: self.pos.y + Math.sin(desired) * look * t,
+      })
+      if (!probe.island || probe.distance > margin) continue
+      island = probe.island
+      break
+    }
+    if (!island) return desired
+    const dx = island.x - self.pos.x
+    const dy = island.y - self.pos.y
+    const range = Math.hypot(dx, dy) || 1
+    const toIsland = Math.atan2(dy, dx)
+
+    // Already on top of it: turn straight out to sea and sort it out later.
+    const edge = landRadius(island, Math.atan2(-dy, -dx))
+    if (range < edge + margin * 0.5) return wrapAngle(toIsland + Math.PI)
+
+    // Otherwise graze past it, taking whichever side needs less helm.
+    const safe = Math.min(1, (edge + margin) / range)
+    const half = Math.asin(safe)
+    const a = wrapAngle(toIsland + half)
+    const b = wrapAngle(toIsland - half)
+    return Math.abs(angleDiff(a, desired)) < Math.abs(angleDiff(b, desired)) ? a : b
   }
 
   /**

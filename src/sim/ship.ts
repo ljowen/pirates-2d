@@ -110,6 +110,10 @@ export class Ship {
   sunk = false
   /** Seconds since the last hit — drives damage flashes and smoke. */
   sinceHit = 99
+  /** Water depth under the keel this step: 1 open sea, 0 on the beach. */
+  depth = 1
+  /** True while the keel is actually on the bottom. */
+  aground = false
 
   /** Reload timers per battery, port then starboard. */
   readonly reload: [number, number] = [0, 0]

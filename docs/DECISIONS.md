@@ -168,6 +168,28 @@ because the voyage has become considerably easier.
 more hulls stop adding difficulty and only add load; escalation continues through the
 shrinking spawn gap and the heavier hull mix instead.
 
+## Land
+
+**Terrain is generated from a hashed grid, not stored.** The arena is unbounded, so
+islands must exist wherever the player sails. A hash per cell gives infinite,
+deterministic coastline for no memory.
+
+**One shoreline function, shared by physics and rendering.** A circle for collision and
+a blob for the eye is a bug waiting to happen.
+
+**Draught makes land a weapon.** How deep a hull draws sets where she grounds and how
+shallows slow her, so a Brigantine is near-anchored in water a Pinnace crosses at speed.
+Because enemy avoidance also scales with draught, heavy hulls will not follow you in —
+making the shoals an escape valve rather than a place to farm bosses.
+
+**Land blocks shot and line of sight.** This is what turns an island from an obstacle
+into a tactic.
+
+**Enemy navigation is steering behaviour, not pathfinding.** Captains graze past
+obstacles along the tangent. A navigation mesh over infinite procedural terrain would
+cost far more than it returns for enemies on screen for half a minute. Measured at 0.00%
+of AI time aground.
+
 ## Still open
 
 - **One continuous space, or an overworld plus a battle screen?** Pirates! separates them;

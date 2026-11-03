@@ -8,10 +8,12 @@ import { Wake } from './render/wake'
 import { ShipView } from './render/shipView'
 import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
+import { TerrainView } from './render/terrainView'
 import { DraftUI } from './ui/draft'
 import { Hud } from './render/hud'
 import { DebugOverlay } from './render/debug'
 import { Tuner } from './ui/tuner'
+import { benchmark, simulateRun, autoPilot } from './dev/testPilot'
 import { Audio } from './audio/audio'
 import { AudioDirector } from './audio/director'
 import { T } from './sim/tuning'
@@ -46,8 +48,10 @@ async function main() {
   const shipLayer = new Container()
   const combat = new CombatView()
   const plunderView = new PlunderView()
-  // Wake under the hulls; plunder above the water but below the shot and smoke.
-  worldLayer.addChild(wake.view, plunderView.view, shipLayer, combat.view)
+  const terrainView = new TerrainView()
+  // Land sits on the water; wake above it so a ship's trail is never buried,
+  // then plunder, hulls, and finally shot and smoke over everything.
+  worldLayer.addChild(terrainView.view, wake.view, plunderView.view, shipLayer, combat.view)
   app.stage.addChild(water.view, worldLayer)
 
   // One view per ship, created on sight and dropped once she has gone under.
@@ -134,6 +138,7 @@ async function main() {
         wake.clear()
         combat.clear()
         plunderView.clear()
+        terrainView.clear()
         draft.hide()
         audioDirector.reset()
         camera.snapTo(world.player.pos)
@@ -160,6 +165,7 @@ async function main() {
 
       camera.follow(world.player, frameDt)
       water.update(camera, world.wind, frameDt)
+      terrainView.update(world.terrain, camera)
       wake.update(world.ships, dt)
       syncShipViews(dt, alpha)
       combat.update(world.ships, world.projectiles, world.splashes, world.wind, dt)
@@ -187,7 +193,14 @@ async function main() {
 
   // Prototype hook: lets the sim be driven and inspected from the console,
   // which is how the model gets regression-checked without a human at the helm.
-  ;(window as unknown as Record<string, unknown>).__game = { world, camera, loop, input, audio }
+  // Prototype hook plus the measurement harness, so balance can be checked
+  // from the console with a pilot that does not drift between runs.
+  ;(window as unknown as Record<string, unknown>).__game = {
+    world, camera, loop, input, audio,
+    benchmark: (seeds?: number) => { loop.stop(); return benchmark(world, seeds) },
+    simulateRun: (seed: number) => { loop.stop(); return simulateRun(world, seed) },
+    autoPilot,
+  }
 }
 
 main()

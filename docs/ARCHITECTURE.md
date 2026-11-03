@@ -71,6 +71,7 @@ about all four.
 | `run.ts` | Clock, levels, draft state, win/loss |
 | `upgrades.ts` | The draft pool and weighted drawing |
 | `plunder.ts` | Spoils, drift, magnet, collection |
+| `terrain.ts` | Islands from a hashed grid; the shoreline function physics and rendering share |
 | `tuning.ts` | Every number that shapes feel, plus its UI schema |
 
 **`render/`** — `camera`, `water`, `shipView`, `wake`, `combatView`, `plunderView`,
@@ -79,6 +80,10 @@ because text, arcs and plots are far easier in Canvas2D than in a scene graph.
 
 **`audio/`** — `audio.ts` is a procedural synthesiser; `director.ts` watches simulation
 state and decides what to play. See [AUDIO.md](AUDIO.md).
+
+**`dev/`** — `testPilot.ts`, a scripted captain and benchmark harness. Versioned rather
+than kept as a console snippet because every balance figure in these docs came out of it,
+and a pilot that drifts between measurements makes the numbers incomparable.
 
 **`ui/`** — `tuner.ts` (live parameter panel) and `draft.ts` (level-up cards). Both are
 DOM overlays rather than canvas, because they want hover states, scrolling and readable
@@ -159,6 +164,14 @@ simulation gets driven and regression-checked from the console without a human a
 helm. See [TUNING.md](TUNING.md) for the measurement patterns built on it.
 
 ## Coupled values to watch
+
+`landRadius()` in `terrain.ts` defines the shoreline, and **both the collision code and
+the renderer call it**. Never give either its own idea of where the edge is.
+
+Ordering matters when combining steering constraints: apply the **wind no-go clamp first,
+then land avoidance**. Doing it the other way round can throw a heading that was avoiding
+a shore straight back into it — a bug the test pilot had and the enemy captains did not.
+
 
 `cameraZoom` (0.75) and `spawnRadius` (1400) are linked. Enemies must appear beyond the
 edge of the view, so the spawn ring has to clear `viewportHalfWidth / zoom`. At 0.75 zoom

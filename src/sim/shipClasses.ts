@@ -30,6 +30,12 @@ export interface ShipClass {
   /** Incoming damage is divided by this. Below 1 means she is fragile. */
   hullStrength: number
 
+  /**
+   * How deep she draws, 0–1. Shallow hulls cross shoals a deep one cannot, so
+   * drawing a Brigantine over a reef is a weapon in its own right.
+   */
+  draught: number
+
   // --- Presentation --------------------------------------------------------
   scale: number
   colors: { hull: number; deck: number; trim: number; canvas: number }
@@ -44,6 +50,7 @@ export const PINNACE: ShipClass = {
   turnRate: 1.45, thrust: 0.88, drag: 1.12, crewSpeed: 1.2,
   guns: 0.34, reload: 1.2, range: 0.72, damage: 0.8,
   hullStrength: 0.26,
+  draught: 0.3,
   scale: 0.66,
   colors: { hull: 0x5c5a4a, deck: 0x8e8a72, trim: 0x2a2922, canvas: 0xe8e2d2 },
 }
@@ -54,6 +61,7 @@ export const BARQUE: ShipClass = {
   turnRate: 1.12, thrust: 0.94, drag: 1.04, crewSpeed: 1.0,
   guns: 0.67, reload: 1.08, range: 0.88, damage: 0.9,
   hullStrength: 0.58,
+  draught: 0.75,
   scale: 0.87,
   colors: { hull: 0x4e4436, deck: 0x8a7558, trim: 0x241f17, canvas: 0xe4dcc8 },
 }
@@ -68,6 +76,7 @@ export const BRIGANTINE: ShipClass = {
   turnRate: 1.0, thrust: 1.0, drag: 1.0, crewSpeed: 1.0,
   guns: 1.0, reload: 1.0, range: 1.0, damage: 1.0,
   hullStrength: 1.0,
+  draught: 1.0,
   scale: 1.0,
   colors: { hull: 0x4a3a46, deck: 0x7d6470, trim: 0x241c22, canvas: 0xdcd2d8 },
 }
@@ -83,6 +92,7 @@ export const SLOOP: ShipClass = {
   turnRate: 1.0, thrust: 1.0, drag: 1.0, crewSpeed: 1.0,
   guns: 1.0, reload: 1.0, range: 1.0, damage: 1.0,
   hullStrength: 1.0,
+  draught: 0.55,
   scale: 1.0,
   colors: { hull: 0x6b4423, deck: 0xa8763f, trim: 0x33210f, canvas: 0xf2ead6 },
 }

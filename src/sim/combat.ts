@@ -1,5 +1,6 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
+import type { Terrain } from './terrain'
 import { angleDiff, type Vec2 } from '../core/math'
 
 /**
@@ -91,6 +92,7 @@ function firingSolution(from: Ship, target: Ship): { dir: number; dist: number }
 export function updateGunnery(
   ship: Ship,
   enemies: Ship[],
+  terrain: Terrain,
   projectiles: Projectile[],
 ): void {
   if (ship.sunk) return
@@ -110,6 +112,8 @@ export function updateGunnery(
       const { dir, dist } = firingSolution(ship, target)
       if (dist > T.gunRange * ship.cls.range * ship.mods.range || dist > bestDist) continue
       if (Math.abs(angleDiff(dir, bearing)) > arc) continue
+      // Do not spend a broadside on a hull behind a headland.
+      if (terrain.blocked(ship.pos, target.pos, 6)) continue
       best = target
       bestDist = dist
       bestDir = dir
@@ -156,6 +160,7 @@ export interface CombatEvents {
 export function stepProjectiles(
   projectiles: Projectile[],
   ships: Ship[],
+  terrain: Terrain,
   dt: number,
   events: CombatEvents,
 ): Projectile[] {
@@ -168,6 +173,14 @@ export function stepProjectiles(
 
     if (p.life <= 0) {
       events.splashes.push({ pos: { ...p.pos }, life: 0.5, maxLife: 0.5, hit: false })
+      continue
+    }
+
+    // Shot buries itself in a shore rather than flying through it. This is
+    // what makes an island tactical: put one between you and a broadside and
+    // the broadside stops.
+    if (terrain.probe(p.pos).distance < 0) {
+      events.splashes.push({ pos: { ...p.pos }, life: 0.3, maxLife: 0.3, hit: true })
       continue
     }
 

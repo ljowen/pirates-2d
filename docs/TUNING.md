@@ -65,6 +65,25 @@ defaults in `tuning.ts` became invisible — code changes appeared to do nothing
 simulation gets driven and regression-checked from the browser console without a human at
 the helm, and it is how every measured table in these docs was produced.
 
+### The versioned harness
+
+`src/dev/testPilot.ts` holds the scripted captain and a benchmark runner, exposed on the
+debug hook:
+
+```js
+window.__game.benchmark(16)      // 16 seeds, returns win rate, median, levels, aground %
+window.__game.simulateRun(3)     // one seed, detailed
+```
+
+It lives in the repository rather than in a console snippet because every balance figure
+in these docs came out of it. A pilot that drifts between measurements makes the numbers
+incomparable — which happened once already, when a mid-comparison edit produced two
+"before and after" figures that were not measuring the same thing.
+
+The pilot holds the enemy abeam, breaks off downwind when badly hurt, sweeps nearby
+plunder, never pinches, and avoids land. Watch `avgAgroundPercent` in the result: if it
+climbs, the pilot is measuring its own incompetence rather than the game.
+
 ### Basic shape
 
 ```js
@@ -172,6 +191,11 @@ suspect a broken dependency before suspecting the balance.
 and run state on each render, so setting it from the console does nothing — the simulation
 keeps running and whatever you were trying to inspect flies away. Use `loop.stop()` for
 headless work, or press `P` to freeze a scene for a screenshot.
+
+**Give the measurement bot every capability the AI has.** Adding land avoidance to the
+enemy captains but not to the test pilot made terrain look like it halved the win rate
+(50% → 13%). It had not; the pilot was simply aground 18% of the time. A proxy missing a
+skill the real player has will report that skill's absence as difficulty.
 
 **Re-measure after retuning.** The ship class tables in [COMBAT.md](COMBAT.md) moved
 substantially when gunnery changed in Phase 3. Stale measurements presented as current

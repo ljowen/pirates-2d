@@ -73,6 +73,17 @@ export interface TuningValues {
   plunderMagnetRadius: number
   plunderMagnetPull: number
 
+  // --- Land --------------------------------------------------------------
+  islandDensity: number
+  islandCellSize: number
+  islandMinRadius: number
+  islandMaxRadius: number
+  shoalScale: number
+  groundingDamage: number
+  groundingDrag: number
+  shoalDraughtPenalty: number
+  aiLandLookahead: number
+
   // --- Enemy captains -----------------------------------------------------
   aiStandoff: number
   aiMinRange: number
@@ -145,6 +156,16 @@ export const DEFAULT_TUNING: TuningValues = {
   plunderMagnetRadius: 190,
   plunderMagnetPull: 420,
 
+  islandDensity: 0.42,
+  islandCellSize: 1500,
+  islandMinRadius: 90,
+  islandMaxRadius: 260,
+  shoalScale: 1.7,
+  groundingDamage: 0.1,
+  groundingDrag: 7,
+  shoalDraughtPenalty: 0.55,
+  aiLandLookahead: 320,
+
   aiStandoff: 230,
   aiMinRange: 120,
   aiBeatAngle: 60,
@@ -216,6 +237,16 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'plunderPickupRadius', label: 'Pickup radius', min: 15, max: 150, step: 1, group: 'The run' },
   { key: 'plunderMagnetRadius', label: 'Magnet radius', min: 30, max: 600, step: 10, group: 'The run', help: 'Plunder inside this is drawn to you. Larger means less sailing back for scraps.' },
   { key: 'plunderMagnetPull', label: 'Magnet strength', min: 50, max: 1500, step: 10, group: 'The run' },
+
+  { key: 'islandDensity', label: 'Island frequency', min: 0, max: 1, step: 0.02, group: 'Land', help: 'Chance of an island per grid cell. 0 restores open ocean.' },
+  { key: 'islandCellSize', label: 'Island spacing', min: 600, max: 4000, step: 50, group: 'Land', help: 'Grid cell size. Larger means islands are further apart.' },
+  { key: 'islandMinRadius', label: 'Island size, min', min: 40, max: 400, step: 10, group: 'Land' },
+  { key: 'islandMaxRadius', label: 'Island size, max', min: 60, max: 700, step: 10, group: 'Land' },
+  { key: 'shoalScale', label: 'Shoal ring', min: 1, max: 3, step: 0.05, group: 'Land', help: 'How far shallow water extends beyond the beach, as a multiple of island radius.' },
+  { key: 'groundingDamage', label: 'Grounding damage', min: 0, max: 0.5, step: 0.01, group: 'Land', help: 'Hull lost per second while aground.' },
+  { key: 'groundingDrag', label: 'Grounding drag', min: 1, max: 30, step: 0.5, group: 'Land', help: 'How hard the bottom holds you once you touch it.' },
+  { key: 'shoalDraughtPenalty', label: 'Shoal drag penalty', min: 0, max: 2, step: 0.05, group: 'Land', help: 'Extra drag in shallows, scaled by how deep the hull draws.' },
+  { key: 'aiLandLookahead', label: 'AI land lookahead', min: 80, max: 800, step: 20, group: 'Enemy captains', help: 'How far ahead an enemy captain watches for a shore.' },
 
   { key: 'aiStandoff', label: 'AI standoff range', min: 80, max: 700, step: 10, group: 'Enemy captains' },
   { key: 'aiMinRange', label: 'AI minimum range', min: 40, max: 400, step: 10, group: 'Enemy captains', help: 'Closer than this and they sheer off rather than foul you.' },

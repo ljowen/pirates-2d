@@ -9,6 +9,8 @@
 | 2 — Combat: broadsides, shot travel, damage model, enemy captains | **Done** |
 | 3 — The swarm: director, plunder, draft, bosses, win/loss | **Done**, curve confirmed winnable |
 | — Sound | **Done** |
+| — Endless mode | **Done** |
+| — Land: islands, shoals, draught, grounding, cover | **Done** |
 
 The game is playable end to end. The systems are in place and measured. What it does not
 yet have is a finished difficulty curve, any visual identity beyond programmer art, or
@@ -41,10 +43,9 @@ different directions. The actual art should wait until the entity roster stops c
 
 ### 4. Scenario — [plans/scenario.md](plans/scenario.md)
 
-Weather variation is nearly free and should be pulled forward — squalls are half-built.
-**Landmasses and reefs are the single most expensive item on this list** and genuinely
-deepen the sailing game, but they need collision, generation and AI navigation. Treat
-weather and terrain as separate pieces of work.
+**Landmasses are done** — see [TERRAIN.md](TERRAIN.md). What remains of this plan is
+weather, which is nearly free since squalls are half-built, plus reefs as standalone
+hazards and eventually authored coastlines.
 
 ### 5. Meta progression — [plans/progression-meta.md](plans/progression-meta.md)
 

@@ -53,6 +53,7 @@ memorised from here.
 | 2 — Combat: broadsides, shot with travel time, damage model, enemy captains | **Done** |
 | 3 — The swarm: spawn director, plunder, level-up draft, bosses, win/loss | **Done** |
 | — Endless mode: sail on past the voyage for a score | **Done** |
+| — Land: islands, shoals, draught, grounding, cover | **Done** |
 | 4+ — Scenario, art direction, meta progression | Planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Documentation
@@ -65,6 +66,7 @@ memorised from here.
 | [docs/SAILING.md](docs/SAILING.md) | The polar curve, leeway, tacking, sail states |
 | [docs/COMBAT.md](docs/COMBAT.md) | Gunnery, damage, ship classes, enemy captains |
 | [docs/PROGRESSION.md](docs/PROGRESSION.md) | Run structure, spawn director, plunder, the draft |
+| [docs/TERRAIN.md](docs/TERRAIN.md) | Islands, shoals, draught, grounding and cover |
 | [docs/AUDIO.md](docs/AUDIO.md) | Procedural sound and the simulation-driven beds |
 | [docs/TUNING.md](docs/TUNING.md) | The tuning panel and the headless measurement harness |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Why things are the way they are, and departures from Pirates! |
@@ -85,11 +87,13 @@ memorised from here.
 ```
 src/
   core/     loop (fixed timestep), input, math, noise, rng
-  sim/      world, ship, wind, polar, combat, ai, shipClasses,
+  sim/      world, ship, wind, polar, combat, ai, shipClasses, terrain,
             director, run, upgrades, plunder, tuning
-  render/   camera, water, shipView, wake, combatView, plunderView, hud, debug
+  render/   camera, water, terrainView, shipView, wake, combatView,
+            plunderView, hud, debug
   audio/    audio (procedural synthesis), director
   ui/       tuner, draft
+  dev/      testPilot — the scripted captain used for balance measurement
 docs/       reference documentation and forward plans
 ```
 

@@ -1,7 +1,13 @@
 # Plan: scenario — weather and terrain
 
-Two very different pieces of work that are easy to conflate. **Weather is nearly free.
-Terrain is the most expensive item on the roadmap.** Treat them separately.
+Two very different pieces of work that are easy to conflate.
+
+**Terrain is built** — islands, shoals, draught, grounding, cover and AI avoidance. See
+[../TERRAIN.md](../TERRAIN.md) for what shipped and what it measured. The sequencing
+below proved right: starting with simple obstacles answered "is this worth it?" cheaply,
+and the steering-behaviour bet for AI navigation held up at 0.00% time aground.
+
+**Weather is still open**, and remains the cheap half.
 
 ## Part 1: Weather (cheap, do it early)
 

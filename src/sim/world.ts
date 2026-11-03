@@ -4,6 +4,7 @@ import { Director } from './director'
 import { Run } from './run'
 import { dropPlunder, stepPlunder, type Plunder } from './plunder'
 import { UPGRADES_BY_ID } from './upgrades'
+import { Terrain } from './terrain'
 import { makeRng } from '../core/rng'
 import { T } from './tuning'
 import { Wind } from './wind'
@@ -27,6 +28,7 @@ export class World {
   readonly ships: Ship[] = []
   readonly captains = new Map<number, CaptainAI>()
 
+  readonly terrain = new Terrain()
   readonly director = new Director()
   private rand = makeRng(0xc0ffee)
   run = new Run(() => this.rand())
@@ -49,8 +51,19 @@ export class World {
   private spawnCursor = 0
 
   constructor() {
-    this.spawn('player', SLOOP, 0, 0, 0)
+    this.placePlayerClearOfLand()
     this.run.grantStarting(this.player)
+  }
+
+  /** Open the run in open water, however the terrain seed falls. */
+  private placePlayerClearOfLand() {
+    const ship = this.spawn('player', SLOOP, 0, 0, 0)
+    for (let i = 0; i < 64 && this.terrain.probe(ship.pos).depth < 1; i++) {
+      const a = i * 2.39996
+      const r = 120 * Math.sqrt(i + 1)
+      ship.pos = { x: Math.cos(a) * r, y: Math.sin(a) * r }
+    }
+    ship.prevPos = { ...ship.pos }
   }
 
   get player() { return this.ships[0] }
@@ -140,9 +153,20 @@ export class World {
   /** Put a new hull on the horizon, clear of anyone already there. */
   private spawnAtRange(cls: ShipClass, isBoss = false) {
     const p = this.player
-    const a = this.rand() * Math.PI * 2
-    const r = T.spawnRadius * (0.92 + this.rand() * 0.22)
-    const ship = this.spawn('enemy', cls, p.pos.x + Math.cos(a) * r, p.pos.y + Math.sin(a) * r, a + Math.PI)
+    let a = 0
+    let r = 0
+    let x = 0
+    let y = 0
+    // Never put a hull on a beach. A handful of tries is plenty; the fallback
+    // is simply the last position, which is at worst a brief grounding.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      a = this.rand() * Math.PI * 2
+      r = T.spawnRadius * (0.92 + this.rand() * 0.22)
+      x = p.pos.x + Math.cos(a) * r
+      y = p.pos.y + Math.sin(a) * r
+      if (this.terrain.probe({ x, y }).depth > 0.9) break
+    }
+    const ship = this.spawn('enemy', cls, x, y, a + Math.PI)
     ship.sailOrder = 2
     ship.canvas = 1
     ship.isBoss = isBoss
@@ -171,7 +195,7 @@ export class World {
     for (const ship of this.ships) {
       if (ship.sunk) continue
       if (ship.faction === 'enemy') {
-        this.captains.get(ship.id)?.think(ship, player, this.wind, dt)
+        this.captains.get(ship.id)?.think(ship, player, this.wind, this.terrain, dt)
       }
     }
 
@@ -183,16 +207,17 @@ export class World {
     }
 
     // --- Gunnery ------------------------------------------------------------
-    if (!player.sunk) updateGunnery(player, enemies, this.projectiles)
-    for (const ship of enemies) updateGunnery(ship, [player], this.projectiles)
+    if (!player.sunk) updateGunnery(player, enemies, this.terrain, this.projectiles)
+    for (const ship of enemies) updateGunnery(ship, [player], this.terrain, this.projectiles)
 
     this.separate()
+    this.groundings(dt)
 
     // Step-local, so a sinking is accounted for exactly once no matter who is
     // or is not draining the public event list.
     const sunkThisStep: Ship[] = []
     const events: CombatEvents = { splashes: this.splashes, sunk: sunkThisStep }
-    this.projectiles = stepProjectiles(this.projectiles, this.ships, dt, events)
+    this.projectiles = stepProjectiles(this.projectiles, this.ships, this.terrain, dt, events)
     this.splashes = stepSplashes(this.splashes, dt)
 
     // --- Spoils --------------------------------------------------------------
@@ -204,6 +229,17 @@ export class World {
     if (sunkThisStep.length) this.sunkEvents.push(...sunkThisStep)
     const swept = stepPlunder(this.plunder, this.player, this.wind, dt)
     this.plunder = swept.remaining
+    // Spoils washed up on a beach would be unreachable through no fault of the
+    // player, so nudge any that drift ashore back into navigable water.
+    for (const piece of this.plunder) {
+      const probe = this.terrain.probe(piece.pos)
+      if (!probe.island || probe.distance > 0) continue
+      const dx = piece.pos.x - probe.island.x
+      const dy = piece.pos.y - probe.island.y
+      const len = Math.hypot(dx, dy) || 1
+      piece.pos.x += (dx / len) * (-probe.distance + 12)
+      piece.pos.y += (dy / len) * (-probe.distance + 12)
+    }
     this.run.collect(swept.collected)
 
     // Hulls that have finished going down stop being part of the simulation.
@@ -213,6 +249,70 @@ export class World {
         if (!s.sunk) continue
         this.captains.delete(s.id)
         this.ships.splice(i, 1)
+      }
+    }
+  }
+
+  /**
+   * Land stops ships, and shallows slow the deep-draughted ones. Handled here
+   * rather than inside `Ship` so the hull physics stay free of any knowledge
+   * of terrain — the same reason gunnery and AI live outside it.
+   */
+  private groundings(dt: number) {
+    for (const ship of this.ships) {
+      if (ship.sunk) continue
+      const { island, distance, depth } = this.terrain.probe(ship.pos)
+      ship.depth = depth
+      ship.aground = false
+      if (!island) continue
+
+      const dx = ship.pos.x - island.x
+      const dy = ship.pos.y - island.y
+      const len = Math.hypot(dx, dy) || 1
+      const nx = dx / len
+      const ny = dy / len
+
+      // Shallows drag on a deep keel long before she actually touches.
+      if (depth < 1) {
+        const bite = T.shoalDraughtPenalty * ship.cls.draught * (1 - depth)
+        const scale = Math.max(0, 1 - bite * dt)
+        ship.vel.x *= scale
+        ship.vel.y *= scale
+      }
+
+      // Aground: the bottom has come up to meet the keel. Contact is measured
+      // against the hull's half-beam, not against the shoreline itself — a
+      // ship touches before her centre is over dry land, and testing for the
+      // latter meant grounding could never fire at all.
+      // How far out she touches depends on how deep she draws. This is what
+      // makes draught a real mechanic rather than a drag modifier: a Pinnace
+      // can cross water that strands a Brigantine, so leading a heavy hull
+      // over a shoal is a weapon.
+      const keel = 10 + 26 * ship.cls.draught
+      if (distance < keel) {
+        ship.aground = true
+
+        // Speed into the shore at the moment of contact, used to scale the
+        // damage: drifting onto a beach should not cost what charging it does.
+        const into = ship.vel.x * nx + ship.vel.y * ny
+        const impact = Math.max(0, -into)
+
+        const push = (keel - distance) * Math.min(1, T.groundingDrag * dt)
+        ship.pos.x += nx * push
+        ship.pos.y += ny * push
+
+        if (into < 0) {
+          ship.vel.x -= nx * into
+          ship.vel.y -= ny * into
+        }
+
+        const severity = 0.25 + 0.75 * Math.min(1, impact / 140)
+        const died = ship.applyDamage(T.groundingDamage * severity * dt, 0, 0)
+        if (died) this.sunkEvents.push(ship)
+
+        const hold = Math.max(0, 1 - T.groundingDrag * dt)
+        ship.vel.x *= hold
+        ship.vel.y *= hold
       }
     }
   }
@@ -255,7 +355,7 @@ export class World {
     this.rand = makeRng(seed)
     this.run = new Run(() => this.rand())
     this.director.reset()
-    this.spawn('player', SLOOP, 0, 0, 0)
+    this.placePlayerClearOfLand()
     this.run.grantStarting(this.player)
   }
 }
