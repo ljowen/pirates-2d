@@ -1,0 +1,169 @@
+import { Container, Graphics } from 'pixi.js'
+import type { Ship } from '../sim/ship'
+import type { ShipClass } from '../sim/shipClasses'
+import { lerp } from '../core/math'
+
+const LENGTH = 58
+const BEAM = 17
+
+/**
+ * Programmer art, deliberately: a hull polygon with square-rigged sails that
+ * fill and luff. Feel comes out of motion long before it comes out of sprites,
+ * so this stays vector until the model is locked.
+ */
+export class ShipView {
+  readonly view = new Container()
+  private readonly heelLayer = new Container()
+  private readonly hull = new Graphics()
+  private readonly sails = new Graphics()
+  private readonly shadow = new Graphics()
+  private sinkTime = 0
+
+  private readonly palette: ShipClass['colors']
+  private readonly baseScale: number
+
+  constructor(cls: ShipClass) {
+    this.palette = cls.colors
+    this.view.addChild(this.shadow, this.heelLayer)
+    this.heelLayer.addChild(this.hull, this.sails)
+    // Hull size is a class property, so a Pinnace reads as small at a glance.
+    this.view.scale.set(cls.scale)
+    this.baseScale = cls.scale
+    this.drawHull()
+    this.drawShadow()
+  }
+
+  private drawShadow() {
+    this.shadow.ellipse(0, 0, LENGTH * 0.55, BEAM * 0.95).fill({ color: 0x041420, alpha: 0.35 })
+  }
+
+  private drawHull() {
+    const h = this.hull
+    const L = LENGTH / 2
+    const B = BEAM / 2
+    const p = this.palette
+
+    h.poly([
+      L, 0, L * 0.55, -B * 0.85, -L * 0.55, -B,
+      -L, -B * 0.72, -L, B * 0.72, -L * 0.55, B, L * 0.55, B * 0.85,
+    ]).fill({ color: p.hull }).stroke({ width: 1.5, color: p.trim, alignment: 0.5 })
+
+    h.poly([
+      L * 0.78, 0, L * 0.4, -B * 0.55, -L * 0.78, -B * 0.6,
+      -L * 0.78, B * 0.6, L * 0.4, B * 0.55,
+    ]).fill({ color: p.deck })
+
+    h.moveTo(L * 0.5, -B * 0.82).lineTo(-L * 0.8, -B * 0.88).stroke({ width: 2, color: p.trim })
+    h.moveTo(L * 0.5, B * 0.82).lineTo(-L * 0.8, B * 0.88).stroke({ width: 2, color: p.trim })
+    h.moveTo(L, 0).lineTo(L + 13, 0).stroke({ width: 2.5, color: p.trim })
+  }
+
+  /**
+   * Redrawn each frame. A square rig braces its yards round as the wind moves
+   * aft — hard round when close hauled, square across the hull when running —
+   * and the canvas bellies out to leeward. That makes the rig itself a readout
+   * of your point of sail, which is worth more than any HUD element.
+   */
+  private drawSails(ship: Ship) {
+    const s = this.sails
+    s.clear()
+
+    const canvas = ship.canvas
+    const drawing = ship.polarMult
+    const localWindTo = wrapPi(Math.PI - ship.awaSigned)
+
+    const MAX_BRACE = 1.15
+    const brace = Math.max(-MAX_BRACE, Math.min(MAX_BRACE, localWindTo))
+
+    const yardA = Math.PI / 2 + brace
+    const yx = Math.cos(yardA)
+    const yy = Math.sin(yardA)
+
+    let bx = -yy
+    let by = yx
+    if (bx * Math.cos(localWindTo) + by * Math.sin(localWindTo) < 0) { bx = -bx; by = -by }
+
+    const masts = [LENGTH * 0.18, -LENGTH * 0.24]
+
+    masts.forEach((mx, i) => {
+      // Shot-away canvas literally shrinks the sail, so a crippled ship looks
+      // crippled before you read any health bar.
+      const halfWidth = BEAM * (1.55 - i * 0.18) * (0.35 + 0.65 * ship.sails)
+
+      if (canvas < 0.04) {
+        s.moveTo(mx - yx * halfWidth, -yy * halfWidth)
+          .lineTo(mx + yx * halfWidth, yy * halfWidth)
+          .stroke({ width: 2.4, color: 0x4a3b22 })
+        return
+      }
+
+      const belly = BEAM * (0.25 + 0.95 * drawing) * canvas
+      const shiver = (1 - drawing) * Math.sin(performance.now() * 0.02 + i * 2.1) * BEAM * 0.22
+      const push = belly + shiver
+
+      const ax = mx - yx * halfWidth
+      const ay = -yy * halfWidth
+      const cx2 = mx + yx * halfWidth
+      const cy2 = yy * halfWidth
+
+      s.poly([
+        ax, ay,
+        mx - yx * halfWidth * 0.45 + bx * push * 0.72, -yy * halfWidth * 0.45 + by * push * 0.72,
+        mx + bx * push, by * push,
+        mx + yx * halfWidth * 0.45 + bx * push * 0.72, yy * halfWidth * 0.45 + by * push * 0.72,
+        cx2, cy2,
+      ])
+        .fill({ color: this.palette.canvas, alpha: 0.88 * (0.45 + 0.55 * ship.sails) })
+        .stroke({ width: 1, color: 0xb9a88a })
+
+      s.moveTo(ax, ay).lineTo(cx2, cy2).stroke({ width: 2.4, color: 0x4a3b22 })
+    })
+  }
+
+  update(ship: Ship, alpha: number, dt: number) {
+    const x = lerp(ship.prevPos.x, ship.pos.x, alpha)
+    const y = lerp(ship.prevPos.y, ship.pos.y, alpha)
+    const heading = ship.prevHeading + shortestDelta(ship.prevHeading, ship.heading) * alpha
+    const heel = lerp(ship.prevHeel, ship.heel, alpha)
+
+    this.view.position.set(x, y)
+    this.view.rotation = heading
+
+    this.view.scale.set(this.baseScale)
+    this.heelLayer.scale.set(1, Math.cos(heel * 1.3))
+    this.heelLayer.position.set(0, Math.sin(heel) * BEAM * 0.5)
+    this.shadow.position.set(-Math.sin(heel) * 5, Math.sin(heel) * 3)
+
+    this.drawSails(ship)
+
+    // A fresh hit whitens the hull for an instant — the cheapest possible
+    // confirmation that your shot connected.
+    this.hull.tint = ship.sinceHit < 0.12 ? 0xffd0d0 : 0xffffff
+
+    if (ship.sunk) {
+      // Settle by the head, roll over, and go under.
+      this.sinkTime += dt
+      const t = Math.min(this.sinkTime / 2.4, 1)
+      this.view.alpha = 1 - t
+      this.view.scale.set(this.baseScale * (1 - t * 0.45))
+      this.heelLayer.rotation = t * 0.8
+    }
+  }
+
+  /** True once the sinking animation has finished and the view can be dropped. */
+  get finishedSinking() { return this.sinkTime >= 2.4 }
+}
+
+function wrapPi(a: number): number {
+  let d = a % (Math.PI * 2)
+  if (d > Math.PI) d -= Math.PI * 2
+  if (d < -Math.PI) d += Math.PI * 2
+  return d
+}
+
+function shortestDelta(a: number, b: number): number {
+  let d = (b - a) % (Math.PI * 2)
+  if (d > Math.PI) d -= Math.PI * 2
+  if (d < -Math.PI) d += Math.PI * 2
+  return d
+}
