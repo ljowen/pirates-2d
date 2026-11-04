@@ -153,9 +153,22 @@ around 200 units/second. The HUD labels speed "kn" as flavour — it is not knot
 
 ### Determinism
 
-`World` owns a seeded `makeRng`. `world.reset(seed)` reproduces a run exactly. The wind
-uses seeded value noise. Avoid `Math.random()` in `sim/` — it exists only in presentation
+`world.reset(seed)` reproduces a run exactly — verified by running a seed three times and
+comparing the full result. Avoid `Math.random()` in `sim/`; it exists only in presentation
 code (`wake`, `combatView`, `plunderView`) where reproducibility does not matter.
+
+Two rules make that hold, both learned the hard way:
+
+**Independent systems get independent streams.** Gunnery draws from `gunRand`, not the
+world PRNG. Sharing one stream meant the *number of shots fired* shifted every later
+draw — spawn positions, plunder scatter, the draft — so adding jitter to the gun ripple
+silently rerolled entire runs and looked like a catastrophic balance regression (31% →
+6%). Deterministic systems that share a stream are not independently testable.
+
+**Everything stateful must actually reset.** The wind's internal clock was never cleared,
+so each `reset(seed)` began at a different point in the weather. Every benchmark taken
+before this fix carried that noise; comparisons meant to differ only by the change under
+test also differed by the wind.
 
 ## Debug hook
 

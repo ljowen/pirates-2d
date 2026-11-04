@@ -75,6 +75,11 @@ window.__game.benchmark(16)      // 16 seeds, returns win rate, median, levels, 
 window.__game.simulateRun(3)     // one seed, detailed
 ```
 
+Results are **reproducible**: the same seed replays exactly, and two consecutive
+benchmarks return identical figures. That was not true until recently — the wind was
+never reset between runs — so figures quoted earlier in this project's history carry more
+noise than they appear to.
+
 It lives in the repository rather than in a console snippet because every balance figure
 in these docs came out of it. A pilot that drifts between measurements makes the numbers
 incomparable — which happened once already, when a mid-comparison edit produced two
@@ -196,6 +201,10 @@ headless work, or press `P` to freeze a scene for a screenshot.
 enemy captains but not to the test pilot made terrain look like it halved the win rate
 (50% → 13%). It had not; the pilot was simply aground 18% of the time. A proxy missing a
 skill the real player has will report that skill's absence as difficulty.
+
+**Check reproducibility before trusting a comparison.** Run the same seed twice. If it
+diverges, something stateful is not being reset, or two systems are sharing a PRNG stream
+— and every number you are about to compare is noise.
 
 **A feel change can be a balance change.** Staggering the guns was asked for as a
 presentation tweak and cut the win rate nearly in half, because it quietly made every

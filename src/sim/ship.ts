@@ -121,8 +121,14 @@ export class Ship {
   readonly reload: [number, number] = [0, 0]
   /** Seconds since each battery last fired, for muzzle smoke. */
   readonly sinceFired: [number, number] = [99, 99]
-  /** Monotonic count of volleys fired, so the renderer can spot the moment. */
+  /** Monotonic count of volleys ordered, so audio can spot the moment. */
   readonly shotCount: [number, number] = [0, 0]
+  /**
+   * Monotonic count of individual guns that have spoken. Separate from
+   * `shotCount` because smoke belongs to each gun as it fires, while the
+   * broadside's report belongs to the volley.
+   */
+  readonly gunsFired: [number, number] = [0, 0]
 
   // Previous-step state, so rendering can interpolate between fixed steps.
   prevPos: Vec2 = { x: 0, y: 0 }

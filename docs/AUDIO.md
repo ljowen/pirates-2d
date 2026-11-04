@@ -36,8 +36,9 @@ the game is muted.
 | **Sail change** | Filtered noise, sweeping up when making sail and down when shortening |
 
 Broadsides fire as a **ripple rather than one blast**, timed off `gunRippleGap` so what
-you hear lines up with the smoke you see and the shot that leaves the side. The spacing is
-jittered, because a perfectly even ripple sounds mechanical.
+you hear lines up with the smoke you see and the shot that leaves the side. The gap is a
+ceiling rather than a metronome — the cracks fall irregularly under it, matching how the
+guns themselves are scheduled, because a perfectly even ripple sounds mechanical.
 
 **Sinking is water, not a dying machine.** It was originally built around a sawtooth
 sweeping down to 28 Hz, which read as something mechanical expiring. Water has no pitch to

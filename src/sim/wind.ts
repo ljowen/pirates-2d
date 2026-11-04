@@ -36,6 +36,20 @@ export class Wind {
     this.strength = clamp(T.windBaseStrength * (1 + gust * T.windGustAmount), 0.1, 3)
   }
 
+  /**
+   * Return to the start of the wind's wander.
+   *
+   * Without this the internal clock carried across runs, so `World.reset(seed)`
+   * began each one at a different point in the weather — making every
+   * benchmark quietly irreproducible, and adding noise to comparisons that
+   * were supposed to differ only by the change under test.
+   */
+  reset() {
+    this.t = 0
+    this.from = this.meanFrom
+    this.strength = 1
+  }
+
   /** Beaufort-ish label for the HUD. */
   describe(): string {
     const s = this.strength

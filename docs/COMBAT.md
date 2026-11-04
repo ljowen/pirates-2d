@@ -25,15 +25,33 @@ aims properly, leading the target by its velocity.
 - **Accuracy falls off with range**, so closing is rewarded.
 - **A volley spreads evenly across the arc** rather than randomly, so a broadside reads
   as a wall of shot instead of a shotgun blast.
-- **Guns fire as a real ripple**, not one blast. Each gun is queued and released in turn
-  (`gunRippleGap`, capped so a big battery never takes more than half a second), with
-  smoke blooming down the hull in step. Historically accurate and far more legible.
+- **Guns fire as a real ripple**, not one blast. Each gun is queued and released in turn,
+  with smoke blooming down the hull in step as each one actually speaks.
+- **The ripple is irregular.** `gunRippleGap` is the *longest* a gun may take, not a
+  metronome setting; each fires somewhere under it. The whole volley is also capped at
+  half a second so a heavily gunned ship is never stuck working through her battery.
 - **Each gun is re-laid at the moment it speaks**, not when the order was given — the way
   a broadside was actually worked, each gun captain firing as his gun bore.
 
 The HUD draws the arcs on the water as two wedges either side of the hull, brightening
 when a loaded battery actually bears. That teaches the mechanic without a word of
 tutorial: you can see that the ship has to come abeam.
+
+### Crew steadiness
+
+How even the ripple is depends on the crew. A well-drilled crew keeps a tight, brisk
+rhythm; a shot-up one is both slower between guns and far less regular about it — so crew
+damage has an audible tell inside the volley, not just in the reload timer.
+
+Measured gaps against a 0.071s ceiling:
+
+| Crew | Mean gap | Spread | Range |
+|---|---|---|---|
+| Fresh (1.0) | 0.035 | 0.0022 | 0.031–0.039 |
+| Half (0.5) | 0.042 | 0.0037 | 0.036–0.049 |
+| Mauled (0.15) | 0.046 | **0.0051** | 0.038–0.055 |
+
+A mauled crew is 2.3× raggeder and never exceeds the ceiling.
 
 ### Why per-gun aiming matters
 

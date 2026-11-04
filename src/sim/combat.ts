@@ -1,7 +1,7 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
 import type { Terrain } from './terrain'
-import { angleDiff, type Vec2 } from '../core/math'
+import { angleDiff, clamp, type Vec2 } from '../core/math'
 
 /**
  * Gunnery. The guns fire themselves the moment a target bears — the player's
@@ -116,6 +116,7 @@ export function updateGunnery(
   enemies: Ship[],
   terrain: Terrain,
   pending: PendingShot[],
+  rand: () => number,
 ): void {
   if (ship.sunk) return
   const arc = (T.gunArcDegrees * Math.PI) / 180
@@ -153,14 +154,25 @@ export function updateGunnery(
     const damage = T.damagePerBall * ship.cls.damage * ship.mods.damage
     // Cap the whole volley's length so a heavily gunned ship does not spend
     // an age working through her battery.
-    const gap = Math.min(T.gunRippleGap, 0.5 / Math.max(1, guns - 1))
+    const maxGap = Math.min(T.gunRippleGap, 0.5 / Math.max(1, guns - 1))
 
+    // No gun crew is a metronome. `gunRippleGap` is the *longest* a gun may
+    // take; each one actually fires somewhere under it.
+    //
+    // A well-drilled crew keeps a tight, brisk rhythm. A shot-up one is both
+    // slower between guns and far less even about it, so crew damage has an
+    // audible tell within the volley as well as in the reload timer.
+    const steadiness = Math.min(1, clamp((0.4 + 0.6 * ship.crew) * ship.mods.crewSpeed, 0.2, 1.3))
+    const slowest = 0.55 + 0.45 * (1 - steadiness)
+    const quickest = slowest * (0.55 + 0.25 * steadiness)
+
+    let delay = 0
     for (let i = 0; i < guns; i++) {
       // Spread the volley evenly across the arc rather than randomly, so a
       // broadside reads as a wall of shot instead of a shotgun blast.
       const offset = guns === 1 ? 0 : (i / (guns - 1) - 0.5) * 2 * spread
       pending.push({
-        delay: i * gap,
+        delay,
         ship,
         battery,
         target: best,
@@ -171,6 +183,7 @@ export function updateGunnery(
         // Shot type travels with the ball, so what you loaded is what lands.
         split,
       })
+      delay += maxGap * (quickest + rand() * (slowest - quickest))
     }
 
     ship.reload[battery] = T.gunReload * ship.cls.reload * ship.mods.reload
@@ -219,6 +232,7 @@ export function releasePending(
       split: shot.split,
     })
     shot.ship.sinceFired[shot.battery] = 0
+    shot.ship.gunsFired[shot.battery]++
   }
 
   return waiting

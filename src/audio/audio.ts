@@ -186,9 +186,12 @@ export class Audio {
     const now = ctx.currentTime
     const cracks = clamp(Math.round(guns / 1.5), 1, 6)
 
+    let offset = 0
     for (let i = 0; i < cracks; i++) {
-      // Jittered around the true gap: a perfectly even ripple sounds mechanical.
-      const t = now + i * rippleGap * (0.85 + Math.random() * 0.5)
+      // The gap is a ceiling, not a metronome — matching how the guns
+      // themselves are now scheduled. An even ripple sounds mechanical.
+      const t = now + offset
+      offset += rippleGap * (0.45 + Math.random() * 0.55)
       const level = dist * 0.5 * (1 - i * 0.12)
 
       // Body: a noise burst with the filter sweeping shut.

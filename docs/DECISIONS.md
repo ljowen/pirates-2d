@@ -168,6 +168,11 @@ because the voyage has become considerably easier.
 more hulls stop adding difficulty and only add load; escalation continues through the
 shrinking spawn gap and the heavier hull mix instead.
 
+**Gun crews are not metronomes.** The ripple gap is a ceiling, and each gun fires
+somewhere under it. A well-drilled crew keeps a tight rhythm; a shot-up one is slower and
+2.3× raggeder, which gives crew damage a tell inside the volley rather than only in the
+reload timer.
+
 ## Land
 
 **Terrain is generated from a hashed grid, not stored.** The arena is unbounded, so

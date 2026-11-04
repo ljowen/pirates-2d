@@ -3,12 +3,8 @@ import type { Ship } from '../sim/ship'
 import type { Projectile, Splash } from '../sim/combat'
 import { batteryBearing } from '../sim/combat'
 import type { Wind } from '../sim/wind'
-import { T } from '../sim/tuning'
 
 interface Smoke { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }
-
-/** A battery working down its guns, blooming smoke as each one speaks. */
-interface Battery { ship: Ship; battery: 0 | 1; remaining: number; timer: number; gap: number }
 
 /**
  * Shot, splashes and gun smoke. Smoke does most of the work here: a broadside
@@ -20,8 +16,7 @@ export class CombatView {
   private readonly smokeG = new Graphics()
   private readonly shotG = new Graphics()
   private smoke: Smoke[] = []
-  private firing: Battery[] = []
-  private readonly lastShot = new Map<string, number>()
+  private readonly lastGun = new Map<string, number>()
 
   constructor() {
     // Smoke under the shot so balls stay legible against it.
@@ -30,51 +25,32 @@ export class CombatView {
 
   update(ships: Ship[], projectiles: Projectile[], splashes: Splash[], wind: Wind, dt: number) {
     this.emitMuzzleSmoke(ships)
-    this.stepBatteries(dt)
     this.stepSmoke(wind, dt)
     this.drawSmoke()
     this.drawShot(projectiles, splashes)
   }
 
-  /** Detect the instant a battery speaks, rather than guessing from a timer. */
+  /**
+   * One bank of smoke per gun, emitted when that gun actually fires.
+   *
+   * This watches the simulation's own per-gun counter rather than predicting
+   * a schedule from the ripple gap. Since the gaps became irregular — gun
+   * crews are not metronomes — a predicted schedule would drift out of step
+   * with the shot leaving the side.
+   */
   private emitMuzzleSmoke(ships: Ship[]) {
     for (const ship of ships) {
       for (const battery of [0, 1] as const) {
         const key = `${ship.id}:${battery}`
-        const count = ship.shotCount[battery]
-        if (this.lastShot.get(key) === count) continue
-        this.lastShot.set(key, count)
-        if (count === 0) continue
-
-        // Queue the battery rather than dumping its whole bank at once, so
-        // the smoke rolls down the hull in step with the guns firing.
-        const guns = Math.max(
-          1,
-          Math.round(T.gunsPerBroadside * ship.cls.guns) + ship.mods.extraGuns,
-        )
-        this.firing.push({
-          ship, battery,
-          remaining: guns,
-          timer: 0,
-          gap: Math.max(0.01, T.gunRippleGap),
-        })
+        const fired = ship.gunsFired[battery]
+        const seen = this.lastGun.get(key)
+        this.lastGun.set(key, fired)
+        if (seen === undefined || fired === seen) continue
+        // Catch up on anything missed in a dropped frame, within reason.
+        const guns = Math.min(fired - seen, 8)
+        for (let i = 0; i < guns; i++) this.puffFrom(ship, battery, fired - i)
       }
     }
-  }
-
-  /** Let each waiting gun bloom its own smoke as its moment arrives. */
-  private stepBatteries(dt: number) {
-    const live: Battery[] = []
-    for (const b of this.firing) {
-      b.timer -= dt
-      while (b.timer <= 0 && b.remaining > 0) {
-        b.timer += b.gap
-        b.remaining--
-        this.puffFrom(b.ship, b.battery, b.remaining)
-      }
-      if (b.remaining > 0) live.push(b)
-    }
-    this.firing = live
   }
 
   /** One gun's worth of smoke, placed at its station along the ship's side. */
@@ -82,7 +58,7 @@ export class CombatView {
     const bearing = batteryBearing(ship, battery)
     const bx = Math.cos(bearing)
     const by = Math.sin(bearing)
-    // Guns speak from bow to stern, so walk the station along the hull.
+    // Guns speak in sequence, so walk the station along the hull.
     const along = ((index % 6) / 5 - 0.5) * 46
 
     for (let i = 0; i < 3; i++) {
@@ -164,8 +140,7 @@ export class CombatView {
 
   clear() {
     this.smoke = []
-    this.firing = []
-    this.lastShot.clear()
+    this.lastGun.clear()
     this.smokeG.clear()
     this.shotG.clear()
   }

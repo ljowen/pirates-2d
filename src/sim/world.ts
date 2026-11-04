@@ -37,6 +37,15 @@ export class World {
   readonly terrain = new Terrain()
   readonly director = new Director()
   private rand = makeRng(0xc0ffee)
+  /**
+   * Gunnery draws from its own stream.
+   *
+   * Sharing the world PRNG meant the number of shots fired shifted every
+   * later draw — spawn positions, plunder scatter, the draft — so adding
+   * jitter to the ripple silently rerolled the entire run. Deterministic
+   * systems need independent streams or they are not independently testable.
+   */
+  private gunRand = makeRng(0xc0ffee ^ 0x9e3779b9)
   run = new Run(() => this.rand())
 
   projectiles: Projectile[] = []
@@ -215,8 +224,9 @@ export class World {
     }
 
     // --- Gunnery ------------------------------------------------------------
-    if (!player.sunk) updateGunnery(player, enemies, this.terrain, this.pendingShots)
-    for (const ship of enemies) updateGunnery(ship, [player], this.terrain, this.pendingShots)
+    const gunRand = () => this.gunRand()
+    if (!player.sunk) updateGunnery(player, enemies, this.terrain, this.pendingShots, gunRand)
+    for (const ship of enemies) updateGunnery(ship, [player], this.terrain, this.pendingShots, gunRand)
     this.pendingShots = releasePending(this.pendingShots, this.projectiles, dt)
 
     this.separate()
@@ -369,6 +379,8 @@ export class World {
     this.sunkEvents = []
     this.spawnCursor = 0
     this.rand = makeRng(seed)
+    this.gunRand = makeRng(seed ^ 0x9e3779b9)
+    this.wind.reset()
     this.run = new Run(() => this.rand())
     this.director.reset()
     this.placePlayerClearOfLand()
