@@ -11,8 +11,8 @@ import { Wind } from './wind'
 import { PolarCurve } from './polar'
 import { CaptainAI } from './ai'
 import {
-  updateGunnery, stepProjectiles, stepSplashes,
-  type Projectile, type Splash, type CombatEvents,
+  updateGunnery, releasePending, stepProjectiles, stepSplashes,
+  type Projectile, type PendingShot, type Splash, type CombatEvents,
 } from './combat'
 
 /**
@@ -21,6 +21,12 @@ import {
  * private relationship with the wind.
  */
 const EMPTY_SHIPS: Ship[] = []
+
+/**
+ * How long a wreck stays in the world after sinking. Must outlast the
+ * renderer's sinking animation, or the hull vanishes mid-plunge.
+ */
+const WRECK_LINGER = 3.2
 
 export class World {
   readonly polar = new PolarCurve()
@@ -34,6 +40,8 @@ export class World {
   run = new Run(() => this.rand())
 
   projectiles: Projectile[] = []
+  /** Guns laid and waiting their turn in a ripple-fired broadside. */
+  pendingShots: PendingShot[] = []
   splashes: Splash[] = []
   plunder: Plunder[] = []
   /**
@@ -207,8 +215,9 @@ export class World {
     }
 
     // --- Gunnery ------------------------------------------------------------
-    if (!player.sunk) updateGunnery(player, enemies, this.terrain, this.projectiles)
-    for (const ship of enemies) updateGunnery(ship, [player], this.terrain, this.projectiles)
+    if (!player.sunk) updateGunnery(player, enemies, this.terrain, this.pendingShots)
+    for (const ship of enemies) updateGunnery(ship, [player], this.terrain, this.pendingShots)
+    this.pendingShots = releasePending(this.pendingShots, this.projectiles, dt)
 
     this.separate()
     this.groundings(dt)
@@ -242,14 +251,20 @@ export class World {
     }
     this.run.collect(swept.collected)
 
-    // Hulls that have finished going down stop being part of the simulation.
-    if (this.ships.length > 24) {
-      for (let i = this.ships.length - 1; i > 0; i--) {
-        const s = this.ships[i]
-        if (!s.sunk) continue
-        this.captains.delete(s.id)
-        this.ships.splice(i, 1)
-      }
+    // Clear wrecks once they have finished going under.
+    //
+    // This used to happen only when the fleet grew past 24 hulls, which left
+    // sunk ships in the world indefinitely. The renderer would finish their
+    // sinking animation, destroy the view, then find the ship still present
+    // next frame and build a fresh view — restarting the animation forever.
+    // Culling on a timer removes the cause rather than papering over it.
+    for (let i = this.ships.length - 1; i > 0; i--) {
+      const ship = this.ships[i]
+      if (!ship.sunk) continue
+      ship.sinceSunk += dt
+      if (ship.sinceSunk < WRECK_LINGER) continue
+      this.captains.delete(ship.id)
+      this.ships.splice(i, 1)
     }
   }
 
@@ -348,6 +363,7 @@ export class World {
     this.ships.length = 0
     this.captains.clear()
     this.projectiles = []
+    this.pendingShots = []
     this.splashes = []
     this.plunder = []
     this.sunkEvents = []

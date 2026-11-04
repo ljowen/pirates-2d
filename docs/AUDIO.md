@@ -29,14 +29,20 @@ the game is muted.
 
 | Sound | Construction |
 |---|---|
-| **Cannon** | 1–4 ripple cracks, each a noise burst with the filter sweeping 2200→140 Hz plus a 110→38 Hz sine sub |
+| **Cannon** | Up to 6 ripple cracks, each a noise burst sweeping 2200→140 Hz plus a 110→38 Hz sine sub, spaced by the same `gunRippleGap` the guns themselves use |
 | **Hit** | Bandpass noise crack, 900–1500 Hz sweeping down; hits on your own hull add a low triangle knock |
 | **Splash** | Bandpass noise sweeping up then down, highpassed |
-| **Sinking** | 2.6s lowpass noise rush plus a 90→28 Hz sawtooth groan |
+| **Sinking** | A broad splash, the sea closing over, and a few bubbles — all noise, no oscillators |
 | **Sail change** | Filtered noise, sweeping up when making sail and down when shortening |
 
-Broadsides fire as a **ripple rather than one blast** — guns were often touched off in
-sequence, and it reads far better. Distance attenuation and stereo placement come from the
+Broadsides fire as a **ripple rather than one blast**, timed off `gunRippleGap` so what
+you hear lines up with the smoke you see and the shot that leaves the side. The spacing is
+jittered, because a perfectly even ripple sounds mechanical.
+
+**Sinking is water, not a dying machine.** It was originally built around a sawtooth
+sweeping down to 28 Hz, which read as something mechanical expiring. Water has no pitch to
+fall, so the whole sound is noise now — a broad splash, a low swell with no pitch movement
+at all as the sea closes over her, and a few last bubbles breaking the surface. Distance attenuation and stereo placement come from the
 camera position. Voices are capped per frame so a broadside cannot become a wall of mud.
 
 ## The simulation-driven beds

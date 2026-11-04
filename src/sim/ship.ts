@@ -108,6 +108,8 @@ export class Ship {
   sails = 1
   crew = 1
   sunk = false
+  /** Seconds since she went down, so the wreck can be cleared once she is gone. */
+  sinceSunk = 0
   /** Seconds since the last hit — drives damage flashes and smoke. */
   sinceHit = 99
   /** Water depth under the keel this step: 1 open sea, 0 on the beach. */
@@ -286,6 +288,7 @@ export class Ship {
     this.sinceHit = 0
     if (this.hull <= 0 && !this.sunk) {
       this.sunk = true
+      this.sinceSunk = 0
       return true
     }
     return false
@@ -304,6 +307,7 @@ export class Ship {
     this.canvas = SAIL_STATES[1].canvas
     this.hull = this.sails = this.crew = 1
     this.sunk = false
+    this.sinceSunk = 0
     this.reload[0] = this.reload[1] = 0
   }
 }

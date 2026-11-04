@@ -60,6 +60,9 @@ async function main() {
     for (const ship of world.ships) {
       let view = shipViews.get(ship.id)
       if (!view) {
+        // Never raise a view for a hull that has already gone down: doing so
+        // restarts her sinking animation from the top.
+        if (ship.sunk) continue
         view = new ShipView(ship.cls)
         shipViews.set(ship.id, view)
         shipLayer.addChild(view.view)
@@ -160,8 +163,15 @@ async function main() {
       }
 
       const frozen = paused || draft.open || world.run.state === 'won' || world.run.state === 'lost'
-      loop.timeScale = frozen ? 0 : turbo ? 4 : 1
-      const dt = frozen ? 0 : frameDt
+      const timeScale = frozen ? 0 : turbo ? 4 : 1
+      loop.timeScale = timeScale
+
+      // Presentation advances on *simulation* time, not wall-clock time.
+      // Running them on real time meant that in turbo the world moved four
+      // times faster than the animations: wrecks were culled from the sim
+      // while their hulls were still visibly sinking, and wake, smoke and
+      // plunder all drifted at the wrong rate.
+      const dt = frameDt * timeScale
 
       camera.follow(world.player, frameDt)
       water.update(camera, world.wind, frameDt)
@@ -197,6 +207,10 @@ async function main() {
   // from the console with a pilot that does not drift between runs.
   ;(window as unknown as Record<string, unknown>).__game = {
     world, camera, loop, input, audio,
+    // Exposed so the "ship views must never outlive their hull" invariant can
+    // be asserted rather than eyeballed — a ghost that re-sinks forever is
+    // exactly the kind of bug that hides in a busy frame.
+    viewCount: () => shipViews.size,
     benchmark: (seeds?: number) => { loop.stop(); return benchmark(world, seeds) },
     simulateRun: (seed: number) => { loop.stop(); return simulateRun(world, seed) },
     autoPilot,

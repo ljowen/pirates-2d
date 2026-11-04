@@ -197,6 +197,10 @@ enemy captains but not to the test pilot made terrain look like it halved the wi
 (50% → 13%). It had not; the pilot was simply aground 18% of the time. A proxy missing a
 skill the real player has will report that skill's absence as difficulty.
 
+**A feel change can be a balance change.** Staggering the guns was asked for as a
+presentation tweak and cut the win rate nearly in half, because it quietly made every
+broadside less accurate. Benchmark after anything that touches timing.
+
 **Re-measure after retuning.** The ship class tables in [COMBAT.md](COMBAT.md) moved
 substantially when gunnery changed in Phase 3. Stale measurements presented as current
 are worse than no measurements.

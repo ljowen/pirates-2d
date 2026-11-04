@@ -163,6 +163,20 @@ code (`wake`, `combatView`, `plunderView`) where reproducibility does not matter
 simulation gets driven and regression-checked from the console without a human at the
 helm. See [TUNING.md](TUNING.md) for the measurement patterns built on it.
 
+## Presentation runs on simulation time
+
+`main.ts` passes the renderer `frameDt × timeScale`, not raw frame time. Running
+animations on wall-clock time while the simulation ran on scaled time meant that in turbo
+the world moved four times faster than the visuals: wrecks were culled while their hulls
+were still visibly sinking, and wake, smoke and plunder all drifted at the wrong rate.
+
+Related invariant: **a wreck must outlive its own sinking animation.** `WRECK_LINGER`
+(3.2s) is deliberately longer than the view's 2.4s plunge, and views are never created for
+a ship that has already sunk. Getting this wrong produced a hull that sank forever — the
+view finished, destroyed itself, and was immediately rebuilt because the ship was still in
+the world. `window.__game.viewCount()` exists to assert the invariant rather than eyeball
+it.
+
 ## Coupled values to watch
 
 `landRadius()` in `terrain.ts` defines the shoreline, and **both the collision code and

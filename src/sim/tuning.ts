@@ -49,6 +49,7 @@ export interface TuningValues {
   gunsPerBroadside: number
   ballSpeed: number
   ballSpread: number
+  gunRippleGap: number
   damagePerBall: number
   sailDriveFloor: number
 
@@ -133,6 +134,7 @@ export const DEFAULT_TUNING: TuningValues = {
   gunsPerBroadside: 6,
   ballSpeed: 280,
   ballSpread: 0.055,
+  gunRippleGap: 0.075,
   damagePerBall: 0.055,
   sailDriveFloor: 0.25,
 
@@ -213,6 +215,7 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'gunReload', label: 'Reload (s)', min: 0.5, max: 10, step: 0.1, group: 'Gunnery' },
   { key: 'gunsPerBroadside', label: 'Guns per broadside', min: 1, max: 16, step: 1, group: 'Gunnery' },
   { key: 'ballSpeed', label: 'Shot speed', min: 120, max: 1200, step: 10, group: 'Gunnery', help: 'Lower means more lead required, and more time to sail out from under an incoming volley.' },
+  { key: 'gunRippleGap', label: 'Gun ripple gap (s)', min: 0, max: 0.4, step: 0.005, group: 'Gunnery', help: 'Delay between guns in a broadside. Zero fires them all at once; higher rolls the volley down the ship\'s side.' },
   { key: 'ballSpread', label: 'Shot spread', min: 0, max: 0.3, step: 0.005, group: 'Gunnery' },
   { key: 'damagePerBall', label: 'Damage per ball', min: 0.005, max: 0.3, step: 0.005, group: 'Gunnery' },
   { key: 'sailDriveFloor', label: 'Shredded-sail drive', min: 0, max: 1, step: 0.01, group: 'Gunnery', help: 'Drive remaining with sails fully shot away. This is what wires gunnery back into the sailing model.' },

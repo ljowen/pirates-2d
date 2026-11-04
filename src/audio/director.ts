@@ -34,8 +34,11 @@ export class AudioDirector {
         const previous = this.lastShot.get(key)
         this.lastShot.set(key, count)
         if (previous === undefined || count === previous || count === 0) continue
-        const guns = Math.max(1, Math.round(T.gunsPerBroadside * ship.cls.guns))
-        this.audio.cannon(ship.pos.x, ship.pos.y, guns)
+        const guns = Math.max(
+          1,
+          Math.round(T.gunsPerBroadside * ship.cls.guns) + ship.mods.extraGuns,
+        )
+        this.audio.cannon(ship.pos.x, ship.pos.y, guns, T.gunRippleGap)
       }
     }
   }

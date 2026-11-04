@@ -174,19 +174,21 @@ export class Audio {
   }
 
   /**
-   * A broadside. Fired as a short ripple rather than one blast — guns were
-   * often touched off in sequence, and it reads far better than a single thump.
+   * A broadside, fired as a ripple down the ship's side rather than one blast.
+   * The spacing is driven by the same ripple gap the guns themselves use, so
+   * what you hear lines up with the smoke you see.
    */
-  cannon(x: number, y: number, guns: number) {
+  cannon(x: number, y: number, guns: number, rippleGap = 0.075) {
     if (!this.canPlay(4)) return
     const { gain: dist, pan } = this.spatial(x, y)
     if (dist < 0.05) return
     const ctx = this.ctx!
     const now = ctx.currentTime
-    const cracks = clamp(Math.round(guns / 2), 1, 4)
+    const cracks = clamp(Math.round(guns / 1.5), 1, 6)
 
     for (let i = 0; i < cracks; i++) {
-      const t = now + i * (0.035 + Math.random() * 0.04)
+      // Jittered around the true gap: a perfectly even ripple sounds mechanical.
+      const t = now + i * rippleGap * (0.85 + Math.random() * 0.5)
       const level = dist * 0.5 * (1 - i * 0.12)
 
       // Body: a noise burst with the filter sweeping shut.
@@ -269,35 +271,51 @@ export class Audio {
     v.gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.42)
   }
 
-  /** A ship going down: timbers groaning and a long rush of water. */
+  /**
+   * A ship going under: a heavy swallow of water rather than a groan.
+   *
+   * This was originally built around a sawtooth sweeping down to 28 Hz, which
+   * read as a dying machine rather than a hull filling. Water has no pitch to
+   * fall, so the whole thing is noise now — a broad splash, the sea closing
+   * over, and a few bubbles.
+   */
   sinking(x: number, y: number) {
     if (!this.canPlay(8)) return
     const { gain: dist, pan } = this.spatial(x, y)
     const ctx = this.ctx!
     const t = ctx.currentTime
-    const level = dist * 0.5
+    const level = dist * 0.45
 
-    const v = this.voice(t, 2.6, pan)
-    v.filter.type = 'lowpass'
-    v.filter.frequency.setValueAtTime(900, t)
-    v.filter.frequency.exponentialRampToValueAtTime(180, t + 2.2)
-    v.gain.gain.setValueAtTime(0, t)
-    v.gain.gain.linearRampToValueAtTime(level, t + 0.25)
-    v.gain.gain.exponentialRampToValueAtTime(0.0008, t + 2.5)
+    // The splash itself: bright at the moment she goes, settling as it spreads.
+    const splash = this.voice(t, 1.9, pan)
+    splash.filter.type = 'bandpass'
+    splash.filter.Q.value = 0.5
+    splash.filter.frequency.setValueAtTime(520, t)
+    splash.filter.frequency.exponentialRampToValueAtTime(1700, t + 0.18)
+    splash.filter.frequency.exponentialRampToValueAtTime(420, t + 1.6)
+    splash.gain.gain.setValueAtTime(0, t)
+    splash.gain.gain.linearRampToValueAtTime(level, t + 0.07)
+    splash.gain.gain.exponentialRampToValueAtTime(0.0008, t + 1.8)
 
-    const osc = ctx.createOscillator()
-    const og = ctx.createGain()
-    const op = ctx.createStereoPanner()
-    op.pan.value = pan
-    osc.type = 'sawtooth'
-    osc.frequency.setValueAtTime(90, t)
-    osc.frequency.exponentialRampToValueAtTime(28, t + 2.0)
-    og.gain.setValueAtTime(0, t)
-    og.gain.linearRampToValueAtTime(level * 0.35, t + 0.3)
-    og.gain.exponentialRampToValueAtTime(0.0008, t + 2.3)
-    osc.connect(og).connect(op).connect(this.master)
-    osc.start(t)
-    osc.stop(t + 2.4)
+    // The sea closing over her — soft, low, no pitch movement at all.
+    const swell = this.voice(t, 2.4, pan)
+    swell.filter.type = 'lowpass'
+    swell.filter.frequency.setValueAtTime(320, t)
+    swell.gain.gain.setValueAtTime(0, t)
+    swell.gain.gain.linearRampToValueAtTime(level * 0.55, t + 0.3)
+    swell.gain.gain.exponentialRampToValueAtTime(0.0008, t + 2.3)
+
+    // A last few bubbles breaking the surface.
+    for (let i = 0; i < 4; i++) {
+      const bt = t + 0.5 + Math.random() * 1.1
+      const bubble = this.voice(bt, 0.2, pan)
+      bubble.filter.type = 'bandpass'
+      bubble.filter.Q.value = 5
+      bubble.filter.frequency.setValueAtTime(300 + Math.random() * 500, bt)
+      bubble.gain.gain.setValueAtTime(0, bt)
+      bubble.gain.gain.linearRampToValueAtTime(level * 0.2, bt + 0.015)
+      bubble.gain.gain.exponentialRampToValueAtTime(0.0008, bt + 0.18)
+    }
   }
 
   /** Canvas being made or shortened: a soft rush of cloth and rope. */

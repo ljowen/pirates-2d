@@ -22,6 +22,28 @@ export interface Projectile {
   split: { hull: number; sails: number; crew: number }
 }
 
+/**
+ * A gun that has been laid and is waiting its turn to speak. Broadsides were
+ * commonly fired in sequence down the ship's side rather than all at once —
+ * it reads far better, and it means the smoke blooms along the hull instead
+ * of appearing in one lump.
+ */
+export interface PendingShot {
+  /** Seconds until this gun fires. */
+  delay: number
+  ship: Ship
+  battery: 0 | 1
+  /** The hull this gun was ordered onto; re-laid at the moment it fires. */
+  target: Ship
+  /** This gun's share of the volley's spread across the arc. */
+  spreadOffset: number
+  /** Used if the target is gone by the time the gun speaks. */
+  fallbackDir: number
+  range: number
+  damage: number
+  split: { hull: number; sails: number; crew: number }
+}
+
 export interface Splash {
   pos: Vec2
   life: number
@@ -93,7 +115,7 @@ export function updateGunnery(
   ship: Ship,
   enemies: Ship[],
   terrain: Terrain,
-  projectiles: Projectile[],
+  pending: PendingShot[],
 ): void {
   if (ship.sunk) return
   const arc = (T.gunArcDegrees * Math.PI) / 180
@@ -127,20 +149,27 @@ export function updateGunnery(
       1,
       Math.round(T.gunsPerBroadside * ship.cls.guns) + ship.mods.extraGuns,
     )
+    const split = normaliseSplit(ship)
+    const damage = T.damagePerBall * ship.cls.damage * ship.mods.damage
+    // Cap the whole volley's length so a heavily gunned ship does not spend
+    // an age working through her battery.
+    const gap = Math.min(T.gunRippleGap, 0.5 / Math.max(1, guns - 1))
+
     for (let i = 0; i < guns; i++) {
       // Spread the volley evenly across the arc rather than randomly, so a
       // broadside reads as a wall of shot instead of a shotgun blast.
       const offset = guns === 1 ? 0 : (i / (guns - 1) - 0.5) * 2 * spread
-      const a = bestDir + offset
-      projectiles.push({
-        pos: { ...ship.pos },
-        vel: { x: Math.cos(a) * T.ballSpeed, y: Math.sin(a) * T.ballSpeed },
-        life: range / T.ballSpeed,
-        ownerId: ship.id,
-        ownerFaction: ship.faction,
-        damage: T.damagePerBall * ship.cls.damage * ship.mods.damage,
+      pending.push({
+        delay: i * gap,
+        ship,
+        battery,
+        target: best,
+        spreadOffset: offset,
+        fallbackDir: bestDir + offset,
+        range,
+        damage,
         // Shot type travels with the ball, so what you loaded is what lands.
-        split: normaliseSplit(ship),
+        split,
       })
     }
 
@@ -148,6 +177,51 @@ export function updateGunnery(
     ship.sinceFired[battery] = 0
     ship.shotCount[battery]++
   }
+}
+
+/**
+ * Let the waiting guns fire as their turn comes.
+ *
+ * Each gun is **re-laid at the moment it speaks**, not when the order was
+ * given. That is how a broadside was actually worked — each gun captain fired
+ * as his gun bore — and it is also the only version that holds together
+ * mechanically: a single solution computed for the whole volley goes stale
+ * while the target sails on, and twelve guns firing on it miss badly.
+ */
+export function releasePending(
+  pending: PendingShot[],
+  projectiles: Projectile[],
+  dt: number,
+): PendingShot[] {
+  const waiting: PendingShot[] = []
+
+  for (const shot of pending) {
+    shot.delay -= dt
+    if (shot.delay > 0) { waiting.push(shot); continue }
+    // A ship that sinks mid-volley does not get to finish it.
+    if (shot.ship.sunk) continue
+
+    const side = BATTERY_SIDE[shot.battery]
+    const lx = -Math.sin(shot.ship.heading) * side
+    const ly = Math.cos(shot.ship.heading) * side
+
+    // Lay the gun afresh on the target if she is still afloat.
+    const dir = shot.target.sunk
+      ? shot.fallbackDir
+      : firingSolution(shot.ship, shot.target).dir + shot.spreadOffset
+    projectiles.push({
+      pos: { x: shot.ship.pos.x + lx * 10, y: shot.ship.pos.y + ly * 10 },
+      vel: { x: Math.cos(dir) * T.ballSpeed, y: Math.sin(dir) * T.ballSpeed },
+      life: shot.range / T.ballSpeed,
+      ownerId: shot.ship.id,
+      ownerFaction: shot.ship.faction,
+      damage: shot.damage,
+      split: shot.split,
+    })
+    shot.ship.sinceFired[shot.battery] = 0
+  }
+
+  return waiting
 }
 
 export interface CombatEvents {

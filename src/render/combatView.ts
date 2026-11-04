@@ -3,8 +3,12 @@ import type { Ship } from '../sim/ship'
 import type { Projectile, Splash } from '../sim/combat'
 import { batteryBearing } from '../sim/combat'
 import type { Wind } from '../sim/wind'
+import { T } from '../sim/tuning'
 
 interface Smoke { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }
+
+/** A battery working down its guns, blooming smoke as each one speaks. */
+interface Battery { ship: Ship; battery: 0 | 1; remaining: number; timer: number; gap: number }
 
 /**
  * Shot, splashes and gun smoke. Smoke does most of the work here: a broadside
@@ -16,6 +20,7 @@ export class CombatView {
   private readonly smokeG = new Graphics()
   private readonly shotG = new Graphics()
   private smoke: Smoke[] = []
+  private firing: Battery[] = []
   private readonly lastShot = new Map<string, number>()
 
   constructor() {
@@ -25,6 +30,7 @@ export class CombatView {
 
   update(ships: Ship[], projectiles: Projectile[], splashes: Splash[], wind: Wind, dt: number) {
     this.emitMuzzleSmoke(ships)
+    this.stepBatteries(dt)
     this.stepSmoke(wind, dt)
     this.drawSmoke()
     this.drawShot(projectiles, splashes)
@@ -40,23 +46,55 @@ export class CombatView {
         this.lastShot.set(key, count)
         if (count === 0) continue
 
-        const bearing = batteryBearing(ship, battery)
-        const bx = Math.cos(bearing)
-        const by = Math.sin(bearing)
-        // Spread the bank along the ship's side, not out from one point.
-        for (let i = 0; i < 14; i++) {
-          const along = (i / 13 - 0.5) * 46
-          const life = 1.1 + Math.random() * 0.9
-          this.smoke.push({
-            x: ship.pos.x + Math.cos(ship.heading) * along + bx * 10,
-            y: ship.pos.y + Math.sin(ship.heading) * along + by * 10,
-            vx: bx * (40 + Math.random() * 70),
-            vy: by * (40 + Math.random() * 70),
-            life, maxLife: life,
-            r: 4 + Math.random() * 7,
-          })
-        }
+        // Queue the battery rather than dumping its whole bank at once, so
+        // the smoke rolls down the hull in step with the guns firing.
+        const guns = Math.max(
+          1,
+          Math.round(T.gunsPerBroadside * ship.cls.guns) + ship.mods.extraGuns,
+        )
+        this.firing.push({
+          ship, battery,
+          remaining: guns,
+          timer: 0,
+          gap: Math.max(0.01, T.gunRippleGap),
+        })
       }
+    }
+  }
+
+  /** Let each waiting gun bloom its own smoke as its moment arrives. */
+  private stepBatteries(dt: number) {
+    const live: Battery[] = []
+    for (const b of this.firing) {
+      b.timer -= dt
+      while (b.timer <= 0 && b.remaining > 0) {
+        b.timer += b.gap
+        b.remaining--
+        this.puffFrom(b.ship, b.battery, b.remaining)
+      }
+      if (b.remaining > 0) live.push(b)
+    }
+    this.firing = live
+  }
+
+  /** One gun's worth of smoke, placed at its station along the ship's side. */
+  private puffFrom(ship: Ship, battery: 0 | 1, index: number) {
+    const bearing = batteryBearing(ship, battery)
+    const bx = Math.cos(bearing)
+    const by = Math.sin(bearing)
+    // Guns speak from bow to stern, so walk the station along the hull.
+    const along = ((index % 6) / 5 - 0.5) * 46
+
+    for (let i = 0; i < 3; i++) {
+      const life = 1.1 + Math.random() * 0.9
+      this.smoke.push({
+        x: ship.pos.x + Math.cos(ship.heading) * along + bx * 10,
+        y: ship.pos.y + Math.sin(ship.heading) * along + by * 10,
+        vx: bx * (40 + Math.random() * 70),
+        vy: by * (40 + Math.random() * 70),
+        life, maxLife: life,
+        r: 4 + Math.random() * 7,
+      })
     }
   }
 
@@ -126,6 +164,7 @@ export class CombatView {
 
   clear() {
     this.smoke = []
+    this.firing = []
     this.lastShot.clear()
     this.smokeG.clear()
     this.shotG.clear()
