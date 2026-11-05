@@ -170,7 +170,8 @@ async function main() {
       if (world.run.state === 'drafting' && world.run.draft) {
         if (!draft.open) {
           draft.show(world.run.draft, world.run.level, world.run.taken, (upgrade) => {
-            world.run.choose(upgrade, world.player)
+            if (upgrade) world.run.choose(upgrade, world.player)
+            else world.run.decline()
           })
         }
       } else if (draft.open) {

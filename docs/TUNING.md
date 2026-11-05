@@ -202,6 +202,11 @@ enemy captains but not to the test pilot made terrain look like it halved the wi
 (50% → 13%). It had not; the pilot was simply aground 18% of the time. A proxy missing a
 skill the real player has will report that skill's absence as difficulty.
 
+**Test the archetype, not the drafter.** Once upgrades became trades, win rates were
+partly measuring the pilot's card-picking heuristic rather than the game. Granting a
+hand-built loadout up front and declining every hand separates the two — that is what
+showed the gunnery doctrines were healthy while the bot simply was not finding them.
+
 **Check reproducibility before trusting a comparison.** Run the same seed twice. If it
 diverges, something stateful is not being reset, or two systems are sharing a PRNG stream
 — and every number you are about to compare is noise.

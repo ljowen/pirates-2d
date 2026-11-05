@@ -291,7 +291,7 @@ export function stepProjectiles(
       // Only shot from the other side does damage; a melee between enemies
       // should not dissolve into friendly fire.
       if (ship.faction === p.ownerFaction) continue
-      const radius = HIT_RADIUS * ship.cls.scale
+      const radius = HIT_RADIUS * ship.targetSize
       if (Math.hypot(ship.pos.x - p.pos.x, ship.pos.y - p.pos.y) > radius) continue
 
       const d = p.damage

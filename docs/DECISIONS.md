@@ -135,6 +135,23 @@ merely *showing* the resulting split; exclusivity was chosen for stronger build 
 bonus on top of Powder Monkeys' 13%, and its card text claimed 18% — wrong, and it blurred
 both cards. Topmen now owns sail handling and crew recovery; Powder Monkeys owns reload.
 
+**Upgrades are trades, not pure gains.** A ship that improves in every direction has no
+identity, and the sail mechanic already teaches that power costs handling. Burden —
+displacement — is the main currency, and it sinks you deeper into your marks, which
+closes off the shoals. That makes arming heavily a decision about *where you can sail*.
+
+**Burden costs reach and access, not the ability to fight.** Taxing turn rate compounded
+into lost damage, because turning decides how often the guns bear.
+
+**A hand may be refused.** Once cards carry costs, forcing a pick can only damage a build.
+
+**Firepower is mandatory, so the trade is how you arm.** The spawn cap means hulls
+accumulate until cleared; a build that cannot kill drowns however evasive it is. Measured:
+a speed build died in 191s where a gunline on the same hull reached 404s.
+
+**Beware saturating benefits with compounding costs.** Reach runs out of usefulness while
+its reload penalty does not, which made an unbounded sniper build worse than no upgrades.
+
 **Four draft cards, not three.** With the ceiling far above the median, the difference
 between runs was largely whether a useful card turned up early. More cards per hand cuts
 variance without raising the power ceiling — the right shape of fix for a spread problem.

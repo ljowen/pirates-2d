@@ -58,10 +58,14 @@ export interface TuningValues {
   gunRippleGap: number
   damagePerBall: number
   sailDriveFloor: number
+  burdenOnSpeed: number
+  burdenOnTurn: number
+  burdenOnDraught: number
 
   // --- The run ------------------------------------------------------------
   runDuration: number
   draftCards: number
+  declineRefund: number
   spawnIntervalStart: number
   spawnIntervalEnd: number
   enemyCapStart: number
@@ -149,9 +153,20 @@ export const DEFAULT_TUNING: TuningValues = {
   gunRippleGap: 0.075,
   damagePerBall: 0.055,
   sailDriveFloor: 0.25,
+  // Weight costs you reach and access, not your ability to fight.
+  //
+  // Turning decides how often your guns bear, which was already the binding
+  // constraint — taxing it did not shape a build, it compounded: slower to
+  // bring the broadside round, fewer kills, less plunder, fewer upgrades.
+  // Draught carries most of the cost instead, because losing the shoals is a
+  // strategic sacrifice rather than a quiet reduction in damage.
+  burdenOnSpeed: 0.4,
+  burdenOnTurn: 0.3,
+  burdenOnDraught: 0.7,
 
   runDuration: 480,
   draftCards: 4,
+  declineRefund: 0.55,
   spawnIntervalStart: 7.0,
   spawnIntervalEnd: 2.6,
   enemyCapStart: 2,
@@ -233,6 +248,7 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'sailDriveFloor', label: 'Shredded-sail drive', min: 0, max: 1, step: 0.01, group: 'Gunnery', help: 'Drive remaining with sails fully shot away. This is what wires gunnery back into the sailing model.' },
 
   { key: 'runDuration', label: 'Run length (s)', min: 120, max: 1800, step: 30, group: 'The run' },
+  { key: 'declineRefund', label: 'Refund for declining', min: 0, max: 1, step: 0.05, group: 'The run', help: 'Share of the level banked back when you refuse a hand, so the next one comes round sooner.' },
   { key: 'draftCards', label: 'Draft cards offered', min: 2, max: 5, step: 1, group: 'The run', help: 'More cards means less chance of a hand with nothing useful in it. Cuts run-to-run variance without raising the power ceiling.' },
   { key: 'spawnIntervalStart', label: 'Spawn gap, start (s)', min: 0.5, max: 15, step: 0.1, group: 'The run' },
   { key: 'spawnIntervalEnd', label: 'Spawn gap, end (s)', min: 0.3, max: 10, step: 0.1, group: 'The run' },
@@ -262,6 +278,10 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'groundingDrag', label: 'Grounding drag', min: 1, max: 30, step: 0.5, group: 'Land', help: 'How hard the bottom holds you once you touch it.' },
   { key: 'shoalDraughtPenalty', label: 'Shoal drag penalty', min: 0, max: 2, step: 0.05, group: 'Land', help: 'Extra drag in shallows, scaled by how deep the hull draws.' },
   { key: 'aiLandLookahead', label: 'AI land lookahead', min: 80, max: 800, step: 20, group: 'Enemy captains', help: 'How far ahead an enemy captain watches for a shore.' },
+
+  { key: 'burdenOnSpeed', label: 'Burden → slower', min: 0, max: 2, step: 0.05, group: 'Gunnery', help: 'How much displacement costs you in drive. 0 makes weight free.' },
+  { key: 'burdenOnTurn', label: 'Burden → wider turns', min: 0, max: 2, step: 0.05, group: 'Gunnery', help: 'How much a laden ship loses at the helm.' },
+  { key: 'burdenOnDraught', label: 'Burden → deeper', min: 0, max: 2, step: 0.05, group: 'Gunnery', help: 'How far a laden ship sinks into her marks, closing off the shoals.' },
 
   { key: 'aiStandoff', label: 'AI standoff range', min: 80, max: 700, step: 10, group: 'Enemy captains' },
   { key: 'aiMinRange', label: 'AI minimum range', min: 40, max: 400, step: 10, group: 'Enemy captains', help: 'Closer than this and they sheer off rather than foul you.' },

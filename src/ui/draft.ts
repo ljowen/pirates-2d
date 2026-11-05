@@ -14,7 +14,7 @@ const GROUP_COLORS: Record<Upgrade['group'], string> = {
  */
 export class DraftUI {
   private readonly root: HTMLDivElement
-  private onPick: ((u: Upgrade) => void) | null = null
+  private onPick: ((u: Upgrade | null) => void) | null = null
   private current: Upgrade[] = []
 
   constructor() {
@@ -33,13 +33,21 @@ export class DraftUI {
       if (index >= 0 && this.current[index]) {
         e.preventDefault()
         this.pick(this.current[index])
+      } else if (e.code === 'Escape' || e.code === 'Digit0') {
+        e.preventDefault()
+        this.pick(null)
       }
     })
   }
 
   get open() { return this.onPick !== null }
 
-  show(upgrades: Upgrade[], level: number, taken: Map<string, number>, onPick: (u: Upgrade) => void) {
+  show(
+    upgrades: Upgrade[],
+    level: number,
+    taken: Map<string, number>,
+    onPick: (u: Upgrade | null) => void,
+  ) {
     this.current = upgrades
     this.onPick = onPick
     this.root.innerHTML = ''
@@ -91,7 +99,11 @@ export class DraftUI {
           <span style="opacity:0.4;font-size:10px">${i + 1}</span>
         </div>
         <div style="font-size:16px;font-weight:bold;color:#fff">${u.name}</div>
-        <div style="font-size:12px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
+        <div style="font-size:12px;line-height:1.55;opacity:0.78">${u.text}</div>
+        ${u.cost ? `<div style="font-size:11.5px;line-height:1.5;color:#ff9a8a;opacity:0.85">
+            &minus; ${u.cost}
+          </div>` : ''}
+        <div style="flex:1"></div>
         ${footer}
         <div style="font-size:10px;opacity:0.5">
           ${stacks > 0 ? `owned ${stacks}/${u.maxStacks}` : `up to ${u.maxStacks}`}
@@ -101,14 +113,34 @@ export class DraftUI {
 
     this.root.appendChild(row)
 
+    // Refusing is a real option now that every card asks for something.
+    const decline = document.createElement('button')
+    decline.textContent = 'Sail on — take none of them'
+    decline.style.cssText = `
+      margin-top: 22px; background: none; color: rgba(207,230,245,0.55);
+      border: 1px solid rgba(207,230,245,0.22); border-radius: 5px;
+      padding: 7px 15px; cursor: pointer; font: inherit; font-size: 12px;
+      transition: all 0.12s ease;
+    `
+    decline.onmouseenter = () => {
+      decline.style.color = '#cfe6f5'
+      decline.style.borderColor = 'rgba(207,230,245,0.5)'
+    }
+    decline.onmouseleave = () => {
+      decline.style.color = 'rgba(207,230,245,0.55)'
+      decline.style.borderColor = 'rgba(207,230,245,0.22)'
+    }
+    decline.onclick = () => this.pick(null)
+    this.root.appendChild(decline)
+
     const hint = document.createElement('div')
     hint.textContent =
-      `click a card, or press ${upgrades.map((_, i) => i + 1).join(' / ')}`
-    hint.style.cssText = 'color:rgba(207,230,245,0.4);font-size:11px;margin-top:24px'
+      `click a card, or press ${upgrades.map((_, i) => i + 1).join(' / ')} — Esc to refuse`
+    hint.style.cssText = 'color:rgba(207,230,245,0.4);font-size:11px;margin-top:14px'
     this.root.appendChild(hint)
   }
 
-  private pick(u: Upgrade) {
+  private pick(u: Upgrade | null) {
     const cb = this.onPick
     this.hide()
     cb?.(u)

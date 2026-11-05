@@ -93,66 +93,95 @@ the opening loadout is a one-line edit.
 
 ## The draft
 
-Fifteen upgrades across four groups. **Four cards offered** (`draftCards`), drawn weighted
-and without replacement, excluding anything already at max stacks.
+Four cards offered per level, drawn weighted and without replacement. **You may refuse
+the whole hand**, which banks part of the level back so the next one comes round sooner.
 
-Four rather than three deliberately: with the ceiling far above the median, the difference
-between runs was largely whether a useful card turned up early. More cards per hand cuts
-that variance **without raising the power ceiling**, which is the right shape of fix for a
-spread problem rather than a wall problem.
+Refusing matters because cards carry costs. A hand of heavy guns offered to a light,
+nimble ship has nothing in it that does not damage the build, and forcing a pick there is
+worse than offering none.
 
-**Sailing**
-| Card | Effect | Max |
-|---|---|---|
-| Rakish Lines | +12% turn rate | 5 |
-| Careened Hull | −9% drag | 4 |
-| Taller Masts | +10% drive | 4 |
-| Veteran Topmen | +18% sail handling, +0.008 crew recovery/s | 3 |
+### Upgrades are trades
 
-**Gunnery**
-| Card | Effect | Max |
-|---|---|---|
-| Heavier Shot | +16% damage | 5 |
-| Powder Monkeys | −13% reload | 5 |
-| Long Nines | +16% range | 4 |
-| Another Gunport | +1 gun per broadside | 6 |
-| Trained Gunners | −18% spread | 3 |
+Most cards buy power with something. A ship that improves in every direction at once has
+no identity, and the game's own sail mechanic already teaches that power costs handling —
+full canvas is faster and turns wider, battle sails the reverse. The upgrade system used
+to contradict that lesson.
 
-**Shot** — **mutually exclusive.** The first one taken locks out the others for the rest
-of the run, and the card says so before you commit.
-| Card | Effect | Max |
-|---|---|---|
-| Chain Shot | ×2.1 rigging, ×0.82 hull | 3 |
-| Grape Shot | ×2.4 crew, ×0.85 hull | 3 |
-| Double-Shotted | ×1.7 hull, ×0.8 others | 3 |
+A handful of cards remain genuinely free, at low stack limits, so levelling still feels
+like growth. **The trades shape direction; they do not cap the curve.**
 
-They were originally stackable and freely mixable, which was a silent trap. Because the
-split renormalises, opposing types cancel almost exactly:
+### Burden
 
-| Build | Hull | Rigging | Crew |
+The main currency is displacement. Guns, shot and timber all add burden, and burden:
+
+| Effect | Strength |
+|---|---|
+| Slower | `burdenOnSpeed` 0.4 |
+| Wider turns | `burdenOnTurn` 0.3 |
+| **Sits deeper** | `burdenOnDraught` 0.7 |
+
+Draught carries most of the cost deliberately. Turning decides how often your guns bear,
+which was already the binding constraint — taxing it did not shape a build, it
+*compounded*: slower to bring the broadside round, fewer kills, less plunder, fewer
+upgrades. Draught instead closes off the shoals, which is a strategic sacrifice rather
+than a quiet reduction in damage.
+
+Measured end-of-run shapes, same pool, different plans:
+
+| Build | Burden | Draws | Target size |
 |---|---|---|---|
-| No shot cards | 62% | 24% | 14% |
-| Chain ×3 | 13% | 82% | 5% |
-| Chain ×2 + Double ×2 | 61% | 34% | 5% |
+| Corsair Pinnace | 1.02 | **0.22** | 0.67 |
+| Gunline Sloop | 1.30 | 0.67 | 1.16 |
+| Ironside Brigantine | 1.10 | **1.07** | 1.26 |
 
-Four draft picks for a ten-point shift and a gutted crew track — indistinguishable from
-taking nothing. Exclusivity is enforced by an `exclusive` family tag on the card, so other
-families can use the same mechanism later.
+**A light ship is also a smaller target** — hit radius scales with both hull size and how
+she is loaded. Without that, shedding weight bought mobility that did not translate into
+taking fewer hits, so light builds were strictly worse than heavy ones.
 
-**Quarterdeck**
-| Card | Effect | Max |
+### Gunnery is a space of internal trades
+
+Four axes — power, reach, rate, accuracy — and most cards buy one with another. This is
+where build identity actually lives.
+
+| Card | Gives | Costs |
 |---|---|---|
-| Ship's Carpenter | +0.006 hull/s repair | 3 |
-| Sailmaker | +0.012 rigging/s repair | 3 |
-| Grappling Hooks | +55% pickup radius | 3 |
+| Another Gunport | +1 gun | burden |
+| Heavier Shot | +17% power | burden |
+| Carronades | +32% power, faster | −12% reach |
+| Double-Charged | +26% power | −15% rate |
+| Quick Match | +17% rate | −9% power |
+| Long Nines | +18% reach | −7% rate |
+| Chase Guns | +16% reach, +14% accuracy | −8% rate |
+| Trained Gunners | +20% accuracy | −7% rate |
 
-The draft **freezes the world**. A level-up is a decision, not a reflex test. Visibility
-is driven purely by run state rather than by the card's own callback, so no other path out
-of `drafting` can strand a stale hand on screen.
+Measured with hand-built loadouts of eight picks each, so this tests the doctrine rather
+than the drafter:
+
+| Doctrine | Median | Ships sunk |
+|---|---|---|
+| Smasher — carronades and quick match | **469s** | 34 |
+| Heavy metal — weight of shot | 436s | 37 |
+| Volume — eleven guns | 432s | 35 |
+| Sniper — reach and accuracy | 311s | 27 |
+| No upgrades at all | 318s | 23 |
+
+### Two traps found while building this
+
+**"Speed instead of guns" is not a build.** The spawn cap means hulls accumulate until
+you clear them, so every viable plan must kill at a decent rate — you cannot survive by
+not dying. A pure speed build on a Pinnace died in **191s against the gunline's 404s on
+the same hull**. Firepower is mandatory; the real choice is *how* you arm.
+
+**Saturating benefits paired with compounding costs make traps.** Reach is the only axis
+whose benefit runs out — past a point there is nothing further away to shoot — while its
+reload cost keeps multiplying. Stacked freely it produced a build *worse than taking no
+upgrades at all* (272s against 318s). The reach cards are now capped low.
 
 ## The size of the pool
 
-Fifteen cards, **51 stacks** reachable in one run (57 across all cards, less the two shot
+## The size of the pool
+
+Twenty-four cards, **around 70 stacks** reachable in one run (57 across all cards, less the two shot
 types exclusivity locks out). A playtested run reaching level 37 held 36 of them, so a
 long endless run can get within sight of exhausting the draft.
 

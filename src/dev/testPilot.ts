@@ -13,18 +13,54 @@ import type { Upgrade } from '../sim/upgrades'
  * a player certainly can, while failing here is weaker evidence.
  */
 
-/** Rough value ordering, standing in for a player building toward a plan. */
-const DRAFT_PRIORITY: Record<string, number> = {
-  'heavier-shot': 10, 'powder-monkeys': 10, 'extra-gunport': 9,
-  'ships-carpenter': 8, 'sailmaker': 7, 'trained-gunners': 6, 'long-nines': 6,
-  'rakish-lines': 5, 'round-shot': 5, 'careened-hull': 4, 'taller-masts': 4,
-  'veteran-topmen': 4, 'chain-shot': 3, 'grape-shot': 3, 'loot-hooks': 2,
+/**
+ * How much each archetype wants a card with a given tag.
+ *
+ * Once upgrades carry costs, a flat priority list becomes an actively bad
+ * drafter — it happily takes heavy guns onto a ship built for speed and then
+ * reports the whole system as broken. The pilot has to commit to a direction,
+ * the way a player would.
+ */
+type Archetype = 'gunline' | 'corsair' | 'ironside' | 'magpie'
+
+const AFFINITY: Record<Archetype, Record<string, number>> = {
+  // Every plan wants guns, because killing is the only source of progression
+  // and a build that cannot clear the sea drowns in it. The archetypes differ on
+  // *which* guns and what else they carry, not on whether to arm at all —
+  // weighting them otherwise produced builds measurably worse than taking no
+  // upgrades whatsoever.
+  gunline: { guns: 3, close: 1.2, heavy: 0.8, tough: 1.4, reach: 0.4, handling: 0.4, speed: 0.2, light: 0.4, economy: 0.6 },
+  corsair: { guns: 2.8, close: 1.5, light: 1.4, speed: 1.3, handling: 1.3, tough: 0.4, reach: 0.2, heavy: -0.3, economy: 0.8 },
+  ironside: { guns: 2.5, tough: 2.8, heavy: 1.0, close: 0.9, reach: 0.3, handling: 0.3, light: -1.0, economy: 0.4 },
+  magpie: { guns: 2.3, economy: 2.4, close: 1.0, tough: 1.2, speed: 1.0, handling: 0.9, heavy: -0.2, light: 0.5 },
 }
 
-export function pickCard(hand: Upgrade[]): Upgrade {
-  return hand.slice().sort(
-    (a, b) => (DRAFT_PRIORITY[b.id] ?? 1) - (DRAFT_PRIORITY[a.id] ?? 1),
-  )[0]
+/** The plan this hull naturally suits. */
+function archetypeFor(hullId: string): Archetype {
+  if (hullId.includes('pinnace')) return 'corsair'
+  if (hullId.includes('brigantine')) return 'ironside'
+  if (hullId.includes('fluyt')) return 'magpie'
+  return 'gunline'
+}
+
+function scoreCard(card: Upgrade, plan: Archetype): number {
+  const affinity = AFFINITY[plan]
+  let score = 0.4
+  for (const tag of card.tags ?? []) score += affinity[tag] ?? 0
+  return score
+}
+
+/**
+ * Choose from a hand, or refuse it. Returns null when nothing on offer helps
+ * the plan — refusing banks part of the level back and brings the next hand
+ * round sooner, which beats taking a card that works against the build.
+ */
+export function pickCard(hand: Upgrade[], hullId: string): Upgrade | null {
+  const plan = archetypeFor(hullId)
+  const best = hand
+    .map((card) => ({ card, score: scoreCard(card, plan) }))
+    .sort((a, b) => b.score - a.score)[0]
+  return best && best.score > 0.5 ? best.card : null
 }
 
 /**
@@ -100,7 +136,7 @@ export function autoPilot(world: World) {
  * win it had.
  */
 function drawsLessThan(self: World['player'], other: World['player']): boolean {
-  return self.cls.draught < other.cls.draught - 0.3
+  return self.draught < other.draught - 0.3
 }
 
 /**
@@ -132,7 +168,7 @@ function towardShallows(world: World): number | null {
 function avoidLand(world: World, desired: number): number {
   const p = world.player
   const look = 340
-  const margin = 40 + 70 * p.cls.draught
+  const margin = 40 + 70 * p.draught
 
   let island = null
   for (const t of [0.35, 0.7, 1]) {
@@ -180,7 +216,9 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
 
   for (let i = 0; i < maxSeconds * 60; i++) {
     if (world.run.state === 'drafting' && world.run.draft) {
-      world.run.choose(pickCard(world.run.draft), world.player)
+      const choice = pickCard(world.run.draft, world.player.cls.id)
+      if (choice) world.run.choose(choice, world.player)
+      else world.run.decline()
       continue
     }
     if (world.run.state !== 'sailing') break

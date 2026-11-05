@@ -377,7 +377,7 @@ export class World {
 
       // Shallows drag on a deep keel long before she actually touches.
       if (depth < 1) {
-        const bite = T.shoalDraughtPenalty * ship.cls.draught * (1 - depth)
+        const bite = T.shoalDraughtPenalty * ship.draught * (1 - depth)
         const scale = Math.max(0, 1 - bite * dt)
         ship.vel.x *= scale
         ship.vel.y *= scale
@@ -391,7 +391,7 @@ export class World {
       // makes draught a real mechanic rather than a drag modifier: a Pinnace
       // can cross water that strands a Brigantine, so leading a heavy hull
       // over a shoal is a weapon.
-      const keel = 10 + 26 * ship.cls.draught
+      const keel = 10 + 26 * ship.draught
       if (distance < keel) {
         ship.aground = true
 

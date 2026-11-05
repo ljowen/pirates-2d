@@ -322,7 +322,7 @@ export class Hud {
     ctx.fillText('CONDITION', 12, 10)
     ctx.textAlign = 'right'
     ctx.fillStyle = 'rgba(255,217,138,0.8)'
-    ctx.fillText(ship.cls.name, 174, 10)
+    ctx.fillText(ship.cls.name, 118, 10)
     ctx.textAlign = 'left'
 
     const bars: [string, number, string][] = [
@@ -330,6 +330,17 @@ export class Hud {
       ['Rigging', ship.sails, '#9fe8ff'],
       ['Crew', ship.crew, '#ffd98a'],
     ]
+
+    // How deep she is riding. Everything taken aboard shows here, so the cost
+    // of arming heavily is visible before a shoal makes it obvious.
+    ctx.textAlign = 'right'
+    ctx.font = '10px ui-monospace, monospace'
+    const laden = ship.draught
+    ctx.fillStyle = laden > 0.9
+      ? '#ff7a6b'
+      : laden > 0.7 ? '#ffd98a' : 'rgba(159,232,255,0.75)'
+    ctx.fillText(`draws ${laden.toFixed(2)}`, 174, 10)
+    ctx.textAlign = 'left'
     bars.forEach(([label, value, color], i) => {
       const by = 28 + i * 17
       ctx.fillStyle = 'rgba(255,255,255,0.5)'

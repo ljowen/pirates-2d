@@ -10,7 +10,12 @@ function plunderForLevel(level: number) {
   // because fewer enemies also means less plunder and a slower draft — the two
   // curves move together. The only lever that reliably helps the player is
   // levelling faster than the sea escalates.
-  return 2 + (level - 1) * 0.9
+  //
+  // Shallower again once upgrades began carrying costs: when every card asks
+  // for something, a run needs more picks before a build has an identity, and
+  // the net power curve has to keep rising or the trades read as a tax rather
+  // than a choice.
+  return 1.8 + (level - 1) * 0.72
 }
 
 /**
@@ -116,6 +121,23 @@ export class Run {
     }
     this.draft = hand
     this.state = 'drafting'
+  }
+
+  /**
+   * Refuse the whole hand and sail on.
+   *
+   * Necessary once cards carry costs: a hand of heavy guns offered to a light,
+   * nimble build has nothing in it that does not damage the ship, and forcing
+   * a pick there is worse than offering none. Declining banks part of the
+   * plunder back, so the next hand comes round sooner — a refusal buys you
+   * another look rather than simply wasting the level.
+   */
+  decline() {
+    if (this.state !== 'drafting') return
+    this.plunder += this.plunderNeeded * T.declineRefund
+    this.draft = null
+    this.state = 'sailing'
+    if (this.plunder >= this.plunderNeeded) this.levelUp()
   }
 
   /** Take one of the offered cards and return to sailing. */
