@@ -52,10 +52,12 @@ export function autoPilot(world: World) {
     if (d < lootDist) { lootDist = d; loot = g }
   }
 
+  const wind = world.windAt(p.pos)
+
   let want: number
   if (p.hull < 0.35 && target) {
     // Badly hurt: run downwind, the fastest way out of a fight.
-    want = world.wind.to
+    want = wind.to
     p.sailOrder = 2
   } else if (loot && lootDist < 320) {
     want = Math.atan2(loot.pos.y - p.pos.y, loot.pos.x - p.pos.x)
@@ -75,9 +77,9 @@ export function autoPilot(world: World) {
   // Wind constraint first, then land — in that order. Clamping for the no-go
   // zone *after* avoiding a shore can throw the heading straight back into it,
   // which is exactly what the enemy captains get right and this did not.
-  const off = angleDiff(want, world.wind.from)
+  const off = angleDiff(want, wind.from)
   const noGo = (55 * Math.PI) / 180
-  if (Math.abs(off) < noGo) want = world.wind.from + Math.sign(off || 1) * noGo
+  if (Math.abs(off) < noGo) want = wind.from + Math.sign(off || 1) * noGo
 
   want = avoidLand(world, want)
 

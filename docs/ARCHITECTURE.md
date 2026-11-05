@@ -183,7 +183,11 @@ animations on wall-clock time while the simulation ran on scaled time meant that
 the world moved four times faster than the visuals: wrecks were culled while their hulls
 were still visibly sinking, and wake, smoke and plunder all drifted at the wrong rate.
 
-Related invariant: **a wreck must outlive its own sinking animation.** `WRECK_LINGER`
+Related invariant: **a view is destroyed when its hull leaves the world by *any* route**,
+not only when a sinking animation completes. Keying solely on the animation leaked a view
+for every trader that escaped, since those are removed alive.
+
+**A wreck must outlive its own sinking animation.** `WRECK_LINGER`
 (3.2s) is deliberately longer than the view's 2.4s plunge, and views are never created for
 a ship that has already sunk. Getting this wrong produced a hull that sank forever — the
 view finished, destroyed itself, and was immediately rebuilt because the ship was still in

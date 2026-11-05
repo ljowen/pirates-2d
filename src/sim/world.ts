@@ -1,13 +1,17 @@
 import { Ship, STOCK_MODS, type Faction } from './ship'
-import { SLOOP, ENEMY_CLASSES, BARQUE, BRIGANTINE, type ShipClass } from './shipClasses'
+import {
+  SLOOP, ENEMY_CLASSES, BARQUE, BRIGANTINE, FLUYT, FRIGATE, GALLEON, ROYAL_SLOOP,
+  type ShipClass,
+} from './shipClasses'
 import { Director } from './director'
 import { Run } from './run'
 import { dropPlunder, stepPlunder, type Plunder } from './plunder'
 import { UPGRADES_BY_ID } from './upgrades'
 import { Terrain } from './terrain'
 import { makeRng } from '../core/rng'
+import { angleDiff, type Vec2 } from '../core/math'
 import { T } from './tuning'
-import { Wind } from './wind'
+import { Wind, type WindSample } from './wind'
 import { PolarCurve } from './polar'
 import { CaptainAI } from './ai'
 import {
@@ -87,6 +91,18 @@ export class World {
 
   get enemies() { return this.ships.filter((s) => s.faction === 'enemy' && !s.sunk) }
 
+  /**
+   * Enemies that actually press the player, which is what the spawn cap is
+   * meant to limit. Traders are opportunities, not pressure: counting them
+   * let a few fleeing Fluyts occupy the cap, crowd out killable targets, and
+   * quietly starve the run of plunder and levels.
+   */
+  get threats() {
+    return this.ships.filter(
+      (s) => s.faction === 'enemy' && !s.sunk && s.cls.behaviour !== 'trader',
+    )
+  }
+
   spawn(faction: Faction, cls: ShipClass, x: number, y: number, heading: number): Ship {
     const ship = new Ship(this.polar)
     ship.faction = faction
@@ -148,6 +164,43 @@ export class World {
     }
   }
 
+  /**
+   * The wind at a point, including the calm an island throws downwind of
+   * itself.
+   *
+   * `Wind` stays pure and knows nothing of terrain; the coupling lives here
+   * because this is the layer that owns both. The lee is the classic sailing
+   * problem — ducking behind an island shelters you from pursuit but also
+   * takes the way off your own ship.
+   */
+  windAt(p: Vec2): WindSample {
+    const sample = this.wind.at(p.x, p.y)
+    if (T.windShadowStrength <= 0) return sample
+
+    let shadow = 0
+    for (const island of this.terrain.near(p)) {
+      const dx = p.x - island.x
+      const dy = p.y - island.y
+      const dist = Math.hypot(dx, dy)
+      const reach = island.radius * T.windShadowLength
+      if (dist > reach || dist < 1e-3) continue
+
+      // Only downwind of the island counts, and only within a narrowing cone.
+      const bearingFromIsland = Math.atan2(dy, dx)
+      const alignment = Math.cos(angleDiff(bearingFromIsland, sample.to))
+      if (alignment <= 0) continue
+
+      shadow = Math.max(shadow, alignment * alignment * (1 - dist / reach))
+    }
+    if (shadow <= 0) return sample
+
+    return {
+      from: sample.from,
+      to: sample.to,
+      strength: sample.strength * (1 - T.windShadowStrength * shadow),
+    }
+  }
+
   /** Take every sinking since the last call. Safe to skip frames. */
   drainSunk(): Ship[] {
     if (this.sunkEvents.length === 0) return EMPTY_SHIPS
@@ -158,8 +211,14 @@ export class World {
 
   /** Plunder a wreck is worth, by hull. */
   private plunderValue(cls: ShipClass): number {
+    // A Fluyt is the prize: little threat, but her hold is worth running a
+    // chase for, which is the whole reason she is in the game.
+    if (cls === FLUYT) return 26
+    if (cls === GALLEON) return 30
     if (cls === BRIGANTINE) return 14
+    if (cls === FRIGATE) return 16
     if (cls === BARQUE) return 5
+    if (cls === ROYAL_SLOOP) return 4
     return 2
   }
 
@@ -198,7 +257,7 @@ export class World {
       const wasBossWave = this.director.announcementTime
       const spawns = this.director.update(
         dt, this.run.progress, this.run.wave,
-        this.enemies.length, this.bossesAlive, () => this.rand(),
+        this.threats.length, this.bossesAlive, () => this.rand(),
       )
       // A wave that came with an announcement is a boss wave.
       const isBossWave = this.director.announcementTime > wasBossWave
@@ -212,7 +271,7 @@ export class World {
     for (const ship of this.ships) {
       if (ship.sunk) continue
       if (ship.faction === 'enemy') {
-        this.captains.get(ship.id)?.think(ship, player, this.wind, this.terrain, dt)
+        this.captains.get(ship.id)?.think(ship, player, this.windAt(ship.pos), this.terrain, dt)
       }
     }
 
@@ -220,7 +279,8 @@ export class World {
     for (const ship of this.ships) {
       if (ship.sunk) continue
       const steer = ship.faction === 'player' ? this.steerInput : ship.aiSteer
-      ship.step(dt, this.wind, steer)
+      // Each hull feels the wind where she actually is.
+      ship.step(dt, this.windAt(ship.pos), steer)
     }
 
     // --- Gunnery ------------------------------------------------------------
@@ -246,7 +306,7 @@ export class World {
       dropPlunder(this.plunder, ship.pos, this.plunderValue(ship.cls), () => this.rand())
     }
     if (sunkThisStep.length) this.sunkEvents.push(...sunkThisStep)
-    const swept = stepPlunder(this.plunder, this.player, this.wind, dt)
+    const swept = stepPlunder(this.plunder, this.player, (p) => this.windAt(p), dt)
     this.plunder = swept.remaining
     // Spoils washed up on a beach would be unreachable through no fault of the
     // player, so nudge any that drift ashore back into navigable water.
@@ -260,6 +320,18 @@ export class World {
       piece.pos.y += (dy / len) * (-probe.distance + 12)
     }
     this.run.collect(swept.collected)
+
+    // A trader that has run far enough has got clean away, and should stop
+    // being tracked — otherwise escaped prizes accumulate off-screen forever.
+    const escapeRange = T.spawnRadius * 1.6
+    for (let i = this.ships.length - 1; i > 0; i--) {
+      const ship = this.ships[i]
+      if (ship.sunk || ship.cls.behaviour !== 'trader') continue
+      const away = Math.hypot(ship.pos.x - this.player.pos.x, ship.pos.y - this.player.pos.y)
+      if (away < escapeRange) continue
+      this.captains.delete(ship.id)
+      this.ships.splice(i, 1)
+    }
 
     // Clear wrecks once they have finished going under.
     //

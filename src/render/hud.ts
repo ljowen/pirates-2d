@@ -1,5 +1,5 @@
 import type { Ship } from '../sim/ship'
-import type { Wind } from '../sim/wind'
+import type { WindSample } from '../sim/wind'
 import type { World } from '../sim/world'
 import type { Camera } from './camera'
 import { T } from '../sim/tuning'
@@ -25,7 +25,10 @@ export class Hud {
     this.drawEnemyMarkers(world, camera)
 
     this.drawRunBar(world, w)
-    this.drawRose(player, world.wind, w - 100, 100, 62)
+    // The rose shows the wind where the player actually is, not the ambient
+    // average — otherwise local weather would be invisible to them.
+    const localWind = world.windAt(player.pos)
+    this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 100, 100, 62)
     this.drawSailIndicator(player, 24, 24)
     this.drawReadouts(player, 24, 128)
     this.drawCondition(player, 24, 210)
@@ -168,7 +171,7 @@ export class Hud {
     }
   }
 
-  private drawRose(ship: Ship, wind: Wind, cx: number, cy: number, r: number) {
+  private drawRose(ship: Ship, wind: WindSample, label: string, cx: number, cy: number, r: number) {
     const ctx = this.ctx
     ctx.save()
     ctx.translate(cx, cy)
@@ -238,7 +241,7 @@ export class Hud {
     ctx.fillStyle = 'rgba(255,255,255,0.75)'
     ctx.font = '11px ui-monospace, monospace'
     ctx.textAlign = 'center'
-    ctx.fillText(`${wind.describe()} from ${compassName(wind.from)}`, cx, cy + r + 32)
+    ctx.fillText(`${label} from ${compassName(wind.from)}`, cx, cy + r + 32)
   }
 
   private drawSailIndicator(ship: Ship, x: number, y: number) {

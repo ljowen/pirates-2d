@@ -181,24 +181,36 @@ much plunder flows in; the enemy cap governs how much is shooting at you at once
 the cap eases survival without starving the draft, as long as the player is killing fast
 enough to stay under it. This is the main survivability dial.
 
-Hull mix over the run:
+Hull mix over the run. Each tier fades in at its own point, so the sea's character
+changes rather than merely getting busier: skirmishers early, brawlers through the
+middle, long-ranged and heavy hulls late.
 
-| Hull | Appears from | Peak weight |
+| Hull | Appears from | Measured share |
 |---|---|---|
-| Pinnace | 0% | 1.0 → 0.25 |
-| Barque | 22% | 0.55 |
-| Brigantine | 62% | 0.14 |
+| Pinnace | 0% | 53% |
+| Barque | 22% | 21% |
+| Royal Sloop | 12% | 8% |
+| Fluyt | 8% | 6% |
+| Frigate | 40% | 6% |
+| Brigantine | 56% | 5% |
+| Galleon | 72% | 1% |
 
 Barques are deliberately held back — they are a serious threat and must not arrive before
 the draft has.
+
+**Traders do not count toward the enemy cap**, and one that runs far enough is removed
+from the world. The cap exists to limit *pressure*, and a Fluyt is an opportunity rather
+than pressure. Counting them let a few fleeing traders occupy the cap, crowd out killable
+targets and quietly starve the run — win rate fell from 31% to 19%, with Fluyts present
+in nine of ten deaths, before this was corrected.
 
 ### Boss waves
 
 | At | Wave |
 |---|---|
-| 34% | 1 Brigantine |
-| 60% | 1 Brigantine + 2 Barque escorts |
-| 88% | 2 Brigantines + 2 Barque escorts |
+| 34% | A Brigantine |
+| 60% | A Frigate and two Barque escorts |
+| 88% | A Galleon, a Frigate and two Barques |
 
 **Escalation adds escorts rather than more Brigantines.** Multiplying a fair fight does
 not scale — a Brigantine stays dangerous however strong the player gets, so two of them
@@ -206,7 +218,10 @@ was a wall that every measured run broke on. Worse, spawn suppression only stops
 hulls rather than clearing the sea, so "two Brigantines" in practice meant two Brigantines
 plus whatever was already in pursuit.
 
-**While a boss is afloat, routine spawns stop.** A Brigantine is a fair duel on its own
+**While a boss is afloat, the sea thins out around her** — the cap drops to the number of
+bosses and the spawn gap doubles, rather than stopping outright. Stopping entirely
+starved the run: a flagship that lived two minutes meant two minutes with no plunder, no
+levels and none of the roster. A Brigantine is a fair duel on its own
 terms; fought with four other hulls still arriving it is just a wall, and the fight that
 was tuned and signed off never actually happens. Boss waves are announced on screen,
 because three Brigantines appearing over the horizon unheralded is simply a sudden death.

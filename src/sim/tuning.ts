@@ -41,6 +41,12 @@ export interface TuningValues {
   windSwingDegrees: number
   windSwingRate: number
   overcanvasPenalty: number
+  windPatternScale: number
+  windVeerDegrees: number
+  windLocalGust: number
+  windPatternDrift: number
+  windShadowStrength: number
+  windShadowLength: number
 
   // --- Gunnery ------------------------------------------------------------
   gunRange: number
@@ -127,6 +133,12 @@ export const DEFAULT_TUNING: TuningValues = {
   windSwingDegrees: 28,
   windSwingRate: 0.012,
   overcanvasPenalty: 0.35,
+  windPatternScale: 2200,
+  windVeerDegrees: 26,
+  windLocalGust: 0.38,
+  windPatternDrift: 16,
+  windShadowStrength: 0.7,
+  windShadowLength: 2.4,
 
   gunRange: 500,
   gunArcDegrees: 62,
@@ -255,6 +267,13 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'aiMinRange', label: 'AI minimum range', min: 40, max: 400, step: 10, group: 'Enemy captains', help: 'Closer than this and they sheer off rather than foul you.' },
   { key: 'aiBeatAngle', label: 'AI beat angle (deg)', min: 35, max: 90, step: 1, group: 'Enemy captains', help: "The angle off the wind an enemy holds when working to windward. Best VMG is near 60; lower means they pinch and crawl, which is the same trap it punishes the player for." },
   { key: 'aiTackHysteresis', label: 'AI tack reluctance', min: 0, max: 1, step: 0.01, group: 'Enemy captains', help: 'How much better the other tack must look before they put the helm over.' },
+
+  { key: 'windPatternScale', label: 'Wind patch size', min: 400, max: 8000, step: 100, group: 'Weather', help: 'How far you must sail for the local wind to change. Small values make the sea fickle.' },
+  { key: 'windVeerDegrees', label: 'Local veer (deg)', min: 0, max: 90, step: 1, group: 'Weather', help: 'How far the wind swings from place to place. 0 restores a single global wind.' },
+  { key: 'windLocalGust', label: 'Local gust', min: 0, max: 1, step: 0.01, group: 'Weather', help: 'How much stronger or weaker the wind runs in one patch versus another.' },
+  { key: 'windPatternDrift', label: 'Weather drift', min: 0, max: 120, step: 1, group: 'Weather', help: 'How fast the pattern of patches travels downwind.' },
+  { key: 'windShadowStrength', label: 'Island lee', min: 0, max: 1, step: 0.05, group: 'Weather', help: 'How much an island blankets the wind downwind of it.' },
+  { key: 'windShadowLength', label: 'Lee length', min: 0.5, max: 6, step: 0.1, group: 'Weather', help: 'How far the calm reaches behind an island, in island radii.' },
 
   { key: 'heelFromTurn', label: 'Heel from turning', min: 0, max: 0.01, step: 0.0001, group: 'Presentation' },
   { key: 'heelFromWind', label: 'Heel from wind', min: 0, max: 1, step: 0.01, group: 'Presentation' },

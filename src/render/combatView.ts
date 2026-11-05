@@ -2,7 +2,7 @@ import { Container, Graphics } from 'pixi.js'
 import type { Ship } from '../sim/ship'
 import type { Projectile, Splash } from '../sim/combat'
 import { batteryBearing } from '../sim/combat'
-import type { Wind } from '../sim/wind'
+import type { WindSample } from '../sim/wind'
 
 interface Smoke { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }
 
@@ -23,7 +23,7 @@ export class CombatView {
     this.view.addChild(this.smokeG, this.shotG)
   }
 
-  update(ships: Ship[], projectiles: Projectile[], splashes: Splash[], wind: Wind, dt: number) {
+  update(ships: Ship[], projectiles: Projectile[], splashes: Splash[], wind: WindSample, dt: number) {
     this.emitMuzzleSmoke(ships)
     this.stepSmoke(wind, dt)
     this.drawSmoke()
@@ -74,7 +74,7 @@ export class CombatView {
     }
   }
 
-  private stepSmoke(wind: Wind, dt: number) {
+  private stepSmoke(wind: WindSample, dt: number) {
     const wx = Math.cos(wind.to) * 26 * wind.strength
     const wy = Math.sin(wind.to) * 26 * wind.strength
     const alive: Smoke[] = []

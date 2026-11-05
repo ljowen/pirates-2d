@@ -74,7 +74,9 @@ export class AudioDirector {
     // Shivering canvas: sails that are up but not drawing. This is the bed that
     // lets you hear yourself sailing too close to the wind.
     const luff = p.sunk ? 0 : (1 - p.polarMult) * p.canvas
-    this.audio.updateAmbience(world.wind.strength, p.speed / 200, luff)
+    // The wind the player is actually sitting in, so sailing into the lee of
+    // an island is something you hear as well as feel.
+    this.audio.updateAmbience(world.windAt(p.pos).strength, p.speed / 200, luff)
   }
 
   reset() {

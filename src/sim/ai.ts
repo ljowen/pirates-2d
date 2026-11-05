@@ -1,6 +1,6 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
-import type { Wind } from './wind'
+import type { WindSample } from './wind'
 import { angleDiff, clamp, wrapAngle } from '../core/math'
 import { landRadius, type Island, type Terrain } from './terrain'
 
@@ -15,7 +15,7 @@ export class CaptainAI {
   private tackSide: -1 | 1 = 1
   private sinceTack = 99
 
-  think(self: Ship, target: Ship, wind: Wind, terrain: Terrain, dt: number) {
+  think(self: Ship, target: Ship, wind: WindSample, terrain: Terrain, dt: number) {
     this.sinceTack += dt
     if (self.sunk) return
 
@@ -24,7 +24,7 @@ export class CaptainAI {
     const dist = Math.hypot(dx, dy)
     const bearing = Math.atan2(dy, dx)
 
-    const desired = this.desiredHeading(self, bearing, dist)
+    const desired = this.desiredHeading(self, bearing, dist, wind)
     const sailable = this.nearestSailable(desired, bearing, wind)
     // Land overrides everything. A captain who holds a perfect firing course
     // onto a reef is not a captain.
@@ -36,7 +36,9 @@ export class CaptainAI {
     self.aiSteer = clamp(error * 1.8, -1, 1)
 
     // Shorten sail for the knife fight; crack on when there is ground to make.
-    self.sailOrder = dist < T.aiStandoff * 1.25 ? 1 : 2
+    // A runner never shortens sail — her whole plan is speed.
+    const station = this.station(self)
+    self.sailOrder = self.cls.behaviour === 'trader' || dist > station * 1.25 ? 2 : 1
   }
 
   /**
@@ -82,19 +84,47 @@ export class CaptainAI {
   }
 
   /**
-   * Close, open, or circle. Holding the target abeam is what keeps a broadside
-   * bearing, so a settled duel naturally becomes two ships turning circles
-   * around each other.
+   * The range this captain wants to fight at. A frigate uses her reach; a
+   * skirmisher gets inside yours.
    */
-  private desiredHeading(self: Ship, bearing: number, dist: number): number {
-    if (dist > T.aiStandoff * 1.3) return bearing
+  private station(self: Ship): number {
+    switch (self.cls.behaviour) {
+      case 'standoff': return T.aiStandoff * 1.75 * self.cls.range
+      case 'skirmisher': return T.aiStandoff * 0.6
+      default: return T.aiStandoff
+    }
+  }
+
+  /**
+   * Close, open, or circle — according to how this hull fights.
+   *
+   * Holding the target abeam is what keeps a broadside bearing, so a settled
+   * duel naturally becomes two ships turning circles around each other. The
+   * variations on that are what make one encounter feel unlike another:
+   * frigates refuse to come inside your reach, skirmishers crowd you, and
+   * traders simply run.
+   */
+  private desiredHeading(self: Ship, bearing: number, dist: number, wind: WindSample): number {
+    // A trader never fights. She puts the wind on her quarter — her fastest
+    // point of sail — and runs for it.
+    if (self.cls.behaviour === 'trader') {
+      return wrapAngle(wind.to + (angleDiff(bearing, wind.to) > 0 ? -0.5 : 0.5))
+    }
+
+    const station = this.station(self)
+    if (dist > station * 1.3) return bearing
+
     // Only sheer off when genuinely about to foul — backing away from a good
     // firing position was what kept these two from ever trading shots.
     if (dist < T.aiMinRange) return wrapAngle(bearing + Math.PI * 0.7)
 
+    // A standoff ship edges away as well as circling, to hold the long range
+    // where her guns out-reach yours.
+    const drift = self.cls.behaviour === 'standoff' && dist < station * 0.85 ? 0.45 : 0
+
     // Put the target on whichever beam needs less helm.
-    const toPort = wrapAngle(bearing + Math.PI / 2)
-    const toStbd = wrapAngle(bearing - Math.PI / 2)
+    const toPort = wrapAngle(bearing + Math.PI / 2 + drift)
+    const toStbd = wrapAngle(bearing - Math.PI / 2 - drift)
     return Math.abs(angleDiff(toPort, self.heading)) < Math.abs(angleDiff(toStbd, self.heading))
       ? toPort
       : toStbd
@@ -108,7 +138,7 @@ export class CaptainAI {
    * crawls at a quarter speed and can never close. Hysteresis keeps the helm
    * from chattering at the midpoint between tacks.
    */
-  private nearestSailable(desired: number, goalBearing: number, wind: Wind): number {
+  private nearestSailable(desired: number, goalBearing: number, wind: WindSample): number {
     const beat = (T.aiBeatAngle * Math.PI) / 180
     const off = angleDiff(desired, wind.from)
     if (Math.abs(off) >= beat) return desired

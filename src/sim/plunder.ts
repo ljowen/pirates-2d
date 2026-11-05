@@ -1,6 +1,6 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
-import type { Wind } from './wind'
+import type { WindSample } from './wind'
 import type { Vec2 } from '../core/math'
 
 /**
@@ -43,7 +43,7 @@ export function dropPlunder(list: Plunder[], at: Vec2, value: number, rand: () =
 export function stepPlunder(
   list: Plunder[],
   player: Ship,
-  wind: Wind,
+  windAt: (p: Vec2) => WindSample,
   dt: number,
 ): { remaining: Plunder[]; collected: number } {
   const remaining: Plunder[] = []
@@ -51,8 +51,6 @@ export function stepPlunder(
 
   const magnet = T.plunderMagnetRadius * player.mods.pickupRadius
   const grab = T.plunderPickupRadius * player.mods.pickupRadius
-  const driftX = Math.cos(wind.to) * 14 * wind.strength
-  const driftY = Math.sin(wind.to) * 14 * wind.strength
 
   for (const p of list) {
     p.life -= dt
@@ -75,7 +73,11 @@ export function stepPlunder(
       p.drawn = true
     } else {
       p.drawn = false
-      // Otherwise it just rides the surface downwind.
+      // Otherwise it just rides the surface downwind — on the wind where the
+      // piece actually floats, which may differ from the wind at the ship.
+      const local = windAt(p.pos)
+      const driftX = Math.cos(local.to) * 14 * local.strength
+      const driftY = Math.sin(local.to) * 14 * local.strength
       p.vel.x += (driftX - p.vel.x) * 0.6 * dt
       p.vel.y += (driftY - p.vel.y) * 0.6 * dt
     }

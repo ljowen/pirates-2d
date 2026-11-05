@@ -1,7 +1,7 @@
 import { T } from './tuning'
 import { SLOOP, type ShipClass } from './shipClasses'
 import { PolarCurve } from './polar'
-import type { Wind } from './wind'
+import type { WindSample } from './wind'
 import { angleDiff, clamp, damp, smoothstep, type Vec2 } from '../core/math'
 
 /**
@@ -165,7 +165,7 @@ export class Ship {
     this.sailOrder = clamp(this.sailOrder + delta, 0, SAIL_STATES.length - 1)
   }
 
-  step(dt: number, wind: Wind, steerInput: number) {
+  step(dt: number, wind: WindSample, steerInput: number) {
     this.prevPos = { ...this.pos }
     this.prevHeading = this.heading
     this.prevHeel = this.heel

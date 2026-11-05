@@ -69,8 +69,12 @@ async function main() {
       }
       view.update(ship, alpha, dt)
     }
+    // Drop a view when its hull has finished going under *or* has left the
+    // world by any other route. Keying only on the sinking animation leaked a
+    // view for every trader that escaped, since those are removed alive.
+    const present = new Set(world.ships.map((s) => s.id))
     for (const [id, view] of shipViews) {
-      if (!view.finishedSinking) continue
+      if (!view.finishedSinking && present.has(id)) continue
       shipLayer.removeChild(view.view)
       view.view.destroy({ children: true })
       shipViews.delete(id)
@@ -174,11 +178,16 @@ async function main() {
       const dt = frameDt * timeScale
 
       camera.follow(world.player, frameDt)
-      water.update(camera, world.wind, frameDt)
+      // Presentation uses the wind where the camera and the player actually
+      // are, so local weather is visible rather than averaged away.
+      const cameraWind = world.windAt(camera.pos)
+      const playerWind = world.windAt(world.player.pos)
+      water.update(camera, cameraWind, frameDt)
+      water.updateGusts(camera, (p) => world.windAt(p), frameDt)
       terrainView.update(world.terrain, camera)
       wake.update(world.ships, dt)
       syncShipViews(dt, alpha)
-      combat.update(world.ships, world.projectiles, world.splashes, world.wind, dt)
+      combat.update(world.ships, world.projectiles, world.splashes, cameraWind, dt)
       plunderView.update(world.plunder, dt)
 
       audio.masterVolume = T.masterVolume
@@ -194,7 +203,7 @@ async function main() {
       fps += (1 / Math.max(frameDt, 1e-4) - fps) * 0.1
       octx.clearRect(0, 0, overlay.clientWidth, overlay.clientHeight)
       hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready)
-      if (showDebug) debug.draw(world.player, world.wind, camera, fps)
+      if (showDebug) debug.draw(world.player, playerWind, camera, fps)
     },
     120,
   )

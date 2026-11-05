@@ -1,5 +1,5 @@
 import type { Ship } from '../sim/ship'
-import type { Wind } from '../sim/wind'
+import type { WindSample } from '../sim/wind'
 import type { Camera } from './camera'
 import { deg } from '../core/math'
 import { roundRect, speedColor } from './hud'
@@ -12,7 +12,7 @@ import { roundRect, speedColor } from './hud'
 export class DebugOverlay {
   constructor(private readonly ctx: CanvasRenderingContext2D) {}
 
-  draw(ship: Ship, wind: Wind, camera: Camera, fps: number) {
+  draw(ship: Ship, wind: WindSample, camera: Camera, fps: number) {
     const ctx = this.ctx
     const h = ctx.canvas.clientHeight
 
@@ -140,7 +140,7 @@ export class DebugOverlay {
     }
   }
 
-  private drawNumbers(ship: Ship, wind: Wind, fps: number, x: number, y: number) {
+  private drawNumbers(ship: Ship, wind: WindSample, fps: number, x: number, y: number) {
     const ctx = this.ctx
     const rows: [string, string][] = [
       ['fps', fps.toFixed(0)],

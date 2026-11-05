@@ -1,6 +1,7 @@
-import { Container, Texture, TilingSprite } from 'pixi.js'
+import { Container, Graphics, Texture, TilingSprite } from 'pixi.js'
 import type { Camera } from './camera'
-import type { Wind } from '../sim/wind'
+import type { WindSample } from '../sim/wind'
+import type { Vec2 } from '../core/math'
 
 /**
  * Open water, built from two procedurally generated tiling layers scrolling at
@@ -11,8 +12,10 @@ export class Water {
   readonly view = new Container()
   private readonly deep: TilingSprite
   private readonly swell: TilingSprite
+  private readonly gusts = new Graphics()
   private driftX = 0
   private driftY = 0
+  private gustClock = 0
 
   constructor(width: number, height: number) {
     // Lighter water than a realistic deep-sea blue, chosen so dark shot reads
@@ -20,7 +23,7 @@ export class Water {
     this.deep = new TilingSprite({ texture: makeWaveTexture(256, 0x2e6f94, 0x55a0c4, 420, 1.6), width, height })
     this.swell = new TilingSprite({ texture: makeWaveTexture(512, 0x000000, 0xdcf2ff, 150, 3.2, true), width, height })
     this.swell.alpha = 0.42
-    this.view.addChild(this.deep, this.swell)
+    this.view.addChild(this.deep, this.swell, this.gusts)
   }
 
   resize(w: number, h: number) {
@@ -28,7 +31,54 @@ export class Water {
     this.deep.height = this.swell.height = h
   }
 
-  update(camera: Camera, wind: Wind, dt: number) {
+  /**
+   * Cat's paws: the darker ruffled patches that mark stronger wind, and the
+   * glassy ones that mark a lull.
+   *
+   * Without this, wind that varies by place is invisible until you have
+   * already sailed into it — the player can feel a lull but never see one
+   * coming, which makes local weather something that happens *to* them rather
+   * than something to read and use. Sampled on a coarse grid around the
+   * camera and rebuilt only as it moves.
+   */
+  updateGusts(camera: Camera, windAt: (p: Vec2) => WindSample, dt: number) {
+    this.gustClock -= dt
+    if (this.gustClock > 0) return
+    this.gustClock = 0.25
+
+    const g = this.gusts
+    g.clear()
+
+    const step = 190 / camera.zoom
+    const cols = Math.ceil(camera.viewW / (step * camera.zoom)) + 2
+    const rows = Math.ceil(camera.viewH / (step * camera.zoom)) + 2
+    const originX = camera.pos.x - (cols / 2) * step
+    const originY = camera.pos.y - (rows / 2) * step
+
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        // Offset alternate rows so the sampling grid never reads as a lattice.
+        const x = originX + (i + (j % 2) * 0.5) * step
+        const y = originY + j * step
+        const sample = windAt({ x, y })
+
+        // Deviation from a steady breeze, in either direction.
+        const delta = sample.strength - 1
+        if (Math.abs(delta) < 0.07) continue
+
+        // Generously overlapping, so the samples blend into a field of
+        // ruffled and glassy water rather than reading as discrete blobs.
+        const r = step * 1.15
+        if (delta > 0) {
+          g.circle(x, y, r).fill({ color: 0x14455f, alpha: Math.min(0.1, delta * 0.2) })
+        } else {
+          g.circle(x, y, r).fill({ color: 0xcbeaf7, alpha: Math.min(0.08, -delta * 0.16) })
+        }
+      }
+    }
+  }
+
+  update(camera: Camera, wind: WindSample, dt: number) {
     // Surface texture creeps downwind, independent of camera motion.
     this.driftX += Math.cos(wind.to) * 11 * wind.strength * dt
     this.driftY += Math.sin(wind.to) * 11 * wind.strength * dt

@@ -125,11 +125,45 @@ turn-rate build naturally becomes a close-quarters build.
 
 ## Wind
 
-A persistent, slowly wandering wind rather than a fixed direction. Direction drifts
-around a mean heading via seeded value noise; strength breathes in gusts. The best point
-of sail is therefore never a fact you learn once — it is something you keep re-reading.
+A persistent, slowly wandering wind that varies **by place as well as by time**.
 
-Labels run from "Light airs" to "Gale" based on strength.
+The ambient direction drifts around a mean heading and strength breathes in gusts. On
+top of that, a 2D noise field veers and gusts the wind locally, and the whole pattern
+travels downwind so a patch of calm drifts across the map rather than sitting over one
+stretch of water forever.
+
+| | Typical range |
+|---|---|
+| Local veer from ambient | up to ~20° (`windVeerDegrees` caps at 26) |
+| Local strength | 0.66–1.24 at default settings |
+| Patch size | `windPatternScale`, 2200 units |
+
+So the best point of sail is never a fact you learn once. It changes as time passes, and
+it changes as you sail — a favourable lane is something worth going to find, and a lull
+is something worth seeing coming.
+
+### Reading the water
+
+Local wind would be invisible until you had already sailed into it, so the sea shows it:
+**cat's paws**, the darker ruffled patches that mark stronger wind and the glassy ones
+that mark a lull. Sampled on a coarse offset grid around the camera and drawn as
+generously overlapping circles so they blend into a field rather than reading as blobs.
+
+Without this the player can feel a lull but never anticipate one, which makes weather
+something that happens *to* them rather than something to read and use.
+
+### The lee of an island
+
+Islands blanket the wind downwind of themselves — measured at **1.16 to windward against
+0.76 in the lee**. Ducking behind an island shelters you from pursuit but also takes the
+way off your own ship, which is the classic sailing problem and now a real decision here.
+
+`Wind` itself stays pure and knows nothing of terrain; the coupling lives in
+`World.windAt`, the layer that owns both. Everything with a position asks for the wind
+*there* — hulls, plunder, the compass rose, the ambient audio — rather than reading a
+global value.
+
+Labels run from "Light airs" to "Gale" based on local strength.
 
 ## Presentation
 

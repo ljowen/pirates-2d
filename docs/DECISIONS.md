@@ -173,6 +173,19 @@ somewhere under it. A well-drilled crew keeps a tight rhythm; a shot-up one is s
 2.3× raggeder, which gives crew damage a tell inside the volley rather than only in the
 reload timer.
 
+**The wind varies by place, not just over time.** A noise field veers and gusts it
+locally and the pattern drifts downwind, so a favourable lane is worth seeking and a lull
+is worth avoiding. Cat's paws on the water make it visible — without them, weather is
+something that happens to the player rather than something they can read.
+
+**Enemy hulls differ by behaviour, not only by statistics.** Skirmishers crowd you,
+brawlers hold you abeam, standoff ships use their reach, and traders simply run. Numbers
+alone produce the same encounter at different speeds.
+
+**The enemy cap limits pressure, so traders are exempt from it.** A Fluyt is an
+opportunity, not a threat; counting fleeing traders against the cap crowded out killable
+targets and starved the run of progression.
+
 ## Land
 
 **Terrain is generated from a hashed grid, not stored.** The arena is unbounded, so

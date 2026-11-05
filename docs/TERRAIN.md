@@ -63,6 +63,12 @@ Running aground now costs about 7% of hull over six seconds, scaled by the speed
 at, and you can always claw off again under full canvas. A real mistake, not a death
 sentence.
 
+## The lee
+
+Islands blanket the wind downwind of themselves — 1.16 to windward against 0.76 in the
+lee at default settings. See [SAILING.md](SAILING.md). Sheltering behind an island breaks
+off a pursuit but also takes the way off your own ship.
+
 ## Cover
 
 **Land blocks shot, and gunners will not fire at a hull behind a headland.** Measured with

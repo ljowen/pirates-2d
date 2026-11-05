@@ -108,12 +108,47 @@ A hull is a `ShipClass`; upgrades are `ShipMods` layered on top. Effective stat 
 **tuning baseline × class × mods**. Hull types come from the *Pirates!* ship list rather
 than being invented.
 
-| Hull | Tier | Guns | Toughness | Handling | Role |
-|---|---|---|---|---|---|
-| **Pinnace** | 1 | 2 | 0.26 | turns 45% faster, short-ranged | Swarm fodder |
-| **Barque** | 2 | 4 | 0.58 | slightly handier than baseline | Standard threat |
-| **Brigantine** | 3 | 6 | 1.00 | baseline | Boss |
-| *Sloop (player)* | — | 6 | 1.00 | baseline | — |
+| Hull | Tier | Behaviour | Guns | Toughness | Draught | Role |
+|---|---|---|---|---|---|---|
+| **Pinnace** | 1 | skirmisher | 2 | 0.26 | 0.30 | Swarm fodder |
+| **Royal Sloop** | 2 | skirmisher | 3 | 0.42 | 0.40 | Fast irritant that will not be shaken |
+| **Fluyt** | 2 | trader | 2 | 0.95 | 0.85 | Prize: runs, worth 26 plunder |
+| **Barque** | 2 | brawler | 4 | 0.58 | 0.75 | Standard threat |
+| **Frigate** | 3 | standoff | 5 | 0.80 | 0.80 | Out-reaches you and keeps her distance |
+| **Brigantine** | 3 | brawler | 6 | 1.00 | 1.00 | Heavy duel |
+| **Galleon** | 4 | brawler | 9 | 1.70 | 1.00 | Slow fortress; strand her on a shoal |
+| *Sloop (player)* | — | — | 6 | 1.00 | 0.55 | — |
+
+### Behaviour, not just statistics
+
+Stats alone produce hulls that feel the same at different speeds. Each class carries a
+`behaviour` that changes how its captain fights, which is what makes one encounter read
+differently from another. Measured by holding the player still and watching the range
+each hull chooses to keep:
+
+| Hull | Behaviour | Range held | Volleys fired |
+|---|---|---|---|
+| Pinnace | skirmisher | 274 | 15 |
+| Royal Sloop | skirmisher | 321 | 18 |
+| Barque | brawler | 348 | 15 |
+| Brigantine | brawler | 385 | 7 |
+| Galleon | brawler | 514 | 4 |
+| **Frigate** | **standoff** | **577** | **19** |
+| **Fluyt** | **trader** | **3918 and climbing** | **0** |
+
+The Frigate holds the longest range *and* fires the most, because she uses her reach —
+you cannot simply hold her abeam and trade. The Fluyt never fires at all.
+
+### The Fluyt
+
+A prize rather than a threat. She runs downwind the moment she sees you and carries
+several kills' worth of plunder, so chasing one takes you off station while the rest of
+the sea closes in.
+
+She is deliberately **just slower than the player's Sloop**: a stern chase is winnable
+but long. Faster and she could never be caught, which would make her pointless. She is
+also the clearest argument for chain shot — shoot out her rigging and she cannot run,
+though a pure chain build then struggles to actually sink her.
 
 The player's Sloop is deliberately identical to the tuning baseline in every respect. The
 Brigantine fight was balanced and signed off against exactly those numbers, so giving the
