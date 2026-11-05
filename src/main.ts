@@ -9,7 +9,7 @@ import { ShipView } from './render/shipView'
 import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
-import { DraftUI } from './ui/draft'
+import { ShipyardUI } from './ui/shipyard'
 import { ShipSelect } from './ui/shipSelect'
 import { Hud } from './render/hud'
 import { DebugOverlay } from './render/debug'
@@ -101,7 +101,7 @@ async function main() {
   const hud = new Hud(octx)
   const debug = new DebugOverlay(octx)
   const tuner = new Tuner(world)
-  const draft = new DraftUI()
+  const shipyard = new ShipyardUI()
   const shipSelect = new ShipSelect()
 
   /** Put the captain back at the quayside to pick a hull for the next voyage. */
@@ -158,27 +158,21 @@ async function main() {
       // R returns to the quayside rather than restarting the same hull, so
       // trying a different ship never means reloading the page.
       if (input.consumePress('reset') && !shipSelect.open) {
-        draft.hide()
         chooseShip()
       }
       input.endFrame()
 
-      // A level-up stops the world: the draft is a decision, not a reflex test.
-      // Visibility is driven purely by run state rather than by the card's own
-      // callback, so any other path out of 'drafting' — a reset, or a level
-      // resolved elsewhere — can never strand a stale hand on screen.
-      if (world.run.state === 'drafting' && world.run.draft) {
-        if (!draft.open) {
-          draft.show(world.run.draft, world.run.level, world.run.taken, (upgrade) => {
-            if (upgrade) world.run.choose(upgrade, world.player)
-            else world.run.decline()
-          })
+      // Putting in stops the world. Reaching the yard was the cost; the
+      // shopping itself should not be a reflex test. Visibility follows run
+      // state rather than the panel's own callback, so nothing can strand a
+      // stale yard on screen.
+      if (world.run.state === 'docked') {
+        if (!shipyard.open) {
+          shipyard.show(world.run, world.player, () => world.run.castOff())
         }
-      } else if (draft.open) {
-        draft.hide()
       }
 
-      const frozen = paused || draft.open || shipSelect.open ||
+      const frozen = paused || shipyard.open || shipSelect.open ||
         world.run.state === 'won' || world.run.state === 'lost'
       const timeScale = frozen ? 0 : turbo ? 4 : 1
       loop.timeScale = timeScale

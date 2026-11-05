@@ -91,91 +91,79 @@ short of. Baseline repair plus one Carpenter is 0.0145 hull/s against 0.0085 on 
 `STARTING_UPGRADES` in `sim/upgrades.ts` is a plain list of ids, so adding or changing
 the opening loadout is a one-line edit.
 
-## The draft
+## Coin, not experience
 
-Four cards offered per level, drawn weighted and without replacement. **You may refuse
-the whole hand**, which banks part of the level back so the next one comes round sooner.
+Plunder is money. There are no levels and no random hand of cards — you take coin from
+wrecks and spend it at a shipyard on the parts you actually want.
 
-Refusing matters because cards carry costs. A hand of heavy guns offered to a light,
-nimble ship has nothing in it that does not damage the build, and forcing a pick there is
-worse than offering none.
+The draft was replaced because it **diluted as the catalogue grew**: with two dozen parts
+and four offered, building toward a doctrine was largely luck. And a trade you did not
+choose is only a tax — deliberate purchase is what turns a cost into a decision.
 
-### Upgrades are trades
+### Shipyards
 
-Most cards buy power with something. A ship that improves in every direction at once has
-no identity, and the game's own sail mechanic already teaches that power costs handling —
-full canvas is faster and turns wider, battle sails the reverse. The upgrade system used
-to contradict that lesson.
+Harbours sit in bays on roughly 30% of islands, a fixed 62 units clear of the shore so a
+laden hull can put in without grounding. Each carries a handful of parts and does not
+restock, so you visit different yards rather than farming one.
 
-A handful of cards remain genuinely free, at low stack limits, so levelling still feels
-like growth. **The trades shape direction; they do not cap the curve.**
+**There is no safe water.** Reaching the yard is the whole cost; shopping freezes the
+world, but whatever was chasing you is still there when you cast off.
 
-### Burden
+This is also what finally gives the map a purpose. Terrain used to be obstacle and hiding
+place; a yard upwind with a Galleon between you and it is a real decision, and the wind
+and draught systems make it a hard one.
 
-The main currency is displacement. Guns, shot and timber all add burden, and burden:
+### Crew stations
 
-| Effect | Strength |
+A finite crew spread across four stations, adjustable **under way** — hands take a few
+seconds to cross the deck, so it is a decision rather than a toggle.
+
+| Station | Governs |
 |---|---|
-| Slower | `burdenOnSpeed` 0.4 |
-| Wider turns | `burdenOnTurn` 0.3 |
-| **Sits deeper** | `burdenOnDraught` 0.7 |
+| Gunnery | Reload speed |
+| Sails | How fast canvas changes |
+| Helm | Turn rate |
+| Repairs | Hull, rigging and crew recovery |
 
-Draught carries most of the cost deliberately. Turning decides how often your guns bear,
-which was already the binding constraint — taxing it did not shape a build, it
-*compounded*: slower to bring the broadside round, fewer kills, less plunder, fewer
-upgrades. Draught instead closes off the shoals, which is a strategic sacrifice rather
-than a quiet reduction in damage.
+An even split at full strength is 1.0, which is what every other number is balanced
+against. Manning is square-rooted, so doubling a station is worth about 40% rather than
+100% — concentrating everyone on the guns should be a choice, not an obvious one.
 
-Measured end-of-run shapes, same pool, different plans:
+This is what finally gives crew casualties weight: losing hands thins *every* station at
+once. A ship at 55% crew reads 1.25× reload and 0.74× turn rate before anything else is
+counted, so grape shot now degrades the whole vessel.
 
-| Build | Burden | Draws | Target size |
-|---|---|---|---|
-| Corsair Pinnace | 1.02 | **0.22** | 0.67 |
-| Gunline Sloop | 1.30 | 0.67 | 1.16 |
-| Ironside Brigantine | 1.10 | **1.07** | 1.26 |
+### The readout
 
-**A light ship is also a smaller target** — hit radius scales with both hull size and how
-she is loaded. Without that, shedding weight bought mobility that did not translate into
-taking fewer hits, so light builds were strictly worse than heavy ones.
+The yard shows what she actually *does* — guns a side, damage, reload, gun range,
+accuracy, top speed, turn rate, timbers, draught, burden — updating as you buy and
+reassign. A deliberate system is only deliberate if you can see what you are choosing
+between.
 
-### Gunnery is a space of internal trades
+Harbours are marked on the water, and the nearest gets a bearing and range at the screen
+edge, because an economy that asks you to sail somewhere specific is only a decision if
+you can see where.
 
-Four axes — power, reach, rate, accuracy — and most cards buy one with another. This is
-where build identity actually lives.
+### Balance: unfinished
 
-| Card | Gives | Costs |
-|---|---|---|
-| Another Gunport | +1 gun | burden |
-| Heavier Shot | +17% power | burden |
-| Carronades | +32% power, faster | −12% reach |
-| Double-Charged | +26% power | −15% rate |
-| Quick Match | +17% rate | −9% power |
-| Long Nines | +18% reach | −7% rate |
-| Chase Guns | +16% reach, +14% accuracy | −8% rate |
-| Trained Gunners | +20% accuracy | −7% rate |
+| Hull | Win rate | Median | Yard visits | Parts fitted |
+|---|---|---|---|---|
+| Sloop | 0% | 313s | 4.0 | 8.1 |
+| Pinnace | 0% | 304s | 2.8 | 7.3 |
+| Brigantine | 13% | 327s | 0.9 | 3.5 |
+| Fluyt | 13% | 315s | 4.2 | 9.6 |
 
-Measured with hand-built loadouts of eight picks each, so this tests the doctrine rather
-than the drafter:
+The economy turns over — roughly 300 coin a voyage funding eight or nine fittings — but
+runs are markedly shorter than the draft version managed (~440s). Sailing to port costs
+time the clock does not stop for.
 
-| Doctrine | Median | Ships sunk |
-|---|---|---|
-| Smasher — carronades and quick match | **469s** | 34 |
-| Heavy metal — weight of shot | 436s | 37 |
-| Volume — eleven guns | 432s | 35 |
-| Sniper — reach and accuracy | 311s | 27 |
-| No upgrades at all | 318s | 23 |
+Two things the figures are not telling us. **When to break off and make port is a
+judgement call**, and the scripted pilot makes it crudely with a coin threshold; this is
+the hardest thing it has ever been asked to decide. And **a slow deep hull can barely use
+the economy at all** — the Brigantine reaches under one yard a voyage, which is
+thematically right and possibly too punishing.
 
-### Two traps found while building this
-
-**"Speed instead of guns" is not a build.** The spawn cap means hulls accumulate until
-you clear them, so every viable plan must kill at a decent rate — you cannot survive by
-not dying. A pure speed build on a Pinnace died in **191s against the gunline's 404s on
-the same hull**. Firepower is mandatory; the real choice is *how* you arm.
-
-**Saturating benefits paired with compounding costs make traps.** Reach is the only axis
-whose benefit runs out — past a point there is nothing further away to shoot — while its
-reload cost keeps multiplying. Stacked freely it produced a build *worse than taking no
-upgrades at all* (272s against 318s). The reach cards are now capped low.
+## The size of the pool
 
 ## The size of the pool
 

@@ -14,6 +14,9 @@ export interface Upgrade {
   text: string
   group: 'Sailing' | 'Gunnery' | 'Shot' | 'Quarterdeck'
   maxStacks: number
+  /** Coin to fit one of these at a yard. */
+  price: number
+  /** Relative chance of a yard carrying it. */
   weight: number
   /**
    * What this card is *for*, used to steer a build. The draft does not read
@@ -62,33 +65,33 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'careened-hull', name: 'Careened Hull', group: 'Sailing',
     text: 'Weed scraped off. 9% less drag, and nothing given up for it.',
-    maxStacks: 3, weight: 1, tags: ['speed'],
+    maxStacks: 3, price: 20, weight: 1, tags: ['speed'],
     apply: (m) => { m.drag *= 0.91 },
   },
   {
     id: 'veteran-topmen', name: 'Veteran Topmen', group: 'Sailing',
     text: 'Hands who know their work. Sails change 18% faster and the wounded return to duty sooner.',
-    maxStacks: 3, weight: 0.9, tags: ['handling'],
+    maxStacks: 3, price: 22, weight: 0.9, tags: ['handling'],
     apply: (m) => { m.crewSpeed *= 1.18; m.crewRepair += 0.008 },
   },
   {
     id: 'trained-gunners', name: 'Trained Gunners', group: 'Gunnery',
     text: 'A tighter pattern: 20% less scatter at range.',
     cost: 'laying a gun properly takes time — 7% slower',
-    maxStacks: 3, weight: 0.9, tags: ['guns', 'reach'],
+    maxStacks: 3, price: 22, weight: 0.9, tags: ['guns', 'reach'],
     apply: (m) => { m.spread *= 0.8; m.reload *= 1.07 },
   },
   {
     id: 'powder-monkeys', name: 'Powder Monkeys', group: 'Gunnery',
     text: 'Boys at the powder. Reload 13% faster, and they weigh nothing.',
-    maxStacks: 4, weight: 1.1, tags: ['guns', 'light'],
+    maxStacks: 4, price: 20, weight: 1.1, tags: ['guns', 'light'],
     apply: (m) => { m.reload *= 0.87 },
   },
   {
     id: 'carronades', name: 'Carronades', group: 'Gunnery',
     text: 'Short, light smashers. 28% more damage and quick to serve.',
     cost: 'useless at any distance — 22% less reach',
-    maxStacks: 4, weight: 1, tags: ['guns', 'light'],
+    maxStacks: 4, price: 26, weight: 1, tags: ['guns', 'light'],
     apply: (m) => { m.damage *= 1.28; m.reload *= 0.93; m.range *= 0.78; m.burden += 0.025 },
   },
 
@@ -112,49 +115,49 @@ export const UPGRADES: Upgrade[] = [
     id: 'extra-gunport', name: 'Another Gunport', group: 'Gunnery',
     text: 'One more gun in every broadside.',
     cost: 'and the weight of her, riding lower',
-    maxStacks: 6, weight: 1.05, tags: ['guns', 'heavy'],
+    maxStacks: 6, price: 32, weight: 1.05, tags: ['guns', 'heavy'],
     apply: (m) => { m.extraGuns += 1; m.burden += 0.085 },
   },
   {
     id: 'heavier-shot', name: 'Heavier Shot', group: 'Gunnery',
     text: '17% more weight behind every ball.',
     cost: 'shot and powder enough to feel',
-    maxStacks: 5, weight: 1.1, tags: ['guns', 'heavy'],
+    maxStacks: 5, price: 26, weight: 1.1, tags: ['guns', 'heavy'],
     apply: (m) => { m.damage *= 1.17; m.burden += 0.05 },
   },
   {
     id: 'long-nines', name: 'Long Nines', group: 'Gunnery',
     text: 'Reach 18% further, and open fire before they can answer.',
     cost: 'long guns are slow guns: 7% longer to serve',
-    maxStacks: 3, weight: 1, tags: ['guns', 'reach'],
+    maxStacks: 3, price: 24, weight: 1, tags: ['guns', 'reach'],
     apply: (m) => { m.range *= 1.18; m.reload *= 1.07 },
   },
   {
     id: 'carronades', name: 'Carronades', group: 'Gunnery',
     text: 'Short brutal smashers: 32% more damage, and quick to serve.',
     cost: 'no reach at all — 12% less',
-    maxStacks: 4, weight: 1, tags: ['guns', 'light', 'close'],
+    maxStacks: 4, price: 26, weight: 1, tags: ['guns', 'light', 'close'],
     apply: (m) => { m.damage *= 1.32; m.reload *= 0.95; m.range *= 0.88 },
   },
   {
     id: 'quick-match', name: 'Quick Match', group: 'Gunnery',
     text: 'Hurried loading: 17% faster between broadsides.',
     cost: 'lighter charges, 9% less behind each ball',
-    maxStacks: 4, weight: 1, tags: ['guns', 'light'],
+    maxStacks: 4, price: 22, weight: 1, tags: ['guns', 'light'],
     apply: (m) => { m.reload *= 0.83; m.damage *= 0.91 },
   },
   {
     id: 'double-charged', name: 'Double-Charged', group: 'Gunnery',
     text: 'Twice the powder behind every ball: 26% more damage.',
     cost: 'and 15% longer to load',
-    maxStacks: 3, weight: 0.9, tags: ['guns', 'close'],
+    maxStacks: 3, price: 24, weight: 0.9, tags: ['guns', 'close'],
     apply: (m) => { m.damage *= 1.26; m.reload *= 1.15 },
   },
   {
     id: 'chase-guns', name: 'Chase Guns', group: 'Gunnery',
     text: 'Long, finely bored pieces: 16% further and 14% tighter.',
     cost: 'only two of them, and slow — 8% longer to load',
-    maxStacks: 2, weight: 0.9, tags: ['guns', 'reach'],
+    maxStacks: 2, price: 28, weight: 0.9, tags: ['guns', 'reach'],
     apply: (m) => { m.range *= 1.16; m.spread *= 0.86; m.reload *= 1.08 },
   },
 
@@ -163,19 +166,19 @@ export const UPGRADES: Upgrade[] = [
     id: 'doubled-timbers', name: 'Doubled Timbers', group: 'Quarterdeck',
     text: 'Her scantlings doubled: 18% harder to hurt.',
     cost: 'and a great deal heavier',
-    maxStacks: 4, weight: 1, tags: ['tough', 'heavy'],
+    maxStacks: 4, price: 30, weight: 1, tags: ['tough', 'heavy'],
     apply: (m) => { m.toughness *= 1.18; m.burden += 0.1 },
   },
   {
     id: 'ships-carpenter', name: "Ship's Carpenter", group: 'Quarterdeck',
     text: 'Plugs shot holes under way. Slowly mends your hull.',
-    maxStacks: 3, weight: 0.95, tags: ['tough'],
+    maxStacks: 3, price: 24, weight: 0.95, tags: ['tough'],
     apply: (m) => { m.hullRepair += 0.006 },
   },
   {
     id: 'sailmaker', name: 'Sailmaker', group: 'Quarterdeck',
     text: 'Patches canvas as you sail. Slowly mends your rigging.',
-    maxStacks: 3, weight: 0.95, tags: ['tough', 'handling'],
+    maxStacks: 3, price: 22, weight: 0.95, tags: ['tough', 'handling'],
     apply: (m) => { m.sailRepair += 0.012 },
   },
 
@@ -184,14 +187,14 @@ export const UPGRADES: Upgrade[] = [
     id: 'lighten-ship', name: 'Lighten Ship', group: 'Sailing',
     text: 'Stores, spare spars and half the shot go over the side. She rides higher at once.',
     cost: 'and there is less of her between you and the sea',
-    maxStacks: 4, weight: 1, tags: ['speed', 'light'],
+    maxStacks: 4, price: 18, weight: 1, tags: ['speed', 'light'],
     apply: (m) => { m.burden = Math.max(0.55, m.burden - 0.13); m.toughness *= 0.96 },
   },
   {
     id: 'racing-trim', name: 'Racing Trim', group: 'Sailing',
     text: 'Everything shifted for speed: 13% less drag.',
     cost: 'nothing left where it ought to be when shot comes aboard',
-    maxStacks: 3, weight: 0.9, tags: ['speed', 'light'],
+    maxStacks: 3, price: 20, weight: 0.9, tags: ['speed', 'light'],
     apply: (m) => { m.drag *= 0.87; m.toughness *= 0.96 },
   },
 
@@ -200,21 +203,21 @@ export const UPGRADES: Upgrade[] = [
     id: 'taller-masts', name: 'Taller Masts', group: 'Sailing',
     text: '11% more drive from every point of sail.',
     cost: 'weight aloft, where it is felt most',
-    maxStacks: 4, weight: 1, tags: ['speed', 'heavy'],
+    maxStacks: 4, price: 24, weight: 1, tags: ['speed', 'heavy'],
     apply: (m) => { m.thrust *= 1.11; m.burden += 0.04 },
   },
   {
     id: 'larger-rudder', name: 'Larger Rudder', group: 'Sailing',
     text: 'Answers the helm 15% faster.',
     cost: 'and drags through the water for it',
-    maxStacks: 4, weight: 1, tags: ['handling'],
+    maxStacks: 4, price: 24, weight: 1, tags: ['handling'],
     apply: (m) => { m.turnRate *= 1.15; m.drag *= 1.07 },
   },
   {
     id: 'rakish-lines', name: 'Rakish Lines', group: 'Sailing',
     text: 'Cut away forward: 12% quicker on the helm.',
     cost: 'less hull to take a beating',
-    maxStacks: 4, weight: 1, tags: ['handling', 'light'],
+    maxStacks: 4, price: 22, weight: 1, tags: ['handling', 'light'],
     apply: (m) => { m.turnRate *= 1.12; m.toughness *= 0.95 },
   },
 
@@ -227,19 +230,19 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'chain-shot', name: 'Chain Shot', exclusive: 'shot', group: 'Shot',
     text: 'Bar and chain, aimed high. Tears rigging and strands them — at the cost of hull damage.',
-    maxStacks: 3, weight: 0.8, tags: ['guns'],
+    maxStacks: 3, price: 26, weight: 0.8, tags: ['guns'],
     apply: (m) => { m.shotSails *= 2.1; m.shotHull *= 0.82 },
   },
   {
     id: 'grape-shot', name: 'Grape Shot', exclusive: 'shot', group: 'Shot',
     text: 'Sweeps the deck. Guts their crew, blunting their gunnery and their helm.',
-    maxStacks: 3, weight: 0.8, tags: ['guns'],
+    maxStacks: 3, price: 26, weight: 0.8, tags: ['guns'],
     apply: (m) => { m.shotCrew *= 2.4; m.shotHull *= 0.85 },
   },
   {
     id: 'round-shot', name: 'Double-Shotted', exclusive: 'shot', group: 'Shot',
     text: 'Straight at the waterline. Everything into the hull — the fastest way to sink her.',
-    maxStacks: 3, weight: 0.8, tags: ['guns'],
+    maxStacks: 3, price: 26, weight: 0.8, tags: ['guns'],
     apply: (m) => { m.shotHull *= 1.7; m.shotSails *= 0.8; m.shotCrew *= 0.8 },
   },
 
@@ -247,7 +250,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'loot-hooks', name: 'Grappling Hooks', group: 'Quarterdeck',
     text: 'Sweeps up plunder from 55% further out.',
-    maxStacks: 3, weight: 0.9, tags: ['economy'],
+    maxStacks: 3, price: 20, weight: 0.9, tags: ['economy'],
     apply: (m) => { m.pickupRadius *= 1.55 },
   },
 ]

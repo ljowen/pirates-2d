@@ -64,8 +64,9 @@ export interface TuningValues {
 
   // --- The run ------------------------------------------------------------
   runDuration: number
-  draftCards: number
-  declineRefund: number
+  yardStock: number
+  partPriceGrowth: number
+  repairPrice: number
   spawnIntervalStart: number
   spawnIntervalEnd: number
   enemyCapStart: number
@@ -79,6 +80,7 @@ export interface TuningValues {
   playerHullRepair: number
   playerSailRepair: number
   playerCrewRepair: number
+  crewMoveRate: number
   plunderLifetime: number
   plunderPickupRadius: number
   plunderMagnetRadius: number
@@ -90,6 +92,8 @@ export interface TuningValues {
   islandMinRadius: number
   islandMaxRadius: number
   shoalScale: number
+  harbourChance: number
+  harbourDockRadius: number
   groundingDamage: number
   groundingDrag: number
   shoalDraughtPenalty: number
@@ -165,8 +169,9 @@ export const DEFAULT_TUNING: TuningValues = {
   burdenOnDraught: 0.7,
 
   runDuration: 480,
-  draftCards: 4,
-  declineRefund: 0.55,
+  yardStock: 6,
+  partPriceGrowth: 0.45,
+  repairPrice: 34,
   spawnIntervalStart: 7.0,
   spawnIntervalEnd: 2.6,
   enemyCapStart: 2,
@@ -180,6 +185,7 @@ export const DEFAULT_TUNING: TuningValues = {
   playerHullRepair: 0.0085,
   playerSailRepair: 0.026,
   playerCrewRepair: 0.016,
+  crewMoveRate: 0.22,
   plunderLifetime: 26,
   plunderPickupRadius: 46,
   plunderMagnetRadius: 190,
@@ -190,6 +196,8 @@ export const DEFAULT_TUNING: TuningValues = {
   islandMinRadius: 90,
   islandMaxRadius: 260,
   shoalScale: 1.7,
+  harbourChance: 0.62,
+  harbourDockRadius: 110,
   groundingDamage: 0.1,
   groundingDrag: 7,
   shoalDraughtPenalty: 0.55,
@@ -248,8 +256,9 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'sailDriveFloor', label: 'Shredded-sail drive', min: 0, max: 1, step: 0.01, group: 'Gunnery', help: 'Drive remaining with sails fully shot away. This is what wires gunnery back into the sailing model.' },
 
   { key: 'runDuration', label: 'Run length (s)', min: 120, max: 1800, step: 30, group: 'The run' },
-  { key: 'declineRefund', label: 'Refund for declining', min: 0, max: 1, step: 0.05, group: 'The run', help: 'Share of the level banked back when you refuse a hand, so the next one comes round sooner.' },
-  { key: 'draftCards', label: 'Draft cards offered', min: 2, max: 5, step: 1, group: 'The run', help: 'More cards means less chance of a hand with nothing useful in it. Cuts run-to-run variance without raising the power ceiling.' },
+  { key: 'yardStock', label: 'Parts per shipyard', min: 2, max: 12, step: 1, group: 'The run', help: 'How much a yard carries. Larger means less need to visit several.' },
+  { key: 'partPriceGrowth', label: 'Repeat part markup', min: 0, max: 2, step: 0.05, group: 'The run', help: 'How much dearer each successive fitting of the same part becomes.' },
+  { key: 'repairPrice', label: 'Full repair price', min: 5, max: 150, step: 1, group: 'The run', help: 'Coin to put a completely wrecked ship right.' },
   { key: 'spawnIntervalStart', label: 'Spawn gap, start (s)', min: 0.5, max: 15, step: 0.1, group: 'The run' },
   { key: 'spawnIntervalEnd', label: 'Spawn gap, end (s)', min: 0.3, max: 10, step: 0.1, group: 'The run' },
   { key: 'enemyCapStart', label: 'Enemy cap, start', min: 1, max: 20, step: 1, group: 'The run' },
@@ -263,6 +272,7 @@ export const TUNING_SCHEMA: TuningParam[] = [
 
   { key: 'playerHullRepair', label: 'Hull repair /s', min: 0, max: 0.02, step: 0.0005, group: 'The run', help: 'Baseline self-repair. Rewards breaking off downwind to recover.' },
   { key: 'playerSailRepair', label: 'Rigging repair /s', min: 0, max: 0.08, step: 0.001, group: 'The run', help: 'Higher than hull repair: permanently shredded rigging means never escaping anything again.' },
+  { key: 'crewMoveRate', label: 'Crew move rate', min: 0.05, max: 2, step: 0.01, group: 'The run', help: 'How fast hands cross the deck between stations. Lower makes reassignment a bigger commitment.' },
   { key: 'playerCrewRepair', label: 'Crew recovery /s', min: 0, max: 0.08, step: 0.001, group: 'The run', help: 'Wounded hands returning to duty. Restores reload speed and sail handling.' },
   { key: 'plunderLifetime', label: 'Plunder lifetime (s)', min: 5, max: 90, step: 1, group: 'The run' },
   { key: 'plunderPickupRadius', label: 'Pickup radius', min: 15, max: 150, step: 1, group: 'The run' },
@@ -274,6 +284,8 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'islandMinRadius', label: 'Island size, min', min: 40, max: 400, step: 10, group: 'Land' },
   { key: 'islandMaxRadius', label: 'Island size, max', min: 60, max: 700, step: 10, group: 'Land' },
   { key: 'shoalScale', label: 'Shoal ring', min: 1, max: 3, step: 0.05, group: 'Land', help: 'How far shallow water extends beyond the beach, as a multiple of island radius.' },
+  { key: 'harbourChance', label: 'Harbour frequency', min: 0, max: 1, step: 0.02, group: 'Land', help: 'Share of islands carrying a shipyard. Larger islands are likelier.' },
+  { key: 'harbourDockRadius', label: 'Docking radius', min: 40, max: 400, step: 10, group: 'Land', help: 'How close you must bring her to put in.' },
   { key: 'groundingDamage', label: 'Grounding damage', min: 0, max: 0.5, step: 0.01, group: 'Land', help: 'Hull lost per second while aground.' },
   { key: 'groundingDrag', label: 'Grounding drag', min: 1, max: 30, step: 0.5, group: 'Land', help: 'How hard the bottom holds you once you touch it.' },
   { key: 'shoalDraughtPenalty', label: 'Shoal drag penalty', min: 0, max: 2, step: 0.05, group: 'Land', help: 'Extra drag in shallows, scaled by how deep the hull draws.' },

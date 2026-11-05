@@ -90,6 +90,15 @@ export function autoPilot(world: World) {
 
   const wind = world.windAt(p.pos)
 
+  // Making port is worth a detour, but only for a refit worth having. At a
+  // low threshold the pilot shuttled to a yard every forty seconds and spent
+  // the voyage sailing rather than fighting, which earned it neither coin nor
+  // kills. Go in with a purse, or go in to be mended.
+  const needsMending = p.hull < 0.45 && world.run.coins >= world.run.repairPrice(p)
+  const worthRefitting = world.run.coins >= 120
+  const yard = (worthRefitting || needsMending) ? world.nearestYard : null
+  const makingPort = yard !== null && yard.distance < 2600 && p.hull > 0.15
+
   let want: number
   if (p.hull < 0.38 && target && drawsLessThan(p, target)) {
     // Hurt, and drawing less water than the ship chasing us: make for the
@@ -101,6 +110,9 @@ export function autoPilot(world: World) {
   } else if (p.hull < 0.35 && target) {
     // Badly hurt with nowhere shallow to go: run downwind instead.
     want = wind.to
+    p.sailOrder = 2
+  } else if (makingPort && yard) {
+    want = Math.atan2(yard.pos.y - p.pos.y, yard.pos.x - p.pos.x)
     p.sailOrder = 2
   } else if (loot && lootDist < 320) {
     want = Math.atan2(loot.pos.y - p.pos.y, loot.pos.x - p.pos.x)
@@ -196,11 +208,44 @@ function avoidLand(world: World, desired: number): number {
   return Math.abs(angleDiff(a, desired)) < Math.abs(angleDiff(b, desired)) ? a : b
 }
 
+/**
+ * Spend at a yard, then cast off.
+ *
+ * Buying is where a plan is actually expressed now, so the pilot mends itself
+ * when badly knocked about and otherwise fits whatever on the shelf best suits
+ * its archetype.
+ */
+export function shopAt(world: World) {
+  const run = world.run
+  const player = world.player
+  const plan = archetypeFor(player.cls.id)
+
+  // Mend first if she is in a bad way; a fast wreck is still a wreck.
+  if (player.hull < 0.6 && run.coins >= run.repairPrice(player)) run.repair(player)
+
+  // Then fit whatever suits the plan and can be paid for.
+  for (let i = 0; i < 12; i++) {
+    const affordable = run.stock
+      .filter((part) => run.canAfford(part))
+      .map((part) => ({ part, score: scoreCard(part, plan) }))
+      .sort((a, b) => b.score - a.score)
+    if (!affordable.length || affordable[0].score <= 0.5) break
+    if (!run.buy(affordable[0].part, player)) break
+  }
+
+  // Keep a reserve for repairs rather than spending to the last coin.
+  if (player.hull < 0.9 && run.coins >= run.repairPrice(player)) run.repair(player)
+
+  run.castOff()
+}
+
 export interface RunResult {
   seed: number
   won: boolean
   seconds: number
-  level: number
+  coins: number
+  partsFitted: number
+  yardVisits: number
   shipsSunk: number
   /** Share of the run spent with the keel on the bottom. Should be near zero. */
   agroundPercent: number
@@ -213,12 +258,12 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
   const dt = 1 / 60
   let steps = 0
   let aground = 0
+  let visits = 0
 
   for (let i = 0; i < maxSeconds * 60; i++) {
-    if (world.run.state === 'drafting' && world.run.draft) {
-      const choice = pickCard(world.run.draft, world.player.cls.id)
-      if (choice) world.run.choose(choice, world.player)
-      else world.run.decline()
+    if (world.run.state === 'docked') {
+      visits++
+      shopAt(world)
       continue
     }
     if (world.run.state !== 'sailing') break
@@ -233,7 +278,9 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
     seed,
     won: world.run.state === 'won',
     seconds: Math.round(world.run.elapsed),
-    level: world.run.level,
+    coins: Math.round(world.run.totalCoins),
+    partsFitted: [...world.run.taken.values()].reduce((a, b) => a + b, 0),
+    yardVisits: visits,
     shipsSunk: world.run.shipsSunk,
     agroundPercent: +(100 * aground / Math.max(1, steps)).toFixed(2),
   }
@@ -250,7 +297,9 @@ export function benchmark(world: World, seeds = 16, maxSeconds = 500) {
     winRate: `${Math.round((100 * runs.filter((r) => r.won).length) / runs.length)}%`,
     medianSeconds: times[Math.floor(times.length / 2)],
     range: `${times[0]}–${times[times.length - 1]}`,
-    avgLevel: mean((r) => r.level),
+    avgParts: mean((r) => r.partsFitted),
+    avgYardVisits: mean((r) => r.yardVisits),
+    avgCoins: mean((r) => r.coins),
     avgSunk: mean((r) => r.shipsSunk),
     avgAgroundPercent: mean((r) => r.agroundPercent),
     runs,

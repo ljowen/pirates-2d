@@ -152,7 +152,21 @@ a speed build died in 191s where a gunline on the same hull reached 404s.
 **Beware saturating benefits with compounding costs.** Reach runs out of usefulness while
 its reload penalty does not, which made an unbounded sniper build worse than no upgrades.
 
-**Four draft cards, not three.** With the ceiling far above the median, the difference
+**Coin, bought at a shipyard, rather than a random draft.** The draft diluted as the
+catalogue grew — two dozen parts with four offered made a doctrine a matter of luck — and
+a trade you did not choose is only a tax. Deliberate purchase is what makes a cost a
+decision.
+
+**Harbours give the map a purpose.** Terrain was obstacle and hiding place; a yard upwind
+with a Galleon in the way is a destination, and the wind and draught systems already built
+make reaching it hard.
+
+**No safe water in port.** Reaching the yard is the cost; shopping freezes the world but
+changes nothing outside it.
+
+**Crew is a live dial, not a loadout.** Four stations, reassignable under way with a few
+seconds for the hands to cross the deck. It is also what finally gives crew casualties
+weight, since losing hands thins every station at once. With the ceiling far above the median, the difference
 between runs was largely whether a useful card turned up early. More cards per hand cuts
 variance without raising the power ceiling — the right shape of fix for a spread problem.
 

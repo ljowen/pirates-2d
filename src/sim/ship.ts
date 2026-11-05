@@ -1,5 +1,6 @@
 import { T } from './tuning'
 import { SLOOP, type ShipClass } from './shipClasses'
+import { CrewStations } from './crew'
 import { PolarCurve } from './polar'
 import type { WindSample } from './wind'
 import { angleDiff, clamp, damp, smoothstep, type Vec2 } from '../core/math'
@@ -118,6 +119,13 @@ export class Ship {
   /** Upgrade modifiers. Mutate these; the physics reads them every step. */
   mods: ShipMods = { ...STOCK_MODS }
 
+  /**
+   * Where her hands are working. Every ship has one; only the player's is
+   * ever reassigned, so enemies sail on an even split and feel crew losses
+   * the same way the player does.
+   */
+  readonly stations = new CrewStations()
+
   // --- Condition ----------------------------------------------------------
   /** All three run 1 (sound) to 0 (gone). */
   hull = 1
@@ -214,18 +222,34 @@ export class Ship {
     this.prevHeading = this.heading
     this.prevHeel = this.heel
 
+    this.stations.step(dt, T.crewMoveRate)
+
+    // How well each station is worked: the share of hands on it, scaled by how
+    // many hands are left alive. An even split at full strength is 1.0, which
+    // is what every other number in the game is balanced against. Computed
+    // first, because repairs, gunnery and the helm all read it.
+    const gunners = this.stations.manning('gunnery', this.crew)
+    const sailors = this.stations.manning('sails', this.crew)
+    const helmsmen = this.stations.manning('helm', this.crew)
+    const carpenters = this.stations.manning('repairs', this.crew)
+    const crewFactor = gunners
+
     this.sinceHit += dt
-    if (this.mods.hullRepair > 0) this.hull = clamp(this.hull + this.mods.hullRepair * dt, 0, 1)
-    if (this.mods.sailRepair > 0) this.sails = clamp(this.sails + this.mods.sailRepair * dt, 0, 1)
+    if (this.mods.hullRepair > 0) {
+      this.hull = clamp(this.hull + this.mods.hullRepair * carpenters * dt, 0, 1)
+    }
+    if (this.mods.sailRepair > 0) {
+      this.sails = clamp(this.sails + this.mods.sailRepair * carpenters * dt, 0, 1)
+    }
     // Wounded hands return to duty. Without this, crew damage was the one
     // wound that never healed, so a long run bled gunnery and handling away
     // permanently.
-    if (this.mods.crewRepair > 0) this.crew = clamp(this.crew + this.mods.crewRepair * dt, 0, 1)
+    if (this.mods.crewRepair > 0) {
+      this.crew = clamp(this.crew + this.mods.crewRepair * carpenters * dt, 0, 1)
+    }
     this.sinceFired[0] += dt
     this.sinceFired[1] += dt
 
-    // A thinned crew works the guns and the yards more slowly.
-    const crewFactor = 0.4 + 0.6 * this.crew
     this.reload[0] = Math.max(0, this.reload[0] - dt * crewFactor)
     this.reload[1] = Math.max(0, this.reload[1] - dt * crewFactor)
 
@@ -234,7 +258,7 @@ export class Ship {
     this.canvas = damp(
       this.canvas,
       orderedCanvas,
-      T.canvasChangeRate * 4 * this.cls.crewSpeed * this.mods.crewSpeed * crewFactor,
+      T.canvasChangeRate * 4 * this.cls.crewSpeed * this.mods.crewSpeed * sailors,
       dt,
     )
 
@@ -320,7 +344,7 @@ export class Ship {
 
     this.turnRate =
       T.baseTurnRate * this.cls.turnRate * this.mods.turnRate * this.rudder * steerage *
-      canvasTurn / this.laden(T.burdenOnTurn)
+      canvasTurn * helmsmen / this.laden(T.burdenOnTurn)
     this.heading += this.turnRate * dt
 
     // --- Heel (visual only) ---------------------------------------------------
