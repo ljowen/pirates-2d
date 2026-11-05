@@ -7,7 +7,12 @@ Current state: run-scoped only. Every run starts from a stock Sloop, nothing per
 That was chosen deliberately so the difficulty curve has exactly one variable, and it
 should stay that way until [balance](balance.md) is settled.
 
-## 1. Player hull selection (cheapest, highest return)
+## 1. Player hull selection — **done**
+
+See [../PROGRESSION.md](../PROGRESSION.md). Four hulls, separate roster from the enemy
+classes, 13–19% win spread across 32 seeds each.
+
+## 1a. Original plan, kept for the reasoning
 
 The `ShipClass` system already exists and already carries everything needed. Letting the
 player choose their hull at the start of a run is close to free and immediately multiplies

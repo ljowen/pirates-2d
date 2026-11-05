@@ -72,6 +72,18 @@ a ship holding a target abeam is turning constantly, so the guns sweep past her.
 The remaining 38% → 31% is the honest cost of spreading a volley over time. The run-to-run
 range also tightened markedly (309–480 versus 194–480), so outcomes are more consistent.
 
+### Hull size is evasion
+
+Hit radius scales with the hull's own size, so a Pinnace is genuinely hard to hit and a
+Galleon can hardly be missed. A single radius for every ship made size purely cosmetic:
+small hulls took all the drawbacks of being small with none of the evasiveness, which
+left the Pinnace strictly worse than everything rather than differently good. Adding it
+moved the playable Pinnace from a 0% win rate to 13%.
+
+The base radius was raised from 23 to 26.5 at the same time. Most hulls afloat are
+smaller than standard, so scaling alone quietly cut the whole fleet's hit rate — this
+keeps the relative evasiveness while restoring the absolute rate.
+
 ## Damage
 
 Three tracks, and the middle one is the important one:

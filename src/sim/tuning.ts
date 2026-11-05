@@ -155,7 +155,7 @@ export const DEFAULT_TUNING: TuningValues = {
   spawnIntervalStart: 7.0,
   spawnIntervalEnd: 2.6,
   enemyCapStart: 2,
-  enemyCapEnd: 6,
+  enemyCapEnd: 5,
   spawnRadius: 1400,
   bossLull: 22,
   endlessWaveSeconds: 55,

@@ -186,6 +186,14 @@ alone produce the same encounter at different speeds.
 opportunity, not a threat; counting fleeing traders against the cap crowded out killable
 targets and starved the run of progression.
 
+**Playable hulls are a separate roster from the enemy ones.** The enemy Brigantine and
+Galleon are tuned to be fought; reusing them would hand the player boss numbers. They
+share names and silhouettes only.
+
+**Hull size is evasion.** Hit radius scales with the ship, so small hulls are hard to hit
+and large ones hard to miss. Without it, size was cosmetic and the Pinnace was simply
+worse than everything rather than differently good.
+
 ## Land
 
 **Terrain is generated from a hashed grid, not stored.** The arena is unbounded, so

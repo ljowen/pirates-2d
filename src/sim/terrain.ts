@@ -49,6 +49,14 @@ export function shoalRadius(island: Island, angle: number): number {
 export class Terrain {
   constructor(private worldSeed = 0x5eed) {}
 
+  /**
+   * Lay out a fresh archipelago. Terrain is a pure function of this seed, so
+   * nothing needs regenerating — the whole map changes at once.
+   */
+  reseed(seed: number) {
+    this.worldSeed = seed >>> 0
+  }
+
   /** Islands whose influence could reach a point, cheaply. */
   near(p: Vec2, extra = 0): Island[] {
     const cell = T.islandCellSize

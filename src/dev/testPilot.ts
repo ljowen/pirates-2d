@@ -55,8 +55,15 @@ export function autoPilot(world: World) {
   const wind = world.windAt(p.pos)
 
   let want: number
-  if (p.hull < 0.35 && target) {
-    // Badly hurt: run downwind, the fastest way out of a fight.
+  if (p.hull < 0.38 && target && drawsLessThan(p, target)) {
+    // Hurt, and drawing less water than the ship chasing us: make for the
+    // shallows, where she cannot follow. Without this the harness could not
+    // play a shallow-draught hull's entire strategy, and reported the Pinnace
+    // as unplayable when it had simply never tried the thing it is for.
+    want = towardShallows(world) ?? wind.to
+    p.sailOrder = 2
+  } else if (p.hull < 0.35 && target) {
+    // Badly hurt with nowhere shallow to go: run downwind instead.
     want = wind.to
     p.sailOrder = 2
   } else if (loot && lootDist < 320) {
@@ -84,6 +91,37 @@ export function autoPilot(world: World) {
   want = avoidLand(world, want)
 
   world.steerInput = clamp(angleDiff(want, p.heading) * 1.8, -1, 1)
+}
+
+/**
+ * Only worth running for the shallows against a *much* deeper pursuer. A
+ * narrow advantage is not enough: at a 0.15 margin the Sloop started fleeing
+ * from Barques, which is a worse play than running downwind and cost it every
+ * win it had.
+ */
+function drawsLessThan(self: World['player'], other: World['player']): boolean {
+  return self.cls.draught < other.cls.draught - 0.3
+}
+
+/**
+ * A heading toward the shoal ring of the nearest island — shallow enough to
+ * shake a deep pursuer, without piling onto the beach.
+ */
+function towardShallows(world: World): number | null {
+  const p = world.player
+  let best = null
+  let bestDist = Infinity
+  for (const island of world.terrain.near(p.pos, 1400)) {
+    const d = Math.hypot(island.x - p.pos.x, island.y - p.pos.y)
+    if (d < bestDist) { bestDist = d; best = island }
+  }
+  if (!best || bestDist > 1600) return null
+
+  // Aim at the shoal ring rather than the island itself.
+  const bearing = Math.atan2(best.y - p.pos.y, best.x - p.pos.x)
+  const ring = (best.radius + best.shoalRadius) / 2
+  if (bestDist < ring) return bearing + Math.PI / 2   // already there: circle in it
+  return bearing
 }
 
 /**

@@ -71,7 +71,20 @@ function normaliseSplit(ship: Ship) {
   return { hull: h / total, sails: s / total, crew: c / total }
 }
 
-const HIT_RADIUS = 23
+/**
+ * Hit radius for a hull of standard size. Scaled by the ship's own size, so a
+ * Pinnace is genuinely hard to hit and a Galleon can hardly be missed.
+ *
+ * A single radius for every hull meant size was purely cosmetic: small ships
+ * got all the drawbacks of being small with none of the evasiveness, which
+ * left the Pinnace strictly worse than everything rather than differently
+ * good.
+ */
+// Raised from 23 when hit radius began scaling with hull size: most hulls
+// afloat are smaller than standard, so scaling alone quietly cut the whole
+// fleet's hit rate. This restores the absolute rate while keeping the
+// relative evasiveness that makes a small ship worth sailing.
+const HIT_RADIUS = 26.5
 
 /** Port battery is index 0, starboard 1. Sign is the lateral direction. */
 export const BATTERY_SIDE = [-1, 1] as const
@@ -278,7 +291,8 @@ export function stepProjectiles(
       // Only shot from the other side does damage; a melee between enemies
       // should not dissolve into friendly fire.
       if (ship.faction === p.ownerFaction) continue
-      if (Math.hypot(ship.pos.x - p.pos.x, ship.pos.y - p.pos.y) > HIT_RADIUS) continue
+      const radius = HIT_RADIUS * ship.cls.scale
+      if (Math.hypot(ship.pos.x - p.pos.x, ship.pos.y - p.pos.y) > radius) continue
 
       const d = p.damage
       const wentDown = ship.applyDamage(

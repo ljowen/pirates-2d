@@ -1,5 +1,48 @@
 # The run
 
+## Choosing a ship
+
+Every run opens at the quayside with a choice of hull. `R` returns there rather than
+restarting the same ship, so trying a different one never means reloading.
+
+These are a **separate roster from the enemy classes**. The enemy Brigantine and Galleon
+are tuned to be *fought*; reusing them would import boss numbers into the player's hands.
+They share only names and silhouettes.
+
+| Hull | Guns | Timbers | Handling | Draught | Plays like |
+|---|---|---|---|---|---|
+| **Sloop** | 6 | 1.00 | baseline | 0.55 | The honest choice; a well-drilled crew |
+| **Pinnace** | 5 | 0.78 | turns 50% faster | **0.22** | Live in the shoals where heavies cannot follow |
+| **Brigantine** | 7 | 1.15 | sluggish | **1.00** | No escape route, so turn into it and out-shoot it |
+| **Fluyt** | 4 | 1.30 | slow | 0.80 | Sweep plunder from 2.1× further; out-level your problems |
+
+The choice reaches into every system already built — draught decides whether the shoals
+are a refuge or a wall, turn rate decides whether battle sails are worth it, weight of
+shot decides whether you can stand and fight. The same sea plays as three different
+games.
+
+The Sloop's multipliers must stay at 1.0, since every other number is balanced against
+them, so her signature lives in `playerMods` instead — a seam for abilities that apply
+only to the player's own ship.
+
+Measured across 32 seeds each:
+
+| Hull | Win rate | Median | Avg level |
+|---|---|---|---|
+| Sloop | 19% | 432s | 11.5 |
+| Pinnace | 13% | 386s | 12.3 |
+| Brigantine | 16% | 436s | 8.8 |
+| Fluyt | 19% | 442s | 11.3 |
+
+A 13–19% spread: none dominant, none unplayable. Getting there took two corrections worth
+recording. The Brigantine first came in at **67% against the Sloop's 25%** — strictly a
+better Sloop rather than a different one, because weight of shot was not paid for. And
+the Pinnace sat at **0%**, which turned out to be half a harness problem: the test pilot
+never used shoals, so it measured a shallow-draught hull's weaknesses without its entire
+strategy.
+
+## Timed survival
+
 Timed survival. You sail against an escalating sea for eight minutes; the clock running
 out is the win condition. **Nothing persists between runs** — every run starts from a
 stock Sloop — so the difficulty curve has exactly one variable to tune against. A meta

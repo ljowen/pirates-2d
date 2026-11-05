@@ -71,6 +71,9 @@ export class World {
   /** Which enemy class the next manual spawn will use. */
   private spawnCursor = 0
 
+  /** The hull the captain took to sea. Chosen before the run begins. */
+  playerClass: ShipClass = SLOOP
+
   constructor() {
     this.placePlayerClearOfLand()
     this.run.grantStarting(this.player)
@@ -78,7 +81,7 @@ export class World {
 
   /** Open the run in open water, however the terrain seed falls. */
   private placePlayerClearOfLand() {
-    const ship = this.spawn('player', SLOOP, 0, 0, 0)
+    const ship = this.spawn('player', this.playerClass, 0, 0, 0)
     for (let i = 0; i < 64 && this.terrain.probe(ship.pos).depth < 1; i++) {
       const a = i * 2.39996
       const r = 120 * Math.sqrt(i + 1)
@@ -117,6 +120,8 @@ export class World {
       ship.mods.hullRepair = T.playerHullRepair
       ship.mods.sailRepair = T.playerSailRepair
       ship.mods.crewRepair = T.playerCrewRepair
+      // A hull's own signature, such as a Fluyt's roomy hold.
+      if (cls.playerMods) Object.assign(ship.mods, cls.playerMods)
     }
     this.ships.push(ship)
     if (faction === 'enemy') this.captains.set(ship.id, new CaptainAI())
@@ -157,6 +162,7 @@ export class World {
     player.mods.hullRepair = T.playerHullRepair
     player.mods.sailRepair = T.playerSailRepair
     player.mods.crewRepair = T.playerCrewRepair
+    if (player.cls.playerMods) Object.assign(player.mods, player.cls.playerMods)
     for (const [id, stacks] of this.run.taken) {
       const upgrade = UPGRADES_BY_ID.get(id)
       if (!upgrade) continue
@@ -441,7 +447,8 @@ export class World {
     }
   }
 
-  reset(seed = 0xc0ffee) {
+  reset(seed = 0xc0ffee, playerClass: ShipClass = this.playerClass) {
+    this.playerClass = playerClass
     this.ships.length = 0
     this.captains.clear()
     this.projectiles = []
@@ -452,6 +459,13 @@ export class World {
     this.spawnCursor = 0
     this.rand = makeRng(seed)
     this.gunRand = makeRng(seed ^ 0x9e3779b9)
+    // The map and the weather are part of the run, not fixtures of the game.
+    // Both were built once at construction and never reseeded, so every
+    // voyage met the identical archipelago under the identical wind pattern —
+    // a large loss of variety, and it made seeded benchmarks far less
+    // representative than they appeared.
+    this.terrain.reseed(seed ^ 0x5eed)
+    this.wind.reseed(seed ^ 0x1234567)
     this.wind.reset()
     this.run = new Run(() => this.rand())
     this.director.reset()

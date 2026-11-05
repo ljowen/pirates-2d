@@ -170,6 +170,12 @@ so each `reset(seed)` began at a different point in the weather. Every benchmark
 before this fix carried that noise; comparisons meant to differ only by the change under
 test also differed by the wind.
 
+**Everything procedural must actually be seeded.** Terrain and the wind's noise fields
+were built once at construction with fixed seeds and never reseeded, so *every run met
+the identical archipelago under the identical weather pattern*. Both are now seeded from
+the run seed. This was invisible for a long time because the game still looked varied —
+it was caught only when disjoint seed blocks returned byte-identical win rates.
+
 ## Debug hook
 
 `window.__game` exposes `{ world, camera, loop, input, audio }`. This is how the

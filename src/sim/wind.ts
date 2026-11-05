@@ -31,10 +31,10 @@ export class Wind {
 
   strength = 1
   private readonly meanFrom: number
-  private readonly swingNoise: Noise1D
-  private readonly gustNoise: Noise1D
-  private readonly veerField: Noise2D
-  private readonly gustField: Noise2D
+  private swingNoise: Noise1D
+  private gustNoise: Noise1D
+  private veerField: Noise2D
+  private gustField: Noise2D
   private t = 0
   /** The weather pattern itself travels downwind. */
   private patternX = 0
@@ -97,6 +97,14 @@ export class Wind {
    * benchmark quietly irreproducible, and adding noise to comparisons that
    * were supposed to differ only by the change under test.
    */
+  /** A fresh weather pattern, so no two voyages meet the same sea. */
+  reseed(seed: number) {
+    this.swingNoise = new Noise1D(seed)
+    this.gustNoise = new Noise1D(seed ^ 0x9e3779b9)
+    this.veerField = new Noise2D(seed ^ 0x51ed270b)
+    this.gustField = new Noise2D(seed ^ 0x2545f491)
+  }
+
   reset() {
     this.t = 0
     this.from = this.meanFrom

@@ -10,6 +10,7 @@ import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
 import { DraftUI } from './ui/draft'
+import { ShipSelect } from './ui/shipSelect'
 import { Hud } from './render/hud'
 import { DebugOverlay } from './render/debug'
 import { Tuner } from './ui/tuner'
@@ -101,6 +102,21 @@ async function main() {
   const debug = new DebugOverlay(octx)
   const tuner = new Tuner(world)
   const draft = new DraftUI()
+  const shipSelect = new ShipSelect()
+
+  /** Put the captain back at the quayside to pick a hull for the next voyage. */
+  const chooseShip = () => {
+    shipSelect.show((cls) => {
+      world.reset(Math.floor(Math.random() * 0xffffff), cls)
+      dropAllShipViews()
+      wake.clear()
+      combat.clear()
+      plunderView.clear()
+      terrainView.clear()
+      audioDirector.reset()
+      camera.snapTo(world.player.pos)
+    })
+  }
 
   let showDebug = false
   let paused = false
@@ -139,16 +155,11 @@ async function main() {
       if (input.consumePress('mute')) audio.muted = !audio.muted
       // Decline the safe harbour: the clock stops being a finish line.
       if (input.consumePress('continue')) world.run.continueEndless()
-      if (input.consumePress('reset')) {
-        world.reset()
-        dropAllShipViews()
-        wake.clear()
-        combat.clear()
-        plunderView.clear()
-        terrainView.clear()
+      // R returns to the quayside rather than restarting the same hull, so
+      // trying a different ship never means reloading the page.
+      if (input.consumePress('reset') && !shipSelect.open) {
         draft.hide()
-        audioDirector.reset()
-        camera.snapTo(world.player.pos)
+        chooseShip()
       }
       input.endFrame()
 
@@ -166,7 +177,8 @@ async function main() {
         draft.hide()
       }
 
-      const frozen = paused || draft.open || world.run.state === 'won' || world.run.state === 'lost'
+      const frozen = paused || draft.open || shipSelect.open ||
+        world.run.state === 'won' || world.run.state === 'lost'
       const timeScale = frozen ? 0 : turbo ? 4 : 1
       loop.timeScale = timeScale
 
@@ -209,6 +221,7 @@ async function main() {
   )
 
   loop.start()
+  chooseShip()
 
   // Prototype hook: lets the sim be driven and inspected from the console,
   // which is how the model gets regression-checked without a human at the helm.

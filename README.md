@@ -54,6 +54,8 @@ memorised from here.
 | 3 — The swarm: spawn director, plunder, level-up draft, bosses, win/loss | **Done** |
 | — Endless mode: sail on past the voyage for a score | **Done** |
 | — Land: islands, shoals, draught, grounding, cover | **Done** |
+| — Wind that varies by place; seven enemy hulls | **Done** |
+| — Player-selectable hulls | **Done** |
 | 4+ — Scenario, art direction, meta progression | Planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Documentation

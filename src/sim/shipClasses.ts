@@ -1,3 +1,5 @@
+import type { ShipMods } from './ship'
+
 /**
  * Ship classes — the hull you are sailing, as distinct from `ShipMods`, which
  * are the upgrades layered on top of it. Effective stat = tuning baseline ×
@@ -44,6 +46,16 @@ export interface ShipClass {
 
   /** Incoming damage is divided by this. Below 1 means she is fragile. */
   hullStrength: number
+
+  /**
+   * Modifiers applied when this hull is the *player's*, on top of the stock
+   * set. Lets a hull carry a signature ability — a roomy hold that sweeps
+   * plunder from further out, say — without inventing a parallel system.
+   */
+  playerMods?: Partial<ShipMods>
+
+  /** One line of character, shown when choosing a ship. */
+  blurb?: string
 
   /**
    * How deep she draws, 0–1. Shallow hulls cross shoals a deep one cannot, so
@@ -96,11 +108,17 @@ export const BRIGANTINE: ShipClass = {
   colors: { hull: 0x4a3a46, deck: 0x7d6470, trim: 0x241c22, canvas: 0xdcd2d8 },
 }
 
+// --- Playable hulls -------------------------------------------------------
+//
+// Deliberately a separate roster from the enemy classes above. The enemy
+// Brigantine and Galleon are tuned to be *fought* — reusing them as player
+// ships would import boss numbers into the player's hands. These share only
+// their names and silhouettes.
+
 /**
- * The player's hull. Deliberately identical to the tuning baseline in every
- * respect: the Brigantine fight was balanced and signed off against exactly
- * these numbers, so giving the player even a small handling edge here would
- * quietly make the intended boss easier. Player hull variety is Phase 4.
+ * The reference hull, identical to the tuning baseline in every respect.
+ * Everything else in the game is balanced against exactly these numbers, so
+ * this one must not drift.
  */
 export const SLOOP: ShipClass = {
   id: 'sloop', name: 'Sloop', tier: 3, behaviour: 'brawler',
@@ -110,7 +128,74 @@ export const SLOOP: ShipClass = {
   draught: 0.55,
   scale: 1.0,
   colors: { hull: 0x6b4423, deck: 0xa8763f, trim: 0x33210f, canvas: 0xf2ead6 },
+  // Her multipliers must stay at 1.0 — every other number in the game is
+  // balanced against them — so her signature lives here instead, where it
+  // touches only the player's own ship: a well-found vessel with a crew who
+  // know her. Without something of her own she was the only hull with no
+  // identity, which is a poor reward for picking the honest option.
+  playerMods: { crewSpeed: 1.15, reload: 0.93 },
+  blurb: 'Handy, well armed, and a crew who know her. Quick on the sheets and quick to reload.',
 }
+
+/**
+ * A cockleshell that draws almost nothing. She turns inside everything afloat
+ * and can cross water that strands a Galleon, which turns the shoals from a
+ * hazard into the place you live. She also cannot take a beating, so the
+ * shallows are not a preference — they are the plan.
+ */
+export const PLAYER_PINNACE: ShipClass = {
+  id: 'player-pinnace', name: 'Pinnace', tier: 1, behaviour: 'skirmisher',
+  turnRate: 1.5, thrust: 1.04, drag: 0.94, crewSpeed: 1.2,
+  guns: 0.78, reload: 0.84, range: 0.85, damage: 0.95,
+  hullStrength: 0.78,
+  draught: 0.22,
+  scale: 0.74,
+  colors: { hull: 0x7a6a3f, deck: 0xbda95f, trim: 0x332c17, canvas: 0xf4efd8 },
+  blurb: 'Draws almost nothing and turns on a sixpence. Live in the shoals, where the heavy hulls cannot follow.',
+}
+
+/**
+ * A heavy broadside on a sluggish hull that draws too much water to use the
+ * shallows at all. No escape route, so the answer to everything is to turn
+ * into it and out-shoot it.
+ */
+export const PLAYER_BRIGANTINE: ShipClass = {
+  id: 'player-brigantine', name: 'Brigantine', tier: 3, behaviour: 'brawler',
+  // Weight of shot has to be paid for. At 1.35 guns and 1.4 timbers she was
+  // simply a better Sloop rather than a different one — strictly dominant at
+  // a 67% win rate against the Sloop's 25%.
+  turnRate: 0.68, thrust: 0.9, drag: 1.1, crewSpeed: 0.92,
+  guns: 1.1, reload: 1.14, range: 1.05, damage: 1.05,
+  hullStrength: 1.15,
+  draught: 1.0,
+  scale: 1.15,
+  colors: { hull: 0x58323c, deck: 0x90616a, trim: 0x29161b, canvas: 0xf0e4e4 },
+  blurb: 'Weight of shot and timber to soak it. Too deep for the shallows, so there is nowhere to run.',
+}
+
+/**
+ * A merchantman turned pirate: poorly armed, roomy, and able to sweep up
+ * plunder from a long way off. She levels faster than anything else afloat
+ * and wins by out-growing her problems rather than out-shooting them.
+ */
+export const PLAYER_FLUYT: ShipClass = {
+  id: 'player-fluyt', name: 'Fluyt', tier: 2, behaviour: 'trader',
+  turnRate: 0.84, thrust: 1.0, drag: 1.0, crewSpeed: 0.9,
+  guns: 0.62, reload: 1.12, range: 0.9, damage: 0.85,
+  hullStrength: 1.3,
+  draught: 0.8,
+  scale: 1.05,
+  colors: { hull: 0x6a5230, deck: 0xa88a52, trim: 0x2e2415, canvas: 0xf0e6cd },
+  // Her hold is the point: plunder from much further out, so she out-levels
+  // every other hull and wins on upgrades rather than gunnery.
+  playerMods: { pickupRadius: 2.1 },
+  blurb: 'Few guns and a vast hold. Sweep up plunder from far off and out-level your troubles.',
+}
+
+/** Hulls the player may take to sea. */
+export const PLAYER_CLASSES: ShipClass[] = [
+  SLOOP, PLAYER_PINNACE, PLAYER_BRIGANTINE, PLAYER_FLUYT,
+]
 
 /**
  * A fat Dutch cargo hauler that wants no part of a fight. She runs downwind
