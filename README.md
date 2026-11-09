@@ -56,7 +56,6 @@ memorised from here.
 | — Land: islands, shoals, draught, grounding, cover | **Done** |
 | — Wind that varies by place; seven enemy hulls | **Done** |
 | — Player-selectable hulls | **Done** |
-| — Coin, shipyards and crew stations replace the draft | **Done**, balance unfinished |
 | 4+ — Scenario, art direction, meta progression | Planned — see [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Documentation

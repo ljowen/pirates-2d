@@ -23,7 +23,7 @@ export interface Plunder {
 export function dropPlunder(list: Plunder[], at: Vec2, value: number, rand: () => number) {
   // Split a wreck's worth into a few pieces so collecting reads as a sweep
   // rather than a single tap.
-  const pieces = Math.max(1, Math.min(6, Math.round(value / 22)))
+  const pieces = Math.max(1, Math.min(5, Math.round(value / 2)))
   const each = value / pieces
   for (let i = 0; i < pieces; i++) {
     const a = rand() * Math.PI * 2

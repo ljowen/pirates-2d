@@ -146,8 +146,8 @@ export const SLOOP: ShipClass = {
 export const PLAYER_PINNACE: ShipClass = {
   id: 'player-pinnace', name: 'Pinnace', tier: 1, behaviour: 'skirmisher',
   turnRate: 1.5, thrust: 1.04, drag: 0.94, crewSpeed: 1.2,
-  guns: 0.86, reload: 0.82, range: 0.85, damage: 0.95,
-  hullStrength: 0.86,
+  guns: 0.78, reload: 0.84, range: 0.85, damage: 0.95,
+  hullStrength: 0.78,
   draught: 0.22,
   scale: 0.74,
   colors: { hull: 0x7a6a3f, deck: 0xbda95f, trim: 0x332c17, canvas: 0xf4efd8 },

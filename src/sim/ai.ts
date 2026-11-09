@@ -53,7 +53,7 @@ export class CaptainAI {
   private avoidLand(self: Ship, desired: number, terrain: Terrain): number {
     const look = T.aiLandLookahead
     // Deep hulls must respect the shoals too, not just the beach.
-    const margin = 30 + 70 * self.draught
+    const margin = 30 + 70 * self.cls.draught
 
     let island: Island | null = null
     for (const t of [0.35, 0.7, 1]) {

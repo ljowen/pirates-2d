@@ -5,7 +5,6 @@ import type { Camera } from './camera'
 import { T } from '../sim/tuning'
 import { angleDiff, compassName, deg } from '../core/math'
 import { batteryBearing } from '../sim/combat'
-import { harbourAt, shipyardsNear } from '../sim/shipyard'
 import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 
 /**
@@ -23,7 +22,6 @@ export class Hud {
     const player = world.player
 
     this.drawGunArcs(world, camera)
-    this.drawHarbourMarkers(world, camera)
     this.drawEnemyMarkers(world, camera)
 
     this.drawRunBar(world, w)
@@ -118,77 +116,6 @@ export class Hud {
       ctx.stroke()
       ctx.restore()
     }
-  }
-
-  /**
-   * Where the yards are.
-   *
-   * The economy asks the player to sail somewhere specific, which is only a
-   * decision if they can see where. Visible harbours get a mark on the water;
-   * the nearest one gets a bearing and a range at the screen edge so it can be
-   * steered for from anywhere.
-   */
-  private drawHarbourMarkers(world: World, camera: Camera) {
-    const ctx = this.ctx
-    const w = ctx.canvas.clientWidth
-    const h = ctx.canvas.clientHeight
-    const player = world.player
-    const reach = Math.max(camera.viewW, camera.viewH) / camera.zoom
-
-    for (const island of shipyardsNear(world.terrain, camera.pos, reach)) {
-      const mouth = harbourAt(island)
-      const p = camera.worldToScreen(mouth)
-      if (p.x < -40 || p.x > w + 40 || p.y < -40 || p.y > h + 40) continue
-
-      const pulse = 0.65 + 0.35 * Math.sin(performance.now() * 0.003)
-      ctx.save()
-      ctx.strokeStyle = `rgba(240,193,75,${0.75 * pulse})`
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, 13, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.fillStyle = `rgba(240,193,75,${0.9 * pulse})`
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.font = '9px ui-monospace, monospace'
-      ctx.textAlign = 'center'
-      ctx.fillText('YARD', p.x, p.y + 26)
-      ctx.restore()
-    }
-
-    // A standing bearing to the nearest, so port is always findable.
-    const nearest = world.nearestYard
-    if (!nearest) return
-    const onScreen = (() => {
-      const p = camera.worldToScreen(nearest.pos)
-      return p.x > 0 && p.x < w && p.y > 0 && p.y < h
-    })()
-    if (onScreen) return
-
-    const angle = Math.atan2(nearest.pos.y - player.pos.y, nearest.pos.x - player.pos.x)
-    const margin = 70
-    const x = Math.max(margin, Math.min(w - margin, w / 2 + Math.cos(angle) * (w / 2 - margin)))
-    const y = Math.max(margin, Math.min(h - margin, h / 2 + Math.sin(angle) * (h / 2 - margin)))
-
-    ctx.save()
-    ctx.translate(x, y)
-    ctx.rotate(angle)
-    ctx.fillStyle = 'rgba(240,193,75,0.85)'
-    ctx.beginPath()
-    ctx.moveTo(13, 0)
-    ctx.lineTo(-6, -7)
-    ctx.lineTo(-6, 7)
-    ctx.closePath()
-    ctx.fill()
-    ctx.restore()
-
-    ctx.save()
-    ctx.font = '10px ui-monospace, monospace'
-    ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(240,193,75,0.75)'
-    ctx.fillText(`yard ${Math.round(nearest.distance)}`, x, y + 22)
-    ctx.restore()
   }
 
   /** Health pips over visible enemies, direction arrows for the rest. */
@@ -395,7 +322,7 @@ export class Hud {
     ctx.fillText('CONDITION', 12, 10)
     ctx.textAlign = 'right'
     ctx.fillStyle = 'rgba(255,217,138,0.8)'
-    ctx.fillText(ship.cls.name, 118, 10)
+    ctx.fillText(ship.cls.name, 174, 10)
     ctx.textAlign = 'left'
 
     const bars: [string, number, string][] = [
@@ -403,17 +330,6 @@ export class Hud {
       ['Rigging', ship.sails, '#9fe8ff'],
       ['Crew', ship.crew, '#ffd98a'],
     ]
-
-    // How deep she is riding. Everything taken aboard shows here, so the cost
-    // of arming heavily is visible before a shoal makes it obvious.
-    ctx.textAlign = 'right'
-    ctx.font = '10px ui-monospace, monospace'
-    const laden = ship.draught
-    ctx.fillStyle = laden > 0.9
-      ? '#ff7a6b'
-      : laden > 0.7 ? '#ffd98a' : 'rgba(159,232,255,0.75)'
-    ctx.fillText(`draws ${laden.toFixed(2)}`, 174, 10)
-    ctx.textAlign = 'left'
     bars.forEach(([label, value, color], i) => {
       const by = 28 + i * 17
       ctx.fillStyle = 'rgba(255,255,255,0.5)'
@@ -582,21 +498,24 @@ export class Hud {
       ctx.fillText('REMAINING', cx, 48)
     }
 
-    // Coin in hand — the thing a shipyard cares about.
+    // Level and the plunder bar filling toward the next draft.
     ctx.textAlign = 'left'
-    ctx.font = 'bold 15px ui-monospace, monospace'
+    ctx.font = 'bold 13px ui-monospace, monospace'
+    ctx.fillStyle = '#ffd98a'
+    ctx.fillText(`Lv ${run.level}`, cx - 166, 24)
+
+    const barW = 96
+    ctx.fillStyle = 'rgba(255,255,255,0.16)'
+    ctx.fillRect(cx - 166, 44, barW, 7)
     ctx.fillStyle = '#f0c14b'
-    ctx.fillText(`${Math.floor(run.coins)}`, cx - 166, 22)
-    ctx.font = '10px ui-monospace, monospace'
-    ctx.fillStyle = 'rgba(240,193,75,0.6)'
-    ctx.fillText('COIN', cx - 166, 44)
+    ctx.fillRect(cx - 166, 44, barW * Math.min(1, run.plunder / run.plunderNeeded), 7)
 
     ctx.textAlign = 'right'
     ctx.font = '12px ui-monospace, monospace'
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
     ctx.fillText(`${run.shipsSunk} sunk`, cx + 166, 24)
     ctx.fillStyle = 'rgba(240,193,75,0.8)'
-    ctx.fillText(`${Math.floor(run.totalCoins)} taken`, cx + 166, 44)
+    ctx.fillText(`${Math.floor(run.totalPlunder)} plunder`, cx + 166, 44)
 
     // A thin progress line along the bottom edge of the panel: progress through
     // the voyage, or through the current wave once endless.
@@ -627,7 +546,7 @@ export class Hud {
     ctx.font = '15px ui-monospace, monospace'
     ctx.fillStyle = '#cfe6f5'
     ctx.fillText(
-      `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   ${Math.floor(run.totalCoins)} coin taken`,
+      `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   level ${run.level}`,
       w / 2, h / 2 - 16,
     )
 

@@ -126,8 +126,9 @@ export class Tuner {
     bar.appendChild(this.button('All +1', () => this.bulk(() => 1)))
     bar.appendChild(this.button('Max all', () => this.bulk((u) => u.maxStacks)))
     bar.appendChild(this.button('Strip', () => this.bulk(() => 0)))
-    bar.appendChild(this.button('+200 coin', () => {
-      this.world.run.collect(200)
+    bar.appendChild(this.button('Level up', () => {
+      // Enough plunder to trip the next draft immediately.
+      this.world.run.collect(this.world.run.plunderNeeded - this.world.run.plunder + 0.01)
     }))
     this.root.appendChild(bar)
 

@@ -8,8 +8,6 @@ import { Run } from './run'
 import { dropPlunder, stepPlunder, type Plunder } from './plunder'
 import { UPGRADES_BY_ID } from './upgrades'
 import { Terrain } from './terrain'
-import { harbourAt, islandHasYard, nearestShipyard } from './shipyard'
-import { UPGRADES } from './upgrades'
 import { makeRng } from '../core/rng'
 import { angleDiff, type Vec2 } from '../core/math'
 import { T } from './tuning'
@@ -173,47 +171,6 @@ export class World {
   }
 
   /**
-   * Put in, if she has brought herself to a harbour mouth.
-   *
-   * There is no safe water here: reaching the yard is the whole cost, and
-   * whatever was chasing you is still there when you cast off. Shopping
-   * freezes the world, so the danger is the approach, not the arithmetic.
-   */
-  private checkHarbour() {
-    if (this.run.state !== 'sailing' || this.run.undockGrace > 0) return
-    const player = this.player
-    if (player.sunk) return
-
-    for (const island of this.terrain.near(player.pos, 600)) {
-      if (!islandHasYard(island)) continue
-      const mouth = harbourAt(island)
-      const away = Math.hypot(mouth.x - player.pos.x, mouth.y - player.pos.y)
-      if (away > T.harbourDockRadius) continue
-
-      // A yard carries only what it carries; parts already maxed are no use.
-      const pool = UPGRADES.filter((part) => {
-        const owned = this.run.taken.get(part.id) ?? 0
-        if (owned >= part.maxStacks) return false
-        if (part.exclusive) {
-          for (const [id, n] of this.run.taken) {
-            if (n > 0 && UPGRADES_BY_ID.get(id)?.exclusive === part.exclusive && id !== part.id) {
-              return false
-            }
-          }
-        }
-        return true
-      })
-      this.run.dock(mouth, this.run.rollStock(pool, Math.round(T.yardStock)))
-      return
-    }
-  }
-
-  /** The nearest yard she could make for, for the HUD's bearing marker. */
-  get nearestYard() {
-    return nearestShipyard(this.terrain, this.player.pos)
-  }
-
-  /**
    * The wind at a point, including the calm an island throws downwind of
    * itself.
    *
@@ -259,25 +216,16 @@ export class World {
   }
 
   /** Plunder a wreck is worth, by hull. */
-  /**
-   * Coin a wreck is worth.
-   *
-   * Scaled so a voyage funds something like a dozen fittings rather than one:
-   * at the old values a whole run earned about 37 coin against parts costing
-   * twenty-odd, which left the shipyard an ornament. Roughly half of what
-   * spills from a wreck is ever gathered, so the figures here run ahead of
-   * what actually reaches the hold.
-   */
   private plunderValue(cls: ShipClass): number {
     // A Fluyt is the prize: little threat, but her hold is worth running a
     // chase for, which is the whole reason she is in the game.
-    if (cls === FLUYT) return 140
-    if (cls === GALLEON) return 160
-    if (cls === BRIGANTINE) return 80
-    if (cls === FRIGATE) return 85
-    if (cls === BARQUE) return 38
-    if (cls === ROYAL_SLOOP) return 20
-    return 16
+    if (cls === FLUYT) return 26
+    if (cls === GALLEON) return 30
+    if (cls === BRIGANTINE) return 14
+    if (cls === FRIGATE) return 16
+    if (cls === BARQUE) return 5
+    if (cls === ROYAL_SLOOP) return 4
+    return 2
   }
 
   get bossesAlive() {
@@ -349,7 +297,6 @@ export class World {
 
     this.separate()
     this.groundings(dt)
-    this.checkHarbour()
 
     // Step-local, so a sinking is accounted for exactly once no matter who is
     // or is not draining the public event list.
@@ -430,7 +377,7 @@ export class World {
 
       // Shallows drag on a deep keel long before she actually touches.
       if (depth < 1) {
-        const bite = T.shoalDraughtPenalty * ship.draught * (1 - depth)
+        const bite = T.shoalDraughtPenalty * ship.cls.draught * (1 - depth)
         const scale = Math.max(0, 1 - bite * dt)
         ship.vel.x *= scale
         ship.vel.y *= scale
@@ -444,7 +391,7 @@ export class World {
       // makes draught a real mechanic rather than a drag modifier: a Pinnace
       // can cross water that strands a Brigantine, so leading a heavy hull
       // over a shoal is a weapon.
-      const keel = 10 + 26 * ship.draught
+      const keel = 10 + 26 * ship.cls.draught
       if (distance < keel) {
         ship.aground = true
 

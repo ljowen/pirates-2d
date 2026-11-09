@@ -13,54 +13,18 @@ import type { Upgrade } from '../sim/upgrades'
  * a player certainly can, while failing here is weaker evidence.
  */
 
-/**
- * How much each archetype wants a card with a given tag.
- *
- * Once upgrades carry costs, a flat priority list becomes an actively bad
- * drafter — it happily takes heavy guns onto a ship built for speed and then
- * reports the whole system as broken. The pilot has to commit to a direction,
- * the way a player would.
- */
-type Archetype = 'gunline' | 'corsair' | 'ironside' | 'magpie'
-
-const AFFINITY: Record<Archetype, Record<string, number>> = {
-  // Every plan wants guns, because killing is the only source of progression
-  // and a build that cannot clear the sea drowns in it. The archetypes differ on
-  // *which* guns and what else they carry, not on whether to arm at all —
-  // weighting them otherwise produced builds measurably worse than taking no
-  // upgrades whatsoever.
-  gunline: { guns: 3, close: 1.2, heavy: 0.8, tough: 1.4, reach: 0.4, handling: 0.4, speed: 0.2, light: 0.4, economy: 0.6 },
-  corsair: { guns: 2.8, close: 1.5, light: 1.4, speed: 1.3, handling: 1.3, tough: 0.4, reach: 0.2, heavy: -0.3, economy: 0.8 },
-  ironside: { guns: 2.5, tough: 2.8, heavy: 1.0, close: 0.9, reach: 0.3, handling: 0.3, light: -1.0, economy: 0.4 },
-  magpie: { guns: 2.3, economy: 2.4, close: 1.0, tough: 1.2, speed: 1.0, handling: 0.9, heavy: -0.2, light: 0.5 },
+/** Rough value ordering, standing in for a player building toward a plan. */
+const DRAFT_PRIORITY: Record<string, number> = {
+  'heavier-shot': 10, 'powder-monkeys': 10, 'extra-gunport': 9,
+  'ships-carpenter': 8, 'sailmaker': 7, 'trained-gunners': 6, 'long-nines': 6,
+  'rakish-lines': 5, 'round-shot': 5, 'careened-hull': 4, 'taller-masts': 4,
+  'veteran-topmen': 4, 'chain-shot': 3, 'grape-shot': 3, 'loot-hooks': 2,
 }
 
-/** The plan this hull naturally suits. */
-function archetypeFor(hullId: string): Archetype {
-  if (hullId.includes('pinnace')) return 'corsair'
-  if (hullId.includes('brigantine')) return 'ironside'
-  if (hullId.includes('fluyt')) return 'magpie'
-  return 'gunline'
-}
-
-function scoreCard(card: Upgrade, plan: Archetype): number {
-  const affinity = AFFINITY[plan]
-  let score = 0.4
-  for (const tag of card.tags ?? []) score += affinity[tag] ?? 0
-  return score
-}
-
-/**
- * Choose from a hand, or refuse it. Returns null when nothing on offer helps
- * the plan — refusing banks part of the level back and brings the next hand
- * round sooner, which beats taking a card that works against the build.
- */
-export function pickCard(hand: Upgrade[], hullId: string): Upgrade | null {
-  const plan = archetypeFor(hullId)
-  const best = hand
-    .map((card) => ({ card, score: scoreCard(card, plan) }))
-    .sort((a, b) => b.score - a.score)[0]
-  return best && best.score > 0.5 ? best.card : null
+export function pickCard(hand: Upgrade[]): Upgrade {
+  return hand.slice().sort(
+    (a, b) => (DRAFT_PRIORITY[b.id] ?? 1) - (DRAFT_PRIORITY[a.id] ?? 1),
+  )[0]
 }
 
 /**
@@ -90,15 +54,6 @@ export function autoPilot(world: World) {
 
   const wind = world.windAt(p.pos)
 
-  // Making port is worth a detour, but only for a refit worth having. At a
-  // low threshold the pilot shuttled to a yard every forty seconds and spent
-  // the voyage sailing rather than fighting, which earned it neither coin nor
-  // kills. Go in with a purse, or go in to be mended.
-  const needsMending = p.hull < 0.45 && world.run.coins >= world.run.repairPrice(p)
-  const worthRefitting = world.run.coins >= 120
-  const yard = (worthRefitting || needsMending) ? world.nearestYard : null
-  const makingPort = yard !== null && yard.distance < 2600 && p.hull > 0.15
-
   let want: number
   if (p.hull < 0.38 && target && drawsLessThan(p, target)) {
     // Hurt, and drawing less water than the ship chasing us: make for the
@@ -110,9 +65,6 @@ export function autoPilot(world: World) {
   } else if (p.hull < 0.35 && target) {
     // Badly hurt with nowhere shallow to go: run downwind instead.
     want = wind.to
-    p.sailOrder = 2
-  } else if (makingPort && yard) {
-    want = Math.atan2(yard.pos.y - p.pos.y, yard.pos.x - p.pos.x)
     p.sailOrder = 2
   } else if (loot && lootDist < 320) {
     want = Math.atan2(loot.pos.y - p.pos.y, loot.pos.x - p.pos.x)
@@ -148,7 +100,7 @@ export function autoPilot(world: World) {
  * win it had.
  */
 function drawsLessThan(self: World['player'], other: World['player']): boolean {
-  return self.draught < other.draught - 0.3
+  return self.cls.draught < other.cls.draught - 0.3
 }
 
 /**
@@ -180,7 +132,7 @@ function towardShallows(world: World): number | null {
 function avoidLand(world: World, desired: number): number {
   const p = world.player
   const look = 340
-  const margin = 40 + 70 * p.draught
+  const margin = 40 + 70 * p.cls.draught
 
   let island = null
   for (const t of [0.35, 0.7, 1]) {
@@ -208,44 +160,11 @@ function avoidLand(world: World, desired: number): number {
   return Math.abs(angleDiff(a, desired)) < Math.abs(angleDiff(b, desired)) ? a : b
 }
 
-/**
- * Spend at a yard, then cast off.
- *
- * Buying is where a plan is actually expressed now, so the pilot mends itself
- * when badly knocked about and otherwise fits whatever on the shelf best suits
- * its archetype.
- */
-export function shopAt(world: World) {
-  const run = world.run
-  const player = world.player
-  const plan = archetypeFor(player.cls.id)
-
-  // Mend first if she is in a bad way; a fast wreck is still a wreck.
-  if (player.hull < 0.6 && run.coins >= run.repairPrice(player)) run.repair(player)
-
-  // Then fit whatever suits the plan and can be paid for.
-  for (let i = 0; i < 12; i++) {
-    const affordable = run.stock
-      .filter((part) => run.canAfford(part))
-      .map((part) => ({ part, score: scoreCard(part, plan) }))
-      .sort((a, b) => b.score - a.score)
-    if (!affordable.length || affordable[0].score <= 0.5) break
-    if (!run.buy(affordable[0].part, player)) break
-  }
-
-  // Keep a reserve for repairs rather than spending to the last coin.
-  if (player.hull < 0.9 && run.coins >= run.repairPrice(player)) run.repair(player)
-
-  run.castOff()
-}
-
 export interface RunResult {
   seed: number
   won: boolean
   seconds: number
-  coins: number
-  partsFitted: number
-  yardVisits: number
+  level: number
   shipsSunk: number
   /** Share of the run spent with the keel on the bottom. Should be near zero. */
   agroundPercent: number
@@ -258,12 +177,10 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
   const dt = 1 / 60
   let steps = 0
   let aground = 0
-  let visits = 0
 
   for (let i = 0; i < maxSeconds * 60; i++) {
-    if (world.run.state === 'docked') {
-      visits++
-      shopAt(world)
+    if (world.run.state === 'drafting' && world.run.draft) {
+      world.run.choose(pickCard(world.run.draft), world.player)
       continue
     }
     if (world.run.state !== 'sailing') break
@@ -278,9 +195,7 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
     seed,
     won: world.run.state === 'won',
     seconds: Math.round(world.run.elapsed),
-    coins: Math.round(world.run.totalCoins),
-    partsFitted: [...world.run.taken.values()].reduce((a, b) => a + b, 0),
-    yardVisits: visits,
+    level: world.run.level,
     shipsSunk: world.run.shipsSunk,
     agroundPercent: +(100 * aground / Math.max(1, steps)).toFixed(2),
   }
@@ -297,9 +212,7 @@ export function benchmark(world: World, seeds = 16, maxSeconds = 500) {
     winRate: `${Math.round((100 * runs.filter((r) => r.won).length) / runs.length)}%`,
     medianSeconds: times[Math.floor(times.length / 2)],
     range: `${times[0]}–${times[times.length - 1]}`,
-    avgParts: mean((r) => r.partsFitted),
-    avgYardVisits: mean((r) => r.yardVisits),
-    avgCoins: mean((r) => r.coins),
+    avgLevel: mean((r) => r.level),
     avgSunk: mean((r) => r.shipsSunk),
     avgAgroundPercent: mean((r) => r.agroundPercent),
     runs,

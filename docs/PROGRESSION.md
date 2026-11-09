@@ -91,85 +91,68 @@ short of. Baseline repair plus one Carpenter is 0.0145 hull/s against 0.0085 on 
 `STARTING_UPGRADES` in `sim/upgrades.ts` is a plain list of ids, so adding or changing
 the opening loadout is a one-line edit.
 
-## Coin, not experience
+## The draft
 
-Plunder is money. There are no levels and no random hand of cards — you take coin from
-wrecks and spend it at a shipyard on the parts you actually want.
+Fifteen upgrades across four groups. **Four cards offered** (`draftCards`), drawn weighted
+and without replacement, excluding anything already at max stacks.
 
-The draft was replaced because it **diluted as the catalogue grew**: with two dozen parts
-and four offered, building toward a doctrine was largely luck. And a trade you did not
-choose is only a tax — deliberate purchase is what turns a cost into a decision.
+Four rather than three deliberately: with the ceiling far above the median, the difference
+between runs was largely whether a useful card turned up early. More cards per hand cuts
+that variance **without raising the power ceiling**, which is the right shape of fix for a
+spread problem rather than a wall problem.
 
-### Shipyards
+**Sailing**
+| Card | Effect | Max |
+|---|---|---|
+| Rakish Lines | +12% turn rate | 5 |
+| Careened Hull | −9% drag | 4 |
+| Taller Masts | +10% drive | 4 |
+| Veteran Topmen | +18% sail handling, +0.008 crew recovery/s | 3 |
 
-Harbours sit in bays on roughly 30% of islands, a fixed 62 units clear of the shore so a
-laden hull can put in without grounding. Each carries a handful of parts and does not
-restock, so you visit different yards rather than farming one.
+**Gunnery**
+| Card | Effect | Max |
+|---|---|---|
+| Heavier Shot | +16% damage | 5 |
+| Powder Monkeys | −13% reload | 5 |
+| Long Nines | +16% range | 4 |
+| Another Gunport | +1 gun per broadside | 6 |
+| Trained Gunners | −18% spread | 3 |
 
-**There is no safe water.** Reaching the yard is the whole cost; shopping freezes the
-world, but whatever was chasing you is still there when you cast off.
+**Shot** — **mutually exclusive.** The first one taken locks out the others for the rest
+of the run, and the card says so before you commit.
+| Card | Effect | Max |
+|---|---|---|
+| Chain Shot | ×2.1 rigging, ×0.82 hull | 3 |
+| Grape Shot | ×2.4 crew, ×0.85 hull | 3 |
+| Double-Shotted | ×1.7 hull, ×0.8 others | 3 |
 
-This is also what finally gives the map a purpose. Terrain used to be obstacle and hiding
-place; a yard upwind with a Galleon between you and it is a real decision, and the wind
-and draught systems make it a hard one.
+They were originally stackable and freely mixable, which was a silent trap. Because the
+split renormalises, opposing types cancel almost exactly:
 
-### Crew stations
+| Build | Hull | Rigging | Crew |
+|---|---|---|---|
+| No shot cards | 62% | 24% | 14% |
+| Chain ×3 | 13% | 82% | 5% |
+| Chain ×2 + Double ×2 | 61% | 34% | 5% |
 
-A finite crew spread across four stations, adjustable **under way** — hands take a few
-seconds to cross the deck, so it is a decision rather than a toggle.
+Four draft picks for a ten-point shift and a gutted crew track — indistinguishable from
+taking nothing. Exclusivity is enforced by an `exclusive` family tag on the card, so other
+families can use the same mechanism later.
 
-| Station | Governs |
-|---|---|
-| Gunnery | Reload speed |
-| Sails | How fast canvas changes |
-| Helm | Turn rate |
-| Repairs | Hull, rigging and crew recovery |
+**Quarterdeck**
+| Card | Effect | Max |
+|---|---|---|
+| Ship's Carpenter | +0.006 hull/s repair | 3 |
+| Sailmaker | +0.012 rigging/s repair | 3 |
+| Grappling Hooks | +55% pickup radius | 3 |
 
-An even split at full strength is 1.0, which is what every other number is balanced
-against. Manning is square-rooted, so doubling a station is worth about 40% rather than
-100% — concentrating everyone on the guns should be a choice, not an obvious one.
-
-This is what finally gives crew casualties weight: losing hands thins *every* station at
-once. A ship at 55% crew reads 1.25× reload and 0.74× turn rate before anything else is
-counted, so grape shot now degrades the whole vessel.
-
-### The readout
-
-The yard shows what she actually *does* — guns a side, damage, reload, gun range,
-accuracy, top speed, turn rate, timbers, draught, burden — updating as you buy and
-reassign. A deliberate system is only deliberate if you can see what you are choosing
-between.
-
-Harbours are marked on the water, and the nearest gets a bearing and range at the screen
-edge, because an economy that asks you to sail somewhere specific is only a decision if
-you can see where.
-
-### Balance: unfinished
-
-| Hull | Win rate | Median | Yard visits | Parts fitted |
-|---|---|---|---|---|
-| Sloop | 0% | 313s | 4.0 | 8.1 |
-| Pinnace | 0% | 304s | 2.8 | 7.3 |
-| Brigantine | 13% | 327s | 0.9 | 3.5 |
-| Fluyt | 13% | 315s | 4.2 | 9.6 |
-
-The economy turns over — roughly 300 coin a voyage funding eight or nine fittings — but
-runs are markedly shorter than the draft version managed (~440s). Sailing to port costs
-time the clock does not stop for.
-
-Two things the figures are not telling us. **When to break off and make port is a
-judgement call**, and the scripted pilot makes it crudely with a coin threshold; this is
-the hardest thing it has ever been asked to decide. And **a slow deep hull can barely use
-the economy at all** — the Brigantine reaches under one yard a voyage, which is
-thematically right and possibly too punishing.
+The draft **freezes the world**. A level-up is a decision, not a reflex test. Visibility
+is driven purely by run state rather than by the card's own callback, so no other path out
+of `drafting` can strand a stale hand on screen.
 
 ## The size of the pool
 
-## The size of the pool
-
-## The size of the pool
-
-Twenty-four cards, **around 70 stacks** reachable in one run (57 across all cards, less the two shot
+Fifteen cards, **51 stacks** reachable in one run (57 across all cards, less the two shot
 types exclusivity locks out). A playtested run reaching level 37 held 36 of them, so a
 long endless run can get within sight of exhausting the draft.
 
