@@ -29,16 +29,27 @@ the game is muted.
 
 | Sound | Construction |
 |---|---|
-| **Cannon** | Up to 6 ripple cracks, each a noise burst sweeping 2200→140 Hz plus a 110→38 Hz sine sub, spaced by the same `gunRippleGap` the guns themselves use |
+| **Cannon** | Up to 6 cracks, each a noise burst sweeping 2200→140 Hz, scattered independently across the same `gunVolleyScatter` window the guns themselves use, over one 110→38 Hz sine sub for the whole broadside |
 | **Hit** | Bandpass noise crack, 900–1500 Hz sweeping down; hits on your own hull add a low triangle knock |
 | **Splash** | Bandpass noise sweeping up then down, highpassed |
 | **Sinking** | A broad splash, the sea closing over, and a few bubbles — all noise, no oscillators |
 | **Sail change** | Filtered noise, sweeping up when making sail and down when shortening |
 
-Broadsides fire as a **ripple rather than one blast**, timed off `gunRippleGap` so what
-you hear lines up with the smoke you see and the shot that leaves the side. The gap is a
-ceiling rather than a metronome — the cracks fall irregularly under it, matching how the
-guns themselves are scheduled, because a perfectly even ripple sounds mechanical.
+A broadside is **one crash made of several cracks**, scattered across the same
+`gunVolleyScatter` window the guns themselves use, so what you hear lines up with the
+smoke you see and the shot that leaves the side. The cracks are drawn independently
+rather than spaced in sequence, because the guns go off together and the scatter is only
+the hand of each gun captain.
+
+Two consequences follow from the cracks now overlapping where a ripple's did not:
+
+- **The peak comes down as the battery grows** — `dist × 0.5 / cracks^0.42`. The exponent
+  is under a half deliberately, so a heavier broadside still lands heavier without
+  clipping the master and turning to mud.
+- **One sub thump for the whole broadside**, not one per crack. Six sines at the same
+  pitch inside the same sixtieth of a second add coherently and boom rather than thump,
+  and a volley has one collective punch in any case. It grows with the battery, which is
+  where the weight of a heavy broadside now lives.
 
 **Sinking is water, not a dying machine.** It was originally built around a sawtooth
 sweeping down to 28 Hz, which read as something mechanical expiring. Water has no pitch to

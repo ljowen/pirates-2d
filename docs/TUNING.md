@@ -197,6 +197,16 @@ and run state on each render, so setting it from the console does nothing — th
 keeps running and whatever you were trying to inspect flies away. Use `loop.stop()` for
 headless work, or press `P` to freeze a scene for a screenshot.
 
+**Give the measurement bot every capability the *player* has — this keeps recurring.**
+Three times now a mechanic has measured as weak because the pilot could not use it: land
+avoidance (terrain looked like it halved the win rate), heaving to (unmeasurable, since
+the bot never engineers sea room), and chasing a trader. The last is the clearest case —
+the pilot engaged whatever was nearest, so two Fluyts a run sailed off untouched under
+every build, and chain shot's entire purpose went unmeasured. Teaching it to give chase
+moved chain from behind grape to ahead of it **without changing a single balance number**.
+Before concluding that a mechanic is weak, check that the proxy can actually perform the
+play the mechanic exists to enable.
+
 **Give the measurement bot every capability the AI has.** Adding land avoidance to the
 enemy captains but not to the test pilot made terrain look like it halved the win rate
 (50% → 13%). It had not; the pilot was simply aground 18% of the time. A proxy missing a
@@ -205,6 +215,16 @@ skill the real player has will report that skill's absence as difficulty.
 **Check reproducibility before trusting a comparison.** Run the same seed twice. If it
 diverges, something stateful is not being reset, or two systems are sharing a PRNG stream
 — and every number you are about to compare is noise.
+
+*Corollary, learned the hard way again during the reef work:* when two runs of "the same"
+build disagree, suspect the build before the simulation. A patch that edited one of two
+copies of an avoidance routine looked exactly like nondeterminism until the same bundle
+was run twice and matched.
+
+**Twenty-four seeds is not enough for a median.** A Pinnace measured 345s against 430s on
+the same code, two batches apart, purely on seed draw. Thirty-two is the floor for any
+number that gets written down, and a difference under ~20s should not be reported as a
+difference at all.
 
 **A feel change can be a balance change.** Staggering the guns was asked for as a
 presentation tweak and cut the win rate nearly in half, because it quietly made every

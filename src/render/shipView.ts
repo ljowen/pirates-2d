@@ -2,6 +2,7 @@ import { Container, Graphics } from 'pixi.js'
 import type { Ship } from '../sim/ship'
 import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
+import { T } from '../sim/tuning'
 
 const LENGTH = 58
 const BEAM = 17
@@ -17,6 +18,8 @@ export class ShipView {
   private readonly hull = new Graphics()
   private readonly sails = new Graphics()
   private readonly shadow = new Graphics()
+  /** A white flag at the main, drawn only once she has given up. */
+  private readonly colours = new Graphics()
   private sinkTime = 0
 
   private readonly palette: ShipClass['colors']
@@ -25,7 +28,7 @@ export class ShipView {
   constructor(cls: ShipClass) {
     this.palette = cls.colors
     this.view.addChild(this.shadow, this.heelLayer)
-    this.heelLayer.addChild(this.hull, this.sails)
+    this.heelLayer.addChild(this.hull, this.sails, this.colours)
     // Hull size is a class property, so a Pinnace reads as small at a glance.
     this.view.scale.set(cls.scale)
     this.baseScale = cls.scale
@@ -135,6 +138,7 @@ export class ShipView {
     this.shadow.position.set(-Math.sin(heel) * 5, Math.sin(heel) * 3)
 
     this.drawSails(ship)
+    this.drawColours(ship)
 
     // A fresh hit whitens the hull for an instant — the cheapest possible
     // confirmation that your shot connected.
@@ -148,6 +152,39 @@ export class ShipView {
       this.view.scale.set(this.baseScale * (1 - t * 0.45))
       this.heelLayer.rotation = t * 0.8
     }
+  }
+
+  /**
+   * A white flag at the main, flown from the moment she is beaten.
+   *
+   * This is the *only* signal that a ship can be taken — there was a caption
+   * over her for a while, and a caption is a worse version of the same idea:
+   * it says in words what the ship can say about herself, it sits in the
+   * instrument layer rather than on the water, and it reads as UI in a scene
+   * that is otherwise entirely diegetic.
+   *
+   * It flies before she strikes, not after. A flag that appears only once the
+   * capture has happened is a receipt; what the player needs is a ship saying
+   * *come and take me* while there is still a decision to make about whether
+   * to go. It goes when she does.
+   */
+  private drawColours(ship: Ship) {
+    const c = this.colours
+    c.clear()
+    if (ship.sunk || ship.faction !== 'enemy') return
+    const beaten = ship.struck || ship.sails <= T.strikeSails || ship.crew <= T.strikeCrew
+    if (!beaten) return
+
+    const mx = LENGTH * 0.18
+    const flutter = Math.sin(performance.now() * 0.006) * 1.6
+    // Flagstaff at the main, and a plain white flag hanging off it.
+    c.moveTo(mx, 0).lineTo(mx, -BEAM * 1.5).stroke({ width: 1.6, color: 0x4a3b22 })
+    c.poly([
+      mx, -BEAM * 1.5,
+      mx + BEAM * 0.95, -BEAM * 1.32 + flutter,
+      mx + BEAM * 0.9, -BEAM * 0.82 + flutter,
+      mx, -BEAM * 0.95,
+    ]).fill({ color: 0xfdfefe, alpha: 0.95 }).stroke({ width: 1, color: 0xb9a88a })
   }
 
   /** True once the sinking animation has finished and the view can be dropped. */

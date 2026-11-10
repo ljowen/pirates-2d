@@ -143,8 +143,36 @@ variance without raising the power ceiling — the right shape of fix for a spre
 scale: a Brigantine stays dangerous however strong the player gets, so two of them was a
 wall every measured run broke on. Wave two is now one Brigantine plus two Barques.
 
-**Every captain starts with a free Ship's Carpenter.** Sustain, not firepower, was what
-runs were short of.
+**Sustain is earned in play, not drafted.** The hull economy was break-even by
+construction — 0.59 hull a minute in, 0.51 back — so one Carpenter stack, worth 0.36,
+flipped the sign and became a prerequisite rather than an upgrade. The measurement that
+settled it is a *pair*: the pilot drafting normally against the same pilot refusing repair
+cards, 391s versus 324s. Raising the baseline instead was tried and rejected, because it
+makes the card worthless rather than optional (446s with repair cards, 449s without).
+**Any flat repair rate racing a flat damage rate is either mandatory or dead.** Recovery
+now comes from timber salvaged off wrecks and from heaving to, both of which scale with
+how the run is being played, and the cards multiply that instead of deciding it.
+
+**A wreck leaves two kinds of flotsam, told apart by silhouette.** Coin is progress,
+timber is survival; a round bright disc against a long pale baulk. One pickup that did
+both made every wreck worth the same beat to windward — two make it a question, and since
+both drift downwind the wind decides what each answer costs. Shape rather than colour
+carries it, because the player is reading the water while being shot at.
+
+**Furled is how you mend.** Repair runs six times faster with the canvas off her and the
+guns are served at 60%. It is the only recovery mechanic that is a *decision*: you have to
+make the sea room first, and you are stopped and visible while it happens. An earlier
+version that simply gated repair on seconds-since-last-hit was measured and thrown away —
+it collapsed runs from 391s to 310s, because in the back half you are never clear for
+eight seconds, so it deleted sustain exactly when it was needed. The instinct was right;
+it belongs in a thing you choose, not a condition you are passively judged against.
+
+**~~Every captain starts with a free Ship's Carpenter.~~** *Reversed.* It was true that
+sustain, not firepower, was what runs were short of — but a free stack of the same card in
+every run is a head start nobody picked, and it spent one of the Carpenter's three stacks
+before the first hand was dealt. A captain now puts to sea in a stock hull, so every point
+of a build is chosen. Costs the test pilot about 18s of median survival (419 → 401s), which
+is the price of the choice being real.
 
 **Softening the spawn curve does not help on its own.** Fewer enemies means less plunder
 and a slower draft, so both curves move together. The only reliable lever for the player
@@ -168,10 +196,98 @@ because the voyage has become considerably easier.
 more hulls stop adding difficulty and only add load; escalation continues through the
 shrinking spawn gap and the heavier hull mix instead.
 
-**Gun crews are not metronomes.** The ripple gap is a ceiling, and each gun fires
-somewhere under it. A well-drilled crew keeps a tight rhythm; a shot-up one is slower and
-2.3× raggeder, which gives crew damage a tell inside the volley rather than only in the
-reload timer.
+**Three pools, three ways to take a ship — not one health bar wearing three hats.** Hull
+sinks her, rigging leaves her unable to run or fight, crew leaves her unable to resist
+boarding; the last two end with her striking her colours when you come alongside. Both
+come from the *Pirates!* manual rather than invention, which also supplies the economy: a
+prize is worth far more than a wreck, and every ball you put into her lowers what she is
+worth.
+
+The alternative considered and rejected was collapsing to a **single health bar**. As the
+game then stood that would have lost nothing — measured, the player never dropped below
+69% rigging or 79% crew in 32 runs, because repair outran damage by nine times. But that
+zero was a tuning accident, not a property of the idea. Rigging damage removing a ship's
+ability to choose where she is, is the one thing tying gunnery back to the sailing model
+the whole game is built on. The fix was to make the pools move, not to delete them.
+
+**Rigging damage costs the helm as well as the legs — but gently.** It cost only speed
+for a long time, which made chain shot's promise to *strand* a ship a half-truth, because
+steerage saturates far below a crippled ship's speed. The faithful version, a dismasted
+ship turning at a quarter, measured *worse for the build that uses it*: crippling an enemy
+means she can no longer come to you, so she wallows out of your arc and has to be chased
+down to be boarded. The approach requirement for capture and a hard helm penalty pull
+against each other. Half authority at zero rigging is the version that makes the card
+honest without taxing the player for believing it.
+
+**A capture needs an approach, not a threshold.** A beaten ship strikes only when the
+player closes to boarding range. Chain and grape *set up* the capture; they do not
+perform it. Without the approach the last act of a fight is a damage number quietly
+crossing a line, which is no act at all.
+
+**Enemy hulls load different shot, and that is what made the pools matter.** Cutting the
+player's repair rates was the obvious fix and the smaller half of it: with every ship
+afloat firing round shot, nothing in the game could threaten your canvas whatever the
+repair rate. A Frigate loading chain to keep you at arm's length and a Royal Sloop
+loading grape to slow your reload took the worst rigging moment of a run from 0.84 to
+0.42, and gave two hulls an encounter of their own.
+
+*Still open:* **Double-Shotted measures level-for-level with taking no shot card**, even
+after its hull bias went from ×1.7 to ×2.1. More damage per ball does not convert into
+more kills, because the limit is how many hulls are in the arc rather than how fast each
+dies. It wants a different idea, not a bigger number.
+
+**Aim is wrong in three separate ways, and they are not interchangeable.** The fan is
+deliberate — it is the wall of shot. Gun-laying error is the man on the moving deck. Lead
+error is the gun captain misjudging the target's *speed*, and it is the only one that
+genuinely rewards closing, because the same bad guess costs nothing at point-blank and a
+hull's width at long range. When gunnery needed to be less accurate, most of the change
+went into widening the fan rather than into random error: leaning on randomness would
+have turned the broadside back into the shotgun blast the even spread was introduced to
+avoid.
+
+*Worth knowing before tuning this again:* at a normal fighting range the entire fan used
+to land inside the target's hit radius, so every gun that bore was effectively a hit.
+Adding modest per-gun error changed the hit rate by nothing at all — 53.1% before and
+after. Error below the size of the target is not error.
+
+**A broadside goes off together, but not to the instant.** Each gun draws its own small
+*independent* delay inside `gunVolleyScatter` rather than queueing behind the one before
+it. Two things follow. The volley lands as a single crash, so it is something the enemy
+sees coming and sails out from under as a whole. And its length no longer grows with the
+battery — under the old ripple, drafting gunports bought a broadside that took a quarter
+of a second to leave the ship (0.186s at six guns, 0.247s at twelve, against 0.043s and
+0.051s now). A shot-up crew is twice as ragged about it, which keeps crew damage audible
+inside the volley rather than only in the reload timer.
+
+**Upgrades are written in multipliers; the draft is read in knots.** "9% less drag" is
+true and useless — nobody knows what drag is worth. The draft panel runs the same
+arithmetic the physics runs, on a *copy* of the modifiers, and shows the ship's real
+numbers before and after the card. That is only possible because `apply` was kept to a
+pure edit of `ShipMods`: a preview is the same function run somewhere harmless.
+
+**A ship is aground when the water is shallower than she draws.** Grounding used to be
+measured against distance to a beach, which meant draught could only ever pay in the half
+ship-length beside land — the one place every hull is in danger anyway. Keyed to depth
+instead, it works anywhere there is a bottom, which is what lets a bar with no land in it
+strand a Galleon while a Pinnace sails over the top. The gap between the lightest and
+heaviest hull went from 2.3× to 4.5×.
+
+**Reefs and bars carry nothing but draught.** No land, no cover from shot, no wind shadow
+— they decide which hulls may pass and nothing else. Elongated rather than round, because
+a circular hazard is a thing to steer round while a bar across your course is a question:
+go about and lose the ground, or cross it and find out what you draw. How pale one is, is
+how shallow it is, drawn from the same field function the physics reads — a hazard you
+can only learn by hitting it is a trap rather than a tactic.
+
+**Shoal width varies island to island.** A steep-to rock is a poor refuge; an island
+standing in a mile of flats is a fortress a heavy hull cannot come at. Uniform shoals
+made every island the same island, which is most of why draught never felt tactical even
+though the numbers said it should.
+
+**The run never begins in a lagoon.** Broad shoals and bars can enclose a pool of deep
+water a given hull cannot leave. Fine as a hiding place you chose; unacceptable as the
+one position the player never picked — so the spawn search counts how many courses run
+clear to sea for the hull being sailed, not merely whether the water underneath is deep.
 
 **The wind varies by place, not just over time.** A noise field veers and gusts it
 locally and the pattern drifts downwind, so a favourable lane is worth seeking and a lull

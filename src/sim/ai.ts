@@ -1,8 +1,8 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
 import type { WindSample } from './wind'
-import { angleDiff, clamp, wrapAngle } from '../core/math'
-import { landRadius, type Island, type Terrain } from './terrain'
+import { angleDiff, clamp, wrapAngle, type Vec2 } from '../core/math'
+import { draughtDepth, landRadius, type Island, type Terrain } from './terrain'
 
 /**
  * An enemy captain, bound by exactly the same wind the player is. This is the
@@ -17,7 +17,7 @@ export class CaptainAI {
 
   think(self: Ship, target: Ship, wind: WindSample, terrain: Terrain, dt: number) {
     this.sinceTack += dt
-    if (self.sunk) return
+    if (self.sunk || self.struck) return
 
     const dx = target.pos.x - self.pos.x
     const dy = target.pos.y - self.pos.y
@@ -51,21 +51,46 @@ export class CaptainAI {
    * naturally and never produces the stuttering of a replanned path.
    */
   private avoidLand(self: Ship, desired: number, terrain: Terrain): number {
-    const look = T.aiLandLookahead
+    const look = T.aiLandLookahead * (0.8 + 0.7 * self.cls.draught)
     // Deep hulls must respect the shoals too, not just the beach.
     const margin = 30 + 70 * self.cls.draught
+    // And the water she actually needs under her, which is what makes a bar
+    // with nothing showing above it something a captain steers around.
+    const needs = draughtDepth(self.cls.draught) * 1.25
+
+    // Already on the bank: steer straight for deep water and sort the rest out
+    // afterwards. The island branch has always had this case — without it for
+    // bars, a grounded hull sheers along the bar it is sitting on and stays
+    // there with her sails still driving her in.
+    const here = terrain.probe(self.pos)
+    if (here.depth < needs && here.escape && (!here.island || here.distance > margin)) {
+      return Math.atan2(here.escape.y, here.escape.x)
+    }
 
     let island: Island | null = null
+    let shoalAt: { pos: Vec2; escape: Vec2 } | null = null
     for (const t of [0.35, 0.7, 1]) {
-      const probe = terrain.probe({
+      const pos = {
         x: self.pos.x + Math.cos(desired) * look * t,
         y: self.pos.y + Math.sin(desired) * look * t,
-      })
-      if (!probe.island || probe.distance > margin) continue
-      island = probe.island
-      break
+      }
+      const probe = terrain.probe(pos)
+      if (probe.island && probe.distance <= margin) { island = probe.island; break }
+      if (probe.depth < needs && probe.escape) { shoalAt = { pos, escape: probe.escape }; break }
+    }
+
+    // A bar has no middle to round, so sheer away from it along the shortest
+    // way off and let the next tick re-aim. This is deliberately cruder than
+    // the island case: these captains only have to look competent for the
+    // half-minute they are on screen, and a bar is a thing you edge around
+    // rather than a headland you lay a course past.
+    if (!island && shoalAt) {
+      const away = Math.atan2(shoalAt.escape.y, shoalAt.escape.x)
+      const side = angleDiff(desired, away) >= 0 ? 1 : -1
+      return wrapAngle(away + side * (Math.PI / 3))
     }
     if (!island) return desired
+
     const dx = island.x - self.pos.x
     const dy = island.y - self.pos.y
     const range = Math.hypot(dx, dy) || 1

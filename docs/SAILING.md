@@ -92,6 +92,26 @@ guns matters more than speed.
 
 Full sail in heavy air costs you speed rather than gaining it (`overcanvasPenalty`).
 
+### Furled is not just "stopped" — it is how you mend
+
+Take the canvas off her and the hands come off the yards and go to the pumps. Repair
+runs up to **six times faster** (`heaveToRepair`) and the guns are served at 60% of
+their usual rate (`heaveToGunnery`) while it happens.
+
+That turns recovery into the same kind of decision as everything else here: you have to
+make the sea room first. The cost is honest — you are stopped, visible, slow to answer
+the helm and slow to answer a broadside — so heaving to inside somebody's gun range is
+simply dying more comfortably.
+
+The multiplier scales with `hoveTo`, which is driven by the canvas actually set rather
+than the order given. The crew's time on the yards is therefore part of the price, in
+both directions: she does not begin mending the instant you give the order, and she does
+not get under way the instant you want to run.
+
+A Sloop mends her hull from nothing in 118 seconds under way and 20 hove to. With three
+stacks of Ship's Carpenter that falls to 6, which is the card's real job now — not
+whether you recover, but **how long you are a sitting target while you do**.
+
 ## Steering
 
 ```

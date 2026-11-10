@@ -33,21 +33,96 @@ real chain does — currently 57% under 140 units.
 renderer call it**. A circle for collision and a blob for the eye would be a bug waiting
 to happen.
 
+## Reefs and bars
+
+A second feature layer, hashed per cell independently of the islands: **shoal patches
+with no dry land in them at all.** Nothing shows above water, nothing blocks shot,
+nothing breaks the wind. They do exactly one thing — decide which hulls may pass.
+
+They exist because draught used to pay in only one place: the half ship-length beside a
+beach, which is also the one place every hull is in danger anyway. A bar in open water is
+draught with nothing else attached.
+
+```
+cell → hash → bar? → position, length, width, bearing, least depth
+```
+
+**Elongated on purpose.** A circular hazard is a thing to steer round. A bar lying across
+your course is a question: go about and lose the ground, or cross it and find out what
+you draw. Measured over 1,600 cells at the shipped settings — 55% carry a bar, mean
+length 514 units, mean least depth 0.15.
+
+**How pale a bar is, is how shallow it is.** The renderer draws four contours from
+`reefField`, the same function the physics reads, and keys their lightness to `least`.
+The one thing a player must judge at a glance is whether their own hull can cross, so
+that has to be legible from the water rather than discovered by stopping dead in it.
+
+> An earlier version scattered white blobs along the spine as breakers. At the zoom this
+> game is played at they read as objects sitting *on* the water rather than as sea
+> breaking *over* a shoal, so the shading carries the whole job now.
+
+### Telling the player what is under the keel
+
+Two readouts, because a bar announces itself only by colour:
+
+- **The leadline**, in the point-of-sail panel: a sounding in fathoms over a bar with a
+  fixed mark at the depth this hull draws. A bare depth would be a number without a
+  question attached — what matters is not how deep the water is but whether *this* hull
+  can cross it, and that is a different reading for a Pinnace and a Brigantine. The scale
+  is stretched over the bottom third, where everything that matters happens, and the
+  colour runs blue → amber → red as the margin above the mark closes. Open sea reads
+  *no bottom*.
+- **A warning across the screen** — *SHOAL WATER — she will touch*, then *AGROUND* — from
+  twice the depth she draws, for when the player is watching the sea rather than the
+  instruments.
+
 ## Draught
 
-Each hull has a `draught` (0–1) that decides how far out she touches bottom and how badly
-shallows slow her. This is what makes land a *weapon* rather than scenery.
+Each hull has a `draught` (0–1). **She is aground when the water is shallower than she
+draws** — `draughtDepth × draught`, against a depth where 1 is open sea and 0 is a beach
+or a drying bank.
 
-| Hull | Draught | Stops from shore | Speed crossing a shoal |
-|---|---|---|---|
-| Pinnace | 0.3 | 17 | **102** |
-| Sloop (player) | 0.55 | 24 | 72 |
-| Barque | 0.75 | 29 | 45 |
-| Brigantine | 1.0 | 35 | **5** |
+Depth rather than distance-to-a-beach is what lets a bar with no land in it strand a
+Galleon while a Pinnace sails over the top. It also gave the island shoals teeth: before
+this, every hull could close to within a few lengths of any beach.
 
-A Brigantine is effectively anchored in water a Pinnace crosses at full speed. Because
-the captains' avoidance margin also scales with draught, heavy hulls will not follow you
-into shallows — so the shoals are an **escape valve, not a farming exploit**.
+| Hull | Draught | Water she needs | Stops off a beach | Bars that stop her | Sea closed to her |
+|---|---|---|---|---|---|
+| Pinnace | 0.22 | 0.066 | **11** | **32%** | 2.05% |
+| Sloop | 0.55 | 0.165 | 29 | 64% | 2.52% |
+| Fluyt | 0.80 | 0.240 | 42 | 79% | 2.99% |
+| Brigantine | 1.00 | 0.300 | **52** | **89%** | 3.37% |
+
+The spread on the right-hand columns is the point. A Pinnace crosses two bars in three; a
+Brigantine crosses one in nine. Where the old distance rule put a 2.3× gap between the
+lightest and heaviest hull, depth puts 4.5× — and the bars add a kind of ground that the
+heavy hull simply cannot use.
+
+Shallows also drag on a deep keel long before she touches (`shoalDraughtPenalty`), so a
+heavy hull is slowed across water she can still technically cross.
+
+### Island shoals vary
+
+`shoalScale` 2.2 with `shoalVariation` 0.9 gives shoal rings from **1.2 to 3.2 × land
+radius**, hashed per island. A steep-to rock is a poor refuge; an island standing in a
+mile of flats is a fortress a Brigantine cannot come at. Uniform shoals made every island
+the same island, which is most of why draught never felt tactical.
+
+Because the captains' avoidance also keys off the water their own hull needs, heavy hulls
+will not follow you into shallows — so the shoals are an **escape valve, not a farming
+exploit**. Measured share of a run spent aground, scripted pilot, 32 seeds:
+
+| Hull | Before | After |
+|---|---|---|
+| Pinnace | 0.97% | 1.5% |
+| Sloop | 1.99% | 4.0% |
+| Fluyt | 2.51% | 6.0% |
+| Brigantine | 6.73% | 8.3% |
+
+Median survival is unchanged within noise (431–442s after, 434–447 before), so this
+bought discrimination between hulls rather than difficulty. The bot's figures are a
+ceiling on the real cost: it reads a bar through a three-point lookahead, where a player
+can see the whole thing.
 
 ## Grounding
 
@@ -89,13 +164,32 @@ produces the stuttering of a replanned path. A navigation mesh over infinite pro
 terrain would cost far more than it returns for enemies that only need to look competent
 for the half-minute they are on screen.
 
-Measured at **0.00% of AI time aground** across 600 simulated seconds and three seeds.
+A bar is handled differently from a headland, because it has no middle to round: a
+captain sheers 60° off the shortest way back to deep water and re-aims next tick. If she
+is *already* on the bank she steers straight out — without that case a grounded hull
+sheers along the bar she is sitting on, with her sails still driving her into it, and
+stays there. Adding it cut the Brigantine's time aground from 17% of a run to 10%.
+
+**A deep hull looks further ahead** — `aiLandLookahead × (0.8 + 0.7 × draught)`. One
+lookahead for every hull meant the heaviest ones saw a bar at exactly the range they
+could no longer avoid it; scaling it took the Brigantine from 10.7% aground to 8.3%.
+
+## No lagoon starts
+
+Broad shoals and bars across open water can between them enclose a pool of deep water
+that a given hull cannot get out of. That is fine as a hiding place you chose and
+unacceptable as the place the run begins — the one position the player never picked.
+
+So deep water is no longer enough on its own. `Terrain.escapes` casts sixteen courses out
+to 1,500 units and counts how many run clear for the hull being sailed; the spiral keeps
+walking until it finds a position with at least four, and otherwise takes the best it
+saw. Verified across **400 seeds × 4 hulls: no lagoons, worst case 9 of 16 courses
+clear.**
 
 ## Other integrations
 
-- **Spawning** rejects positions on land, up to twelve tries.
-- **The player's start** spirals outward until it finds open water, so no terrain seed
-  can begin a run on a beach.
+- **Spawning** rejects positions on land, and now also any water too shallow for the hull
+  being spawned, up to twelve tries.
 - **Plunder** that washes ashore is nudged back into navigable water — losing a prize to
   a beach would be a loss through no fault of the player.
 

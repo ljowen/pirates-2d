@@ -38,7 +38,7 @@ export class AudioDirector {
           1,
           Math.round(T.gunsPerBroadside * ship.cls.guns) + ship.mods.extraGuns,
         )
-        this.audio.cannon(ship.pos.x, ship.pos.y, guns, T.gunRippleGap)
+        this.audio.cannon(ship.pos.x, ship.pos.y, guns, T.gunVolleyScatter)
       }
     }
   }

@@ -1,5 +1,5 @@
 import { Container, Graphics } from 'pixi.js'
-import { Terrain, landRadius, shoalRadius, type Island } from '../sim/terrain'
+import { Terrain, landRadius, shoalRadius, reefField, type Island, type Reef } from '../sim/terrain'
 import type { Camera } from './camera'
 
 const SEGMENTS = 54
@@ -24,13 +24,80 @@ export class TerrainView {
     // Generous margin so islands are built before they scroll into view.
     const reach = Math.max(camera.viewW, camera.viewH) / camera.zoom
     const visible = terrain.near(camera.pos, reach)
+    const reefs = terrain.reefsNear(camera.pos, reach)
 
-    const key = visible.map((i) => `${i.x.toFixed(0)},${i.y.toFixed(0)}`).join('|')
+    const key = [
+      ...visible.map((i) => `${i.x.toFixed(0)},${i.y.toFixed(0)}`),
+      ...reefs.map((r) => `r${r.x.toFixed(0)},${r.y.toFixed(0)}`),
+    ].join('|')
     if (key === this.lastKey) return
     this.lastKey = key
 
     this.g.clear()
+    // Bars first, so a fringing reef runs under the island it belongs to
+    // rather than being painted over its beach.
+    for (const reef of reefs) this.drawReef(reef)
     for (const island of visible) this.draw(island)
+  }
+
+  /**
+   * A bar: pale water, and nothing above it.
+   *
+   * Drawn from `reefField`, the same function the physics reads, so what the
+   * player steers around is exactly what they would have touched. **How pale
+   * it is, is how shallow it is** — the one thing they need to judge at a
+   * glance is whether their own hull can cross, so the least depth is carried
+   * by the colour rather than discovered by grounding on it.
+   *
+   * Four contours rather than three, and the innermost near-white on the
+   * worst bars. An earlier version scattered white blobs along the spine as
+   * breakers; at the zoom this game is played at they read as objects sitting
+   * on the water rather than as sea breaking over a shoal, so the shading
+   * carries the whole job now.
+   */
+  private drawReef(reef: Reef) {
+    const g = this.g
+    const shallow = 1 - reef.least / 0.4
+
+    const bands: [number, number, number][] = [
+      [1.0, 0x78c0da, 0.3 + 0.16 * shallow],
+      [0.74, 0x9fd9e8, 0.32 + 0.2 * shallow],
+      [0.48, 0xc7ecf4, 0.28 + 0.32 * shallow],
+      [0.24, 0xe6f6fa, 0.18 + 0.42 * shallow],
+    ]
+    for (const [at, color, alpha] of bands) {
+      g.poly(this.reefRing(reef, at)).fill({ color, alpha })
+    }
+  }
+
+  /** A contour of the bar at a given fraction of its extent. */
+  private reefRing(reef: Reef, at: number): number[] {
+    const pts: number[] = []
+    const c = Math.cos(reef.angle)
+    const s = Math.sin(reef.angle)
+    for (let i = 0; i < SEGMENTS; i++) {
+      const a = (i / SEGMENTS) * Math.PI * 2
+      // Walk out along this bearing until the shared field function says we
+      // have reached the contour, rather than guessing an ellipse that would
+      // disagree with the physics at the wobbly edges.
+      const u = Math.cos(a)
+      const v = Math.sin(a)
+      let lo = 0
+      let hi = 1.6
+      for (let k = 0; k < 12; k++) {
+        const mid = (lo + hi) / 2
+        const px = reef.x + (u * mid * reef.length) * c - (v * mid * reef.width) * s
+        const py = reef.y + (u * mid * reef.length) * s + (v * mid * reef.width) * c
+        if (reefField(reef, { x: px, y: py }) < at) lo = mid
+        else hi = mid
+      }
+      const m = (lo + hi) / 2
+      pts.push(
+        reef.x + (u * m * reef.length) * c - (v * m * reef.width) * s,
+        reef.y + (u * m * reef.length) * s + (v * m * reef.width) * c,
+      )
+    }
+    return pts
   }
 
   private ring(island: Island, radiusAt: (a: number) => number, inflate = 1): number[] {

@@ -97,6 +97,13 @@ export class Ship {
   /** Visual roll, in radians. Presentation only — never fed back into physics. */
   heel = 0
 
+  /**
+   * Repair multiplier in force this step: 1 under way, up to `heaveToRepair`
+   * with the canvas off her. Derived each step and read by the HUD, so what
+   * the instruments say is what the physics did.
+   */
+  mending = 1
+
   readonly polar: PolarCurve
 
   /** Upgrade modifiers. Mutate these; the physics reads them every step. */
@@ -110,6 +117,13 @@ export class Ship {
   sunk = false
   /** Seconds since she went down, so the wreck can be cleared once she is gone. */
   sinceSunk = 0
+  /**
+   * She has struck her colours. Out of the fight: she neither fires nor
+   * steers, and shot no longer touches her — a prize you have taken is not a
+   * target. Her sails come down and a prize crew takes her shortly after.
+   */
+  struck = false
+  sinceStruck = 0
   /** Seconds since the last hit — drives damage flashes and smoke. */
   sinceHit = 99
   /** Water depth under the keel this step: 1 open sea, 0 on the beach. */
@@ -151,6 +165,18 @@ export class Ship {
 
   get sailName() { return SAIL_STATES[this.sailOrder].name }
 
+  /**
+   * How far the canvas is off her, 0 to 1. Zero at battle sails or more — the
+   * fighting states — rising to one when she is lying under bare poles.
+   *
+   * Driven by `canvas`, the sail actually set, rather than by the order given,
+   * so the crew's time on the yards is part of the cost of heaving to.
+   */
+  get hoveTo(): number {
+    const fighting = SAIL_STATES[1].canvas
+    return clamp(1 - this.canvas / fighting, 0, 1)
+  }
+
   get pointOfSail(): PointOfSail {
     const d = (this.awa * 180) / Math.PI
     if (d < 32) return 'In Irons'
@@ -171,19 +197,38 @@ export class Ship {
     this.prevHeel = this.heel
 
     this.sinceHit += dt
-    if (this.mods.hullRepair > 0) this.hull = clamp(this.hull + this.mods.hullRepair * dt, 0, 1)
-    if (this.mods.sailRepair > 0) this.sails = clamp(this.sails + this.mods.sailRepair * dt, 0, 1)
+
+    // --- Heaving to to mend --------------------------------------------------
+    // Hands cannot be on the yards and at the pumps at once. Take the canvas
+    // off her and the carpenter's crew get to work properly; carry it and all
+    // they manage is what can be done under way.
+    //
+    // This is the one lever that turns recovery into a decision rather than a
+    // trickle: you have to make the sea room first, which is the same
+    // positional problem the rest of the game poses. The cost is that you are
+    // stopped, visible and barely able to answer while it happens.
+    this.mending = 1 + (T.heaveToRepair - 1) * this.hoveTo
+    if (this.mods.hullRepair > 0) {
+      this.hull = clamp(this.hull + this.mods.hullRepair * this.mending * dt, 0, 1)
+    }
+    if (this.mods.sailRepair > 0) {
+      this.sails = clamp(this.sails + this.mods.sailRepair * this.mending * dt, 0, 1)
+    }
     // Wounded hands return to duty. Without this, crew damage was the one
     // wound that never healed, so a long run bled gunnery and handling away
     // permanently.
-    if (this.mods.crewRepair > 0) this.crew = clamp(this.crew + this.mods.crewRepair * dt, 0, 1)
+    if (this.mods.crewRepair > 0) {
+      this.crew = clamp(this.crew + this.mods.crewRepair * this.mending * dt, 0, 1)
+    }
     this.sinceFired[0] += dt
     this.sinceFired[1] += dt
 
-    // A thinned crew works the guns and the yards more slowly.
+    // A thinned crew works the guns and the yards more slowly, and so does one
+    // with half its number below plugging shot holes.
     const crewFactor = 0.4 + 0.6 * this.crew
-    this.reload[0] = Math.max(0, this.reload[0] - dt * crewFactor)
-    this.reload[1] = Math.max(0, this.reload[1] - dt * crewFactor)
+    const gunCrew = crewFactor * (1 - (1 - T.heaveToGunnery) * this.hoveTo)
+    this.reload[0] = Math.max(0, this.reload[0] - dt * gunCrew)
+    this.reload[1] = Math.max(0, this.reload[1] - dt * gunCrew)
 
     // --- Rigging: the crew takes real time to make or shorten sail ----------
     const orderedCanvas = SAIL_STATES[this.sailOrder].canvas
@@ -255,11 +300,26 @@ export class Ship {
     // into forward drive is not simultaneously being shoved sideways by it.
     // Sailing well is therefore self-stabilising, and stalling compounds.
     const slipping = 1 - this.polarMult
-    const leeway = T.leeway * wind.strength * (0.25 + 0.75 * this.canvas) * slipping
+    const leeway = this.struck
+      ? 0
+      : T.leeway * wind.strength * (0.25 + 0.75 * this.canvas) * slipping
     const leeAxial = (Math.cos(wind.to) * fx + Math.sin(wind.to) * fy) * T.leewayAxial
     const leeLateral = Math.cos(wind.to) * lx + Math.sin(wind.to) * ly
     this.vel.x += (fx * leeAxial + lx * leeLateral) * leeway * dt
     this.vel.y += (fy * leeAxial + ly * leeLateral) * leeway * dt
+
+    // --- A ship that has struck takes her way off ----------------------------
+    // She has given up: her canvas is coming down and nobody is at the helm.
+    // Her own drag would stop her eventually, but "eventually" is longer than
+    // a prize is on the water for, and a hull still making way under bare
+    // poles reads as one trying to get away — the exact opposite of what a
+    // prize should look like. So her way comes off deliberately, and the wind
+    // stops pushing her about with it.
+    if (this.struck) {
+      const stop = Math.max(0, 1 - T.prizeStop * dt)
+      this.vel.x *= stop
+      this.vel.y *= stop
+    }
 
     this.pos.x += this.vel.x * dt
     this.pos.y += this.vel.y * dt
@@ -273,9 +333,18 @@ export class Ship {
       (1 - T.steerageFloor) * smoothstep(0, T.steerageRefSpeed, Math.abs(vF))
     // More canvas aloft means a wider, more sluggish turn.
     const canvasTurn = 1 + (T.fullSailTurnPenalty - 1) * this.canvas
+    // And canvas *shot away* costs her the helm as well as her legs. Without
+    // this, rigging damage only slowed a ship down — a hull with her rigging
+    // in ribbons still came round as smartly as a sound one, which made
+    // "tears rigging and strands them" a half-truth and left chain shot
+    // doing much less than the card promised. The source is explicit that a
+    // dismasted ship is no longer under any control.
+    const rigTurn = T.sailTurnFloor + (1 - T.sailTurnFloor) * this.sails
 
-    this.turnRate =
-      T.baseTurnRate * this.cls.turnRate * this.mods.turnRate * this.rudder * steerage * canvasTurn
+    this.turnRate = this.struck
+      ? 0
+      : T.baseTurnRate * this.cls.turnRate * this.mods.turnRate *
+        this.rudder * steerage * canvasTurn * rigTurn
     this.heading += this.turnRate * dt
 
     // --- Heel (visual only) ---------------------------------------------------
@@ -314,6 +383,8 @@ export class Ship {
     this.hull = this.sails = this.crew = 1
     this.sunk = false
     this.sinceSunk = 0
+    this.struck = false
+    this.sinceStruck = 0
     this.reload[0] = this.reload[1] = 0
   }
 }

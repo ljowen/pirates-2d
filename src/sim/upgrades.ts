@@ -107,7 +107,11 @@ export const UPGRADES: Upgrade[] = [
     id: 'round-shot', exclusive: 'shot', name: 'Double-Shotted', group: 'Shot',
     text: 'Straight at the waterline. Everything into the hull — the fastest way to sink her.',
     maxStacks: 3, weight: 0.8,
-    apply: (m) => { m.shotHull *= 1.7; m.shotSails *= 0.8; m.shotCrew *= 0.8 },
+    // Has to be a harder shove than it was. Once chain and grape led to a
+    // prize worth more than a wreck, merely sinking things a little faster was
+    // not a doctrine at all — it measured level-for-level with taking no shot
+    // card whatsoever.
+    apply: (m) => { m.shotHull *= 2.1; m.shotSails *= 0.75; m.shotCrew *= 0.75 },
   },
 
   // --- Quarterdeck ---------------------------------------------------------
@@ -151,10 +155,12 @@ export function isCommitting(upgrade: Upgrade, taken: Map<string, number>): bool
  * against their own max stacks and show in the draft as already owned, so the
  * head start is honest rather than hidden.
  *
- * The Carpenter is here because sustain, not firepower, was the thing runs were
- * short of — see docs/plans/balance.md.
+ * Deliberately empty: a captain puts to sea in a stock hull, so every point of
+ * a build is one the player chose. A free stack of the same card in every run
+ * is a head start nobody picked, and it spent one of the Carpenter's three
+ * stacks before the first draft had been dealt.
  */
-export const STARTING_UPGRADES: string[] = ['ships-carpenter']
+export const STARTING_UPGRADES: string[] = []
 
 /**
  * Draw a draft hand, excluding anything already maxed. Weighted, without

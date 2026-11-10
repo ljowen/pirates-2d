@@ -1,5 +1,5 @@
 import { T } from './tuning'
-import type { Ship } from './ship'
+import type { Ship, ShipMods } from './ship'
 import type { Terrain } from './terrain'
 import { angleDiff, clamp, type Vec2 } from '../core/math'
 
@@ -23,10 +23,10 @@ export interface Projectile {
 }
 
 /**
- * A gun that has been laid and is waiting its turn to speak. Broadsides were
- * commonly fired in sequence down the ship's side rather than all at once —
- * it reads far better, and it means the smoke blooms along the hull instead
- * of appearing in one lump.
+ * A gun that has been laid and is waiting on its own gun captain. The whole
+ * broadside goes off together; each gun is simply a few hundredths of a second
+ * off from its neighbours, which is what makes the crash and the smoke read as
+ * a living ship's side rather than one mechanical event.
  */
 export interface PendingShot {
   /** Seconds until this gun fires. */
@@ -35,8 +35,14 @@ export interface PendingShot {
   battery: 0 | 1
   /** The hull this gun was ordered onto; re-laid at the moment it fires. */
   target: Ship
-  /** This gun's share of the volley's spread across the arc. */
+  /** This gun's share of the volley's spread across the arc, plus its own error. */
   spreadOffset: number
+  /**
+   * How well this gun captain judged the target's speed. 1 is exact; the
+   * spread around it is what makes a fast ship crossing your bows genuinely
+   * hard to hit and a wallowing one easy.
+   */
+  leadScale: number
   /** Used if the target is gone by the time the gun speaks. */
   fallbackDir: number
   range: number
@@ -62,11 +68,18 @@ const CREW_SHARE = 0.14
  * Apply the firer's shot-type bias, then renormalise. Renormalising is what
  * keeps shot types a *choice* rather than a damage bonus: loading chain buys
  * rigging damage by giving up hull damage, it does not simply add.
+ *
+ * Exported because the refit panel shows the player exactly where their shot
+ * falls, and it must be the same arithmetic that decides where it actually
+ * lands rather than a second copy that can drift.
  */
-function normaliseSplit(ship: Ship) {
-  const h = HULL_SHARE * ship.mods.shotHull
-  const s = SAIL_SHARE * ship.mods.shotSails
-  const c = CREW_SHARE * ship.mods.shotCrew
+export function shotSplit(
+  mods: ShipMods,
+  bias?: { hull: number; sails: number; crew: number },
+): { hull: number; sails: number; crew: number } {
+  const h = HULL_SHARE * (bias?.hull ?? 1) * mods.shotHull
+  const s = SAIL_SHARE * (bias?.sails ?? 1) * mods.shotSails
+  const c = CREW_SHARE * (bias?.crew ?? 1) * mods.shotCrew
   const total = h + s + c
   return { hull: h / total, sails: s / total, crew: c / total }
 }
@@ -105,17 +118,23 @@ export function batteryBearing(ship: Ship, battery: 0 | 1): number {
  * target *is* rather than where it will be. Gunners that cannot hit a moving
  * ship starve the whole progression loop.
  */
-function firingSolution(from: Ship, target: Ship): { dir: number; dist: number } {
+function firingSolution(
+  from: Ship,
+  target: Ship,
+  leadScale = 1,
+): { dir: number; dist: number } {
   const dx = target.pos.x - from.pos.x
   const dy = target.pos.y - from.pos.y
   const dist = Math.hypot(dx, dy)
 
+  const vx = target.vel.x * leadScale
+  const vy = target.vel.y * leadScale
   let px = target.pos.x
   let py = target.pos.y
   for (let i = 0; i < 2; i++) {
     const flight = Math.hypot(px - from.pos.x, py - from.pos.y) / T.ballSpeed
-    px = target.pos.x + target.vel.x * flight
-    py = target.pos.y + target.vel.y * flight
+    px = target.pos.x + vx * flight
+    py = target.pos.y + vy * flight
   }
   return { dir: Math.atan2(py - from.pos.y, px - from.pos.x), dist }
 }
@@ -131,7 +150,7 @@ export function updateGunnery(
   pending: PendingShot[],
   rand: () => number,
 ): void {
-  if (ship.sunk) return
+  if (ship.sunk || ship.struck) return
   const arc = (T.gunArcDegrees * Math.PI) / 180
 
   for (const battery of [0, 1] as const) {
@@ -163,40 +182,59 @@ export function updateGunnery(
       1,
       Math.round(T.gunsPerBroadside * ship.cls.guns) + ship.mods.extraGuns,
     )
-    const split = normaliseSplit(ship)
+    const split = shotSplit(ship.mods, ship.cls.shotBias)
     const damage = T.damagePerBall * ship.cls.damage * ship.mods.damage
-    // Cap the whole volley's length so a heavily gunned ship does not spend
-    // an age working through her battery.
-    const maxGap = Math.min(T.gunRippleGap, 0.5 / Math.max(1, guns - 1))
-
-    // No gun crew is a metronome. `gunRippleGap` is the *longest* a gun may
-    // take; each one actually fires somewhere under it.
+    // A broadside is one event, not a roll down the ship's side. Every gun
+    // captain is waiting on the same order, so they speak together and land as
+    // a single crash — which is also what makes a volley something you can see
+    // coming and sail out from under as a whole.
     //
-    // A well-drilled crew keeps a tight, brisk rhythm. A shot-up one is both
-    // slower between guns and far less even about it, so crew damage has an
-    // audible tell within the volley as well as in the reload timer.
-    const steadiness = Math.min(1, clamp((0.4 + 0.6 * ship.crew) * ship.mods.crewSpeed, 0.2, 1.3))
-    const slowest = 0.55 + 0.45 * (1 - steadiness)
-    const quickest = slowest * (0.55 + 0.25 * steadiness)
+    // What keeps that from sounding mechanical is that no two of them touch
+    // their match at quite the same instant. Each gun therefore takes its own
+    // small, *independent* scatter rather than queueing behind the one before
+    // it, so the volley's length no longer grows with the size of the battery.
+    //
+    // A shot-up crew is raggeder about it, which gives crew damage a tell
+    // inside the volley as well as in the reload timer.
+    const steadiness = clamp((0.4 + 0.6 * ship.crew) * ship.mods.crewSpeed, 0.25, 1.2)
+    const scatter = T.gunVolleyScatter / steadiness
 
-    let delay = 0
+    // --- How badly this gun is laid ------------------------------------------
+    // The even fan above says where the *volley* is pointed. These two say how
+    // well each gun was actually pointed, and they are what stop a broadside
+    // being a guaranteed hit at anything inside the arc.
+    //
+    // Both widen with range and tighten with a good crew, and both answer to
+    // `mods.spread`, so Trained Gunners buys down every source of error rather
+    // than only the deliberate fan.
+    const reach = bestDist / range
+    // A man laying a gun by eye from a moving deck, with the roll never quite
+    // where he wants it.
+    const lay = T.gunLayError * ship.mods.spread * (0.5 + 1.3 * reach) / steadiness
+    // And judging her speed by eye, which is the error that actually matters:
+    // misjudging a fast ship at long range throws the shot a whole hull wide,
+    // while at point-blank the same misjudgement is nothing at all.
+    const lead = T.gunLeadError * ship.mods.spread / steadiness
+
     for (let i = 0; i < guns; i++) {
       // Spread the volley evenly across the arc rather than randomly, so a
-      // broadside reads as a wall of shot instead of a shotgun blast.
-      const offset = guns === 1 ? 0 : (i / (guns - 1) - 0.5) * 2 * spread
+      // broadside reads as a wall of shot instead of a shotgun blast — then
+      // put each gun's own error on top of its station in the fan.
+      const station = guns === 1 ? 0 : (i / (guns - 1) - 0.5) * 2 * spread
+      const offset = station + (rand() * 2 - 1) * lay
       pending.push({
-        delay,
+        delay: rand() * scatter,
         ship,
         battery,
         target: best,
         spreadOffset: offset,
+        leadScale: 1 + (rand() * 2 - 1) * lead,
         fallbackDir: bestDir + offset,
         range,
         damage,
         // Shot type travels with the ball, so what you loaded is what lands.
         split,
       })
-      delay += maxGap * (quickest + rand() * (slowest - quickest))
     }
 
     ship.reload[battery] = T.gunReload * ship.cls.reload * ship.mods.reload
@@ -224,8 +262,8 @@ export function releasePending(
   for (const shot of pending) {
     shot.delay -= dt
     if (shot.delay > 0) { waiting.push(shot); continue }
-    // A ship that sinks mid-volley does not get to finish it.
-    if (shot.ship.sunk) continue
+    // A ship that sinks or strikes mid-volley does not get to finish it.
+    if (shot.ship.sunk || shot.ship.struck) continue
 
     const side = BATTERY_SIDE[shot.battery]
     const lx = -Math.sin(shot.ship.heading) * side
@@ -234,7 +272,7 @@ export function releasePending(
     // Lay the gun afresh on the target if she is still afloat.
     const dir = shot.target.sunk
       ? shot.fallbackDir
-      : firingSolution(shot.ship, shot.target).dir + shot.spreadOffset
+      : firingSolution(shot.ship, shot.target, shot.leadScale).dir + shot.spreadOffset
     projectiles.push({
       pos: { x: shot.ship.pos.x + lx * 10, y: shot.ship.pos.y + ly * 10 },
       vel: { x: Math.cos(dir) * T.ballSpeed, y: Math.sin(dir) * T.ballSpeed },
@@ -287,7 +325,7 @@ export function stepProjectiles(
 
     let struck = false
     for (const ship of ships) {
-      if (ship.sunk || ship.id === p.ownerId) continue
+      if (ship.sunk || ship.struck || ship.id === p.ownerId) continue
       // Only shot from the other side does damage; a melee between enemies
       // should not dissolve into friendly fire.
       if (ship.faction === p.ownerFaction) continue

@@ -55,9 +55,12 @@ export interface TuningValues {
   gunsPerBroadside: number
   ballSpeed: number
   ballSpread: number
-  gunRippleGap: number
+  gunLayError: number
+  gunLeadError: number
+  gunVolleyScatter: number
   damagePerBall: number
   sailDriveFloor: number
+  sailTurnFloor: number
 
   // --- The run ------------------------------------------------------------
   runDuration: number
@@ -75,6 +78,16 @@ export interface TuningValues {
   playerHullRepair: number
   playerSailRepair: number
   playerCrewRepair: number
+  strikeSails: number
+  strikeCrew: number
+  boardingRange: number
+  prizeValue: number
+  sinkShare: number
+  prizeLinger: number
+  prizeStop: number
+  wreckTimber: number
+  heaveToRepair: number
+  heaveToGunnery: number
   plunderLifetime: number
   plunderPickupRadius: number
   plunderMagnetRadius: number
@@ -86,6 +99,10 @@ export interface TuningValues {
   islandMinRadius: number
   islandMaxRadius: number
   shoalScale: number
+  shoalVariation: number
+  reefDensity: number
+  reefSize: number
+  draughtDepth: number
   groundingDamage: number
   groundingDrag: number
   shoalDraughtPenalty: number
@@ -145,10 +162,13 @@ export const DEFAULT_TUNING: TuningValues = {
   gunReload: 2.0,
   gunsPerBroadside: 6,
   ballSpeed: 280,
-  ballSpread: 0.055,
-  gunRippleGap: 0.075,
+  ballSpread: 0.08,
+  gunLayError: 0.05,
+  gunLeadError: 0.28,
+  gunVolleyScatter: 0.06,
   damagePerBall: 0.055,
-  sailDriveFloor: 0.25,
+  sailDriveFloor: 0.15,
+  sailTurnFloor: 0.5,
 
   runDuration: 480,
   draftCards: 4,
@@ -163,8 +183,22 @@ export const DEFAULT_TUNING: TuningValues = {
   endlessCapGrowth: 2,
   endlessMinInterval: 0.6,
   playerHullRepair: 0.0085,
-  playerSailRepair: 0.026,
-  playerCrewRepair: 0.016,
+  // Rigging and crew used to mend roughly nine times faster than they were
+  // damaged, which pinned both bars at full for an entire run and made two
+  // thirds of the damage model decorative. Now they mend about twice as fast
+  // as they are shot away, so a long engagement visibly tells on them.
+  playerSailRepair: 0.0085,
+  playerCrewRepair: 0.005,
+  strikeSails: 0.22,
+  strikeCrew: 0.22,
+  boardingRange: 170,
+  prizeValue: 1.65,
+  sinkShare: 0.75,
+  prizeLinger: 2.2,
+  prizeStop: 1.2,
+  wreckTimber: 0.015,
+  heaveToRepair: 6,
+  heaveToGunnery: 0.6,
   plunderLifetime: 26,
   plunderPickupRadius: 46,
   plunderMagnetRadius: 190,
@@ -174,7 +208,11 @@ export const DEFAULT_TUNING: TuningValues = {
   islandCellSize: 1500,
   islandMinRadius: 90,
   islandMaxRadius: 260,
-  shoalScale: 1.7,
+  shoalScale: 2.2,
+  shoalVariation: 0.9,
+  reefDensity: 0.5,
+  reefSize: 1.0,
+  draughtDepth: 0.3,
   groundingDamage: 0.1,
   groundingDrag: 7,
   shoalDraughtPenalty: 0.55,
@@ -227,10 +265,13 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'gunReload', label: 'Reload (s)', min: 0.5, max: 10, step: 0.1, group: 'Gunnery' },
   { key: 'gunsPerBroadside', label: 'Guns per broadside', min: 1, max: 16, step: 1, group: 'Gunnery' },
   { key: 'ballSpeed', label: 'Shot speed', min: 120, max: 1200, step: 10, group: 'Gunnery', help: 'Lower means more lead required, and more time to sail out from under an incoming volley.' },
-  { key: 'gunRippleGap', label: 'Gun ripple gap (s)', min: 0, max: 0.4, step: 0.005, group: 'Gunnery', help: 'Delay between guns in a broadside. Zero fires them all at once; higher rolls the volley down the ship\'s side.' },
-  { key: 'ballSpread', label: 'Shot spread', min: 0, max: 0.3, step: 0.005, group: 'Gunnery' },
+  { key: 'gunVolleyScatter', label: 'Volley scatter (s)', min: 0, max: 0.4, step: 0.005, group: 'Gunnery', help: 'How loosely timed a broadside is. Every gun fires within this window of the order, each at its own moment inside it. Zero makes the battery one mechanical clap; higher rolls the volley down the ship\'s side.' },
+  { key: 'ballSpread', label: 'Shot spread', min: 0, max: 0.3, step: 0.005, group: 'Gunnery', help: 'Width of the deliberate fan a broadside is spread across. This is the wall of shot, not the error in it.' },
+  { key: 'gunLayError', label: 'Gun-laying error', min: 0, max: 0.15, step: 0.002, group: 'Gunnery', help: 'How badly each gun is laid, on top of the fan. Widens with range, tightens with a good crew. 0 makes every gun point exactly where the volley was aimed.' },
+  { key: 'gunLeadError', label: 'Lead misjudgement', min: 0, max: 1, step: 0.02, group: 'Gunnery', help: "How wrong a gun captain can be about the target's speed, as a fraction. This is the error that rewards closing: at point-blank a bad guess costs nothing, at long range against a fast ship it throws the shot a hull wide." },
   { key: 'damagePerBall', label: 'Damage per ball', min: 0.005, max: 0.3, step: 0.005, group: 'Gunnery' },
   { key: 'sailDriveFloor', label: 'Shredded-sail drive', min: 0, max: 1, step: 0.01, group: 'Gunnery', help: 'Drive remaining with sails fully shot away. This is what wires gunnery back into the sailing model.' },
+  { key: 'sailTurnFloor', label: 'Shredded-sail helm', min: 0, max: 1, step: 0.01, group: 'Gunnery', help: 'Helm authority remaining with sails fully shot away. 1 means rigging damage costs speed but not control, which makes chain shot far less than it claims to be.' },
 
   { key: 'runDuration', label: 'Run length (s)', min: 120, max: 1800, step: 30, group: 'The run' },
   { key: 'draftCards', label: 'Draft cards offered', min: 2, max: 5, step: 1, group: 'The run', help: 'More cards means less chance of a hand with nothing useful in it. Cuts run-to-run variance without raising the power ceiling.' },
@@ -247,7 +288,17 @@ export const TUNING_SCHEMA: TuningParam[] = [
 
   { key: 'playerHullRepair', label: 'Hull repair /s', min: 0, max: 0.02, step: 0.0005, group: 'The run', help: 'Baseline self-repair. Rewards breaking off downwind to recover.' },
   { key: 'playerSailRepair', label: 'Rigging repair /s', min: 0, max: 0.08, step: 0.001, group: 'The run', help: 'Higher than hull repair: permanently shredded rigging means never escaping anything again.' },
-  { key: 'playerCrewRepair', label: 'Crew recovery /s', min: 0, max: 0.08, step: 0.001, group: 'The run', help: 'Wounded hands returning to duty. Restores reload speed and sail handling.' },
+  { key: 'playerCrewRepair', label: 'Crew recovery /s', min: 0, max: 0.08, step: 0.001, group: 'The run', help: 'Wounded hands returning to duty. Restores reload speed and sail handling. Keep it near the rate crew is actually lost, or the bar never moves and grape shot means nothing.' },
+  { key: 'strikeSails', label: 'Strikes at rigging', min: 0, max: 0.6, step: 0.01, group: 'The run', help: 'Rigging below this and she is no longer under any control — she will strike when you come alongside. This is what chain shot is for.' },
+  { key: 'strikeCrew', label: 'Strikes at crew', min: 0, max: 0.6, step: 0.01, group: 'The run', help: 'Crew below this and she has not the hands left to resist a boarding. This is what grape shot is for.' },
+  { key: 'boardingRange', label: 'Boarding range', min: 60, max: 500, step: 10, group: 'The run', help: 'How close you must come for a beaten ship to strike. A dismasted ship does not surrender to an enemy half a mile off.' },
+  { key: 'prizeValue', label: 'Prize value', min: 1, max: 4, step: 0.05, group: 'The run', help: 'What a captured ship is worth against her base value, before hull damage is counted. Capture should beat sinking, or chain and grape are taxes.' },
+  { key: 'sinkShare', label: 'Wreck value', min: 0.2, max: 1, step: 0.05, group: 'The run', help: 'What a sunk ship is worth against her base value. Everything she carries goes to the bottom with her.' },
+  { key: 'prizeLinger', label: 'Prize linger (s)', min: 0.5, max: 10, step: 0.5, group: 'The run', help: 'How long a struck ship lies there before a prize crew sails her away.' },
+  { key: 'prizeStop', label: 'Prize stopping rate', min: 0.2, max: 8, step: 0.1, group: 'The run', help: 'How fast a ship that has struck takes her way off. Higher means she is dead in the water almost at once; low values leave her coasting, which reads as a ship still running.' },
+  { key: 'wreckTimber', label: 'Timber per wreck', min: 0, max: 0.06, step: 0.001, group: 'The run', help: 'Hull mended by the timber a wreck leaves, per point of her plunder. This is the sustain the player earns by fighting rather than drafts. Zero removes timber entirely.' },
+  { key: 'heaveToRepair', label: 'Heave-to repair', min: 1, max: 15, step: 0.5, group: 'The run', help: 'How much faster she mends with the canvas off her. 1 removes the whole mechanic; the cost is that you are stopped while it happens.' },
+  { key: 'heaveToGunnery', label: 'Heave-to gunnery', min: 0.2, max: 1, step: 0.05, group: 'The run', help: 'How well the guns are served while the hands are at the pumps. 1 makes heaving to free.' },
   { key: 'plunderLifetime', label: 'Plunder lifetime (s)', min: 5, max: 90, step: 1, group: 'The run' },
   { key: 'plunderPickupRadius', label: 'Pickup radius', min: 15, max: 150, step: 1, group: 'The run' },
   { key: 'plunderMagnetRadius', label: 'Magnet radius', min: 30, max: 600, step: 10, group: 'The run', help: 'Plunder inside this is drawn to you. Larger means less sailing back for scraps.' },
@@ -257,7 +308,11 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'islandCellSize', label: 'Island spacing', min: 600, max: 4000, step: 50, group: 'Land', help: 'Grid cell size. Larger means islands are further apart.' },
   { key: 'islandMinRadius', label: 'Island size, min', min: 40, max: 400, step: 10, group: 'Land' },
   { key: 'islandMaxRadius', label: 'Island size, max', min: 60, max: 700, step: 10, group: 'Land' },
-  { key: 'shoalScale', label: 'Shoal ring', min: 1, max: 3, step: 0.05, group: 'Land', help: 'How far shallow water extends beyond the beach, as a multiple of island radius.' },
+  { key: 'shoalScale', label: 'Shoal ring', min: 1, max: 4, step: 0.05, group: 'Land', help: 'How far shallow water extends beyond the beach, as a multiple of island radius. This is the main dial on whether draught is tactical: wide flats mean a heavy hull cannot come at you.' },
+  { key: 'shoalVariation', label: 'Shoal variation', min: 0, max: 1.6, step: 0.05, group: 'Land', help: 'How much the shoal width differs island to island. 0 makes every island the same island; high values give both steep-to rocks and islands standing in a mile of flats.' },
+  { key: 'reefDensity', label: 'Reef frequency', min: 0, max: 1.5, step: 0.05, group: 'Land', help: 'Chance of a reef or sandbar per grid cell, independent of islands. These carry no land and block no shot — they only decide which hulls may pass. 0 removes them.' },
+  { key: 'reefSize', label: 'Reef size', min: 0.4, max: 2.5, step: 0.05, group: 'Land', help: 'Scales how long a bar runs. Long bars force a real choice between going about and crossing.' },
+  { key: 'draughtDepth', label: 'Water a hull needs', min: 0.1, max: 0.6, step: 0.01, group: 'Land', help: 'Depth a hull of draught 1.0 must have under her to float clear, as a fraction of open sea. Higher makes every shoal more dangerous and widens the gap between a Pinnace and a Galleon.' },
   { key: 'groundingDamage', label: 'Grounding damage', min: 0, max: 0.5, step: 0.01, group: 'Land', help: 'Hull lost per second while aground.' },
   { key: 'groundingDrag', label: 'Grounding drag', min: 1, max: 30, step: 0.5, group: 'Land', help: 'How hard the bottom holds you once you touch it.' },
   { key: 'shoalDraughtPenalty', label: 'Shoal drag penalty', min: 0, max: 2, step: 0.05, group: 'Land', help: 'Extra drag in shallows, scaled by how deep the hull draws.' },

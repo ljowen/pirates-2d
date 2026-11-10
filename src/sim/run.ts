@@ -34,6 +34,8 @@ export class Run {
   plunderNeeded = plunderForLevel(1)
   totalPlunder = 0
   shipsSunk = 0
+  /** Ships that struck their colours and were taken rather than sunk. */
+  shipsTaken = 0
 
   /** Cards currently on offer; non-null exactly when state is 'drafting'. */
   draft: Upgrade[] | null = null

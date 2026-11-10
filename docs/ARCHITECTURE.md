@@ -70,12 +70,13 @@ about all four.
 | `director.ts` | What the sea throws at you and when |
 | `run.ts` | Clock, levels, draft state, win/loss |
 | `upgrades.ts` | The draft pool and weighted drawing |
+| `stats.ts` | Derived, player-facing stats — the same arithmetic the physics runs, solved rather than simulated |
 | `plunder.ts` | Spoils, drift, magnet, collection |
-| `terrain.ts` | Islands from a hashed grid; the shoreline function physics and rendering share |
+| `terrain.ts` | Islands and bars from a hashed grid; the shoreline and reef fields physics and rendering share |
 | `tuning.ts` | Every number that shapes feel, plus its UI schema |
 
 **`render/`** — `camera`, `water`, `shipView`, `wake`, `combatView`, `plunderView`,
-`hud`, `debug`. Pixi draws the world; a plain 2D canvas overlay draws every instrument,
+`terrainView`, `pickupText`, `hud`, `debug`. Pixi draws the world; a plain 2D canvas overlay draws every instrument,
 because text, arcs and plots are far easier in Canvas2D than in a scene graph.
 
 **`audio/`** — `audio.ts` is a procedural synthesiser; `director.ts` watches simulation
@@ -85,9 +86,9 @@ state and decides what to play. See [AUDIO.md](AUDIO.md).
 than kept as a console snippet because every balance figure in these docs came out of it,
 and a pilot that drifts between measurements makes the numbers incomparable.
 
-**`ui/`** — `tuner.ts` (live parameter panel) and `draft.ts` (level-up cards). Both are
-DOM overlays rather than canvas, because they want hover states, scrolling and readable
-body text.
+**`ui/`** — `tuner.ts` (live parameter panel), `draft.ts` (level-up cards and the stat
+preview under them) and `shipSelect.ts` (the quayside). All DOM overlays rather than
+canvas, because they want hover states, scrolling and readable body text.
 
 ## Key seams
 
@@ -161,9 +162,9 @@ Two rules make that hold, both learned the hard way:
 
 **Independent systems get independent streams.** Gunnery draws from `gunRand`, not the
 world PRNG. Sharing one stream meant the *number of shots fired* shifted every later
-draw — spawn positions, plunder scatter, the draft — so adding jitter to the gun ripple
-silently rerolled entire runs and looked like a catastrophic balance regression (31% →
-6%). Deterministic systems that share a stream are not independently testable.
+draw — spawn positions, plunder scatter, the draft — so adding jitter to the volley
+timing silently rerolled entire runs and looked like a catastrophic balance regression
+(31% → 6%). Deterministic systems that share a stream are not independently testable.
 
 **Everything stateful must actually reset.** The wind's internal clock was never cleared,
 so each `reset(seed)` began at a different point in the weather. Every benchmark taken

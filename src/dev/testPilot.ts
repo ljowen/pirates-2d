@@ -1,6 +1,7 @@
 import type { World } from '../sim/world'
-import { landRadius } from '../sim/terrain'
+import { draughtDepth, landRadius } from '../sim/terrain'
 import { angleDiff, clamp, wrapAngle } from '../core/math'
+import { T } from '../sim/tuning'
 import type { Upgrade } from '../sim/upgrades'
 
 /**
@@ -40,9 +41,25 @@ export function autoPilot(world: World) {
 
   let nearest = Infinity
   let target = null
+  // A beaten ship is a prize worth more than a wreck, so close with her
+  // rather than standing off and shooting. Without this the harness would
+  // report capture as worthless simply because it never took one.
+  let prize = null
+  let prizeDist = Infinity
+  // Traders are the richest hulls afloat and they are actively leaving.
+  let runner = null
+  let runnerDist = Infinity
   for (const e of world.enemies) {
     const d = Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y)
     if (d < nearest) { nearest = d; target = e }
+    if ((e.sails <= T.strikeSails || e.crew <= T.strikeCrew) && d < prizeDist) {
+      prizeDist = d
+      prize = e
+    }
+    if (e.cls.behaviour === 'trader' && d < runnerDist) {
+      runnerDist = d
+      runner = e
+    }
   }
 
   let loot = null
@@ -62,10 +79,36 @@ export function autoPilot(world: World) {
     // as unplayable when it had simply never tried the thing it is for.
     want = towardShallows(world) ?? wind.to
     p.sailOrder = 2
+  } else if (p.hull < 0.6 && nearest > 640 && T.heaveToRepair > 1) {
+    // Hurt, with sea room: take the way off her and let the hands work. A
+    // pilot that cannot heave to would report the mechanic's absence as
+    // difficulty — the same trap land avoidance fell into. It is still a crude
+    // version of the skill: a human picks the moment far better than a
+    // fixed range threshold does.
+    want = wind.to
+    p.sailOrder = 0
   } else if (p.hull < 0.35 && target) {
     // Badly hurt with nowhere shallow to go: run downwind instead.
     want = wind.to
     p.sailOrder = 2
+  } else if (runner && runnerDist < 1300 && p.hull > 0.45) {
+    // Run down a trader. The range has to be wide: she spawns at 1400 and is
+    // already running, so a threshold that waits for her to come close waits
+    // forever. Chasing from here is the decision a player actually makes.
+    //
+    // She is worth several warships and she is leaving, so
+    // a pilot that only ever engages whatever is nearest never tests the one
+    // thing chain shot is for — and reports it as a weak card. Same rule as
+    // land avoidance and heaving to: the proxy has to be able to do what the
+    // player can do, or it measures the absence of the skill as difficulty.
+    const bearing = Math.atan2(runner.pos.y - p.pos.y, runner.pos.x - p.pos.x)
+    // Close until the guns bear, then hold her off the beam and shoot.
+    want = runnerDist > 300 ? bearing : bearing + Math.PI / 2
+    p.sailOrder = 2
+  } else if (prize && prizeDist < 900 && p.hull > 0.35) {
+    // Lay her aboard. She cannot run and she cannot shoot back.
+    want = Math.atan2(prize.pos.y - p.pos.y, prize.pos.x - p.pos.x)
+    p.sailOrder = prizeDist > T.boardingRange * 1.5 ? 2 : 1
   } else if (loot && lootDist < 320) {
     want = Math.atan2(loot.pos.y - p.pos.y, loot.pos.x - p.pos.x)
     p.sailOrder = nearest > 520 ? 2 : 1
@@ -131,18 +174,38 @@ function towardShallows(world: World): number | null {
  */
 function avoidLand(world: World, desired: number): number {
   const p = world.player
-  const look = 340
+  const look = 340 * (0.8 + 0.7 * p.cls.draught)
   const margin = 40 + 70 * p.cls.draught
+  // The water this hull actually needs. Without it the pilot sails over bars
+  // it cannot cross and grounds on water the player can plainly see is pale —
+  // reporting the hazard's existence as difficulty, exactly as it once did
+  // with islands.
+  const needs = draughtDepth(p.cls.draught) * 1.25
+
+  // Already on the bank: steer straight for deep water and sort the rest out
+  // afterwards. The island branch has always had this case — without it for
+  // bars, a grounded hull sheers along the bar she is sitting on and stays
+  // there with her sails still driving her into it.
+  const here = world.terrain.probe(p.pos)
+  if (here.depth < needs && here.escape && (!here.island || here.distance > margin)) {
+    return Math.atan2(here.escape.y, here.escape.x)
+  }
 
   let island = null
+  let shoal: { escape: { x: number; y: number } } | null = null
   for (const t of [0.35, 0.7, 1]) {
     const probe = world.terrain.probe({
       x: p.pos.x + Math.cos(desired) * look * t,
       y: p.pos.y + Math.sin(desired) * look * t,
     })
-    if (!probe.island || probe.distance > margin) continue
-    island = probe.island
-    break
+    if (probe.island && probe.distance <= margin) { island = probe.island; break }
+    if (probe.depth < needs && probe.escape) { shoal = { escape: probe.escape }; break }
+  }
+  if (!island && shoal) {
+    // Sheer across the bar by the shortest way off, as the enemy captains do.
+    const away = Math.atan2(shoal.escape.y, shoal.escape.x)
+    const side = angleDiff(desired, away) >= 0 ? 1 : -1
+    return wrapAngle(away + side * (Math.PI / 3))
   }
   if (!island) return desired
 

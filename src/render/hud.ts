@@ -6,6 +6,7 @@ import { T } from '../sim/tuning'
 import { angleDiff, compassName, deg } from '../core/math'
 import { batteryBearing } from '../sim/combat'
 import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
+import { draughtDepth } from '../sim/terrain'
 
 /**
  * Instruments, drawn on a plain 2D canvas over the Pixi view. Two of these are
@@ -31,9 +32,10 @@ export class Hud {
     this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 100, 100, 62)
     this.drawSailIndicator(player, 24, 24)
     this.drawReadouts(player, 24, 128)
-    this.drawCondition(player, 24, 210)
-    this.drawBroadsides(player, world, 24, 300)
-    this.drawUpgrades(world, 24, 376)
+    this.drawCondition(player, 24, 246)
+    this.drawShoalWarning(player)
+    this.drawBroadsides(player, world, 24, 336)
+    this.drawUpgrades(world, 24, 412)
 
     if (silent) {
       ctx.save()
@@ -118,7 +120,7 @@ export class Hud {
     }
   }
 
-  /** Health pips over visible enemies, direction arrows for the rest. */
+  /** Condition bars over visible enemies, direction arrows for the rest. */
   private drawEnemyMarkers(world: World, camera: Camera) {
     const ctx = this.ctx
     const w = ctx.canvas.clientWidth
@@ -137,17 +139,26 @@ export class Hud {
         ctx.textAlign = 'center'
         ctx.textBaseline = 'alphabetic'
         ctx.fillStyle = TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)'
-        ctx.fillText(e.cls.name, s.x, s.y - 52)
+        ctx.fillText(e.cls.name, s.x, s.y - 56)
 
-        ctx.fillStyle = 'rgba(4,14,24,0.6)'
-        ctx.fillRect(s.x - bw / 2, s.y - 46, bw, 5)
-        ctx.fillStyle = '#ff7a6b'
-        ctx.fillRect(s.x - bw / 2, s.y - 46, bw * e.hull, 5)
-        // A thin second bar for rigging — the thing you shoot to stop them fleeing.
-        ctx.fillStyle = 'rgba(4,14,24,0.6)'
-        ctx.fillRect(s.x - bw / 2, s.y - 40, bw, 3)
-        ctx.fillStyle = '#dcd2d8'
-        ctx.fillRect(s.x - bw / 2, s.y - 40, bw * e.sails, 3)
+        // All three pools, in the same order and colours as your own
+        // condition panel. Rigging and crew are now things you shoot *for*
+        // rather than incidental damage, so hiding two of them behind a
+        // single hull bar left the player unable to see the shot they were
+        // actually taking.
+        const bars: [number, number, string][] = [
+          [e.hull, 5, '#ff7a6b'],
+          [e.sails, 3, '#9fe8ff'],
+          [e.crew, 3, '#ffd98a'],
+        ]
+        let by = s.y - 50
+        for (const [value, h, color] of bars) {
+          ctx.fillStyle = 'rgba(4,14,24,0.6)'
+          ctx.fillRect(s.x - bw / 2, by, bw, h)
+          ctx.fillStyle = color
+          ctx.fillRect(s.x - bw / 2, by, bw * value, h)
+          by += h + 1.5
+        }
       } else {
         // Edge arrow so you always know where the fight is.
         const a = Math.atan2(e.pos.y - player.pos.y, e.pos.x - player.pos.x)
@@ -246,10 +257,13 @@ export class Hud {
 
   private drawSailIndicator(ship: Ship, x: number, y: number) {
     const ctx = this.ctx
+    // The panel grows a line when she is lying to, because the repair rate is
+    // the whole reason a captain would ever choose to be stopped.
+    const mending = ship.mending > 1.02
     ctx.save()
     ctx.translate(x, y)
     ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, 86, 6)
+    roundRect(ctx, 0, 0, 186, mending ? 104 : 86, 6)
     ctx.fill()
 
     ctx.font = '12px ui-monospace, monospace'
@@ -260,6 +274,12 @@ export class Hud {
     ctx.fillStyle = '#ffd98a'
     ctx.font = 'bold 15px ui-monospace, monospace'
     ctx.fillText(ship.sailName, 12, 28)
+
+    if (mending) {
+      ctx.font = '11px ui-monospace, monospace'
+      ctx.fillStyle = '#7fe0a0'
+      ctx.fillText(`⚒ hands at the pumps  ×${ship.mending.toFixed(1)}`, 12, 84)
+    }
 
     for (let i = 0; i < 3; i++) {
       ctx.fillStyle = i <= ship.sailOrder ? '#ffd98a' : 'rgba(255,255,255,0.18)'
@@ -280,7 +300,7 @@ export class Hud {
     ctx.save()
     ctx.translate(x, y)
     ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, 74, 6)
+    roundRect(ctx, 0, 0, 186, 110, 6)
     ctx.fill()
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
@@ -293,6 +313,7 @@ export class Hud {
     ctx.font = '12px ui-monospace, monospace'
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
     ctx.fillText(`${ship.speed.toFixed(0)} kn   ${deg(ship.awa).toFixed(0)}° off wind`, 12, 52)
+    this.drawLeadline(ship, 12, 74)
     ctx.restore()
 
     if (inIrons && ship.canvas > 0.1 && !ship.sunk) {
@@ -304,6 +325,93 @@ export class Hud {
         ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 64)
       ctx.restore()
     }
+  }
+
+  /**
+   * Shoaling water, called before she touches. A bar carries nothing above
+   * water to see, so without a reading of her own the first the player knows
+   * of one is being stopped dead in it — and a hazard you can only learn by
+   * hitting it is a trap rather than a tactic.
+   */
+  private drawShoalWarning(ship: Ship) {
+    if (ship.sunk) return
+    const needs = draughtDepth(ship.cls.draught)
+    // Warn from half as deep again as she needs: enough water to put the helm
+    // over, not so much that the warning is always on in an archipelago.
+    const warnAt = needs * 2.2
+    if (ship.depth >= warnAt) return
+
+    const ctx = this.ctx
+    const touching = ship.aground || ship.depth <= needs
+    const urgency = 1 - Math.max(0, (ship.depth - needs) / Math.max(warnAt - needs, 0.01))
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * (touching ? 0.012 : 0.006))
+
+    ctx.save()
+    ctx.font = 'bold 16px ui-monospace, monospace'
+    ctx.textAlign = 'center'
+    ctx.fillStyle = touching
+      ? `rgba(255,122,107,${0.6 + 0.4 * pulse})`
+      : `rgba(255,214,138,${(0.35 + 0.45 * pulse) * (0.4 + 0.6 * urgency)})`
+    ctx.fillText(
+      touching ? 'AGROUND — she is on the bottom' : 'SHOAL WATER — she will touch',
+      ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 92,
+    )
+    ctx.restore()
+  }
+
+  /**
+   * The leadline: what is under the keel, against what she draws.
+   *
+   * A bare depth would be a number without a question attached — what the
+   * player needs to know is not how deep the water is but whether *this hull*
+   * can cross it, and those are different readings for a Pinnace and a
+   * Brigantine. So the bar carries a fixed mark at the depth she draws, and
+   * the reading is coloured by how much water is left above it.
+   *
+   * Quoted in fathoms purely so the numbers sound like soundings. Open sea is
+   * twelve, which puts a Sloop at the two she really drew.
+   */
+  private drawLeadline(ship: Ship, x: number, y: number) {
+    const ctx = this.ctx
+    const FATHOMS = 12
+    const needs = draughtDepth(ship.cls.draught)
+    const depth = Math.min(1, ship.depth)
+    // A linear bar wastes most of its width on open sea, where nothing is
+    // happening. Everything the player cares about is in the bottom third, so
+    // the scale is stretched there and squashed above it.
+    const scale = (d: number) => {
+      const knee = Math.min(0.45, Math.max(needs * 2.4, 0.18))
+      return d <= knee ? (d / knee) * 0.68 : 0.68 + ((d - knee) / (1 - knee)) * 0.32
+    }
+
+    const margin = (depth - needs) / Math.max(needs, 0.01)
+    const touching = ship.aground || depth <= needs
+    const color = touching ? '#ff7a6b' : margin < 1 ? '#ffd27f' : '#9fe8ff'
+
+    ctx.font = '12px ui-monospace, monospace'
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.fillText('SOUNDING', x, y)
+
+    ctx.textAlign = 'right'
+    ctx.fillStyle = color
+    ctx.fillText(
+      depth >= 1 ? 'no bottom' : `${(depth * FATHOMS).toFixed(1)} fm`,
+      x + 162, y,
+    )
+    ctx.textAlign = 'left'
+
+    const barW = 162
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'
+    ctx.fillRect(x, y + 17, barW, 8)
+    ctx.fillStyle = color
+    ctx.fillRect(x, y + 17, barW * scale(depth), 8)
+
+    // The mark she draws. Everything to the left of it is bottom.
+    const markX = x + barW * scale(needs)
+    ctx.fillStyle = 'rgba(8,20,30,0.9)'
+    ctx.fillRect(markX - 1.5, y + 15, 3, 12)
+    ctx.fillStyle = touching ? '#ff7a6b' : 'rgba(255,255,255,0.8)'
+    ctx.fillRect(markX - 0.5, y + 13, 1, 16)
   }
 
   /** Hull, rigging and crew. Rigging is the one that changes how you sail. */
@@ -330,6 +438,7 @@ export class Hud {
       ['Rigging', ship.sails, '#9fe8ff'],
       ['Crew', ship.crew, '#ffd98a'],
     ]
+    const repair: number[] = [ship.mods.hullRepair, ship.mods.sailRepair, ship.mods.crewRepair]
     bars.forEach(([label, value, color], i) => {
       const by = 28 + i * 17
       ctx.fillStyle = 'rgba(255,255,255,0.5)'
@@ -339,6 +448,14 @@ export class Hud {
       ctx.fillRect(72, by, 102, 8)
       ctx.fillStyle = color
       ctx.fillRect(72, by, 102 * value, 8)
+      // A pale ghost ahead of the bar showing the next ten seconds of mending,
+      // so repair is something you can watch happening rather than infer.
+      const gain = repair[i] * ship.mending * 10
+      if (gain > 0.004 && value < 1) {
+        const ahead = Math.min(1 - value, gain)
+        ctx.fillStyle = 'rgba(255,255,255,0.3)'
+        ctx.fillRect(72 + 102 * value, by, 102 * ahead, 8)
+      }
     })
     ctx.restore()
   }
@@ -513,7 +630,10 @@ export class Hud {
     ctx.textAlign = 'right'
     ctx.font = '12px ui-monospace, monospace'
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
-    ctx.fillText(`${run.shipsSunk} sunk`, cx + 166, 24)
+    ctx.fillText(
+      run.shipsTaken > 0 ? `${run.shipsSunk} sunk · ${run.shipsTaken} taken` : `${run.shipsSunk} sunk`,
+      cx + 166, 24,
+    )
     ctx.fillStyle = 'rgba(240,193,75,0.8)'
     ctx.fillText(`${Math.floor(run.totalPlunder)} plunder`, cx + 166, 44)
 
@@ -546,7 +666,8 @@ export class Hud {
     ctx.font = '15px ui-monospace, monospace'
     ctx.fillStyle = '#cfe6f5'
     ctx.fillText(
-      `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   level ${run.level}`,
+      `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   ` +
+        `${run.shipsTaken} taken   ·   level ${run.level}`,
       w / 2, h / 2 - 16,
     )
 

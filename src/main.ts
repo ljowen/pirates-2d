@@ -12,6 +12,7 @@ import { TerrainView } from './render/terrainView'
 import { DraftUI } from './ui/draft'
 import { ShipSelect } from './ui/shipSelect'
 import { Hud } from './render/hud'
+import { PickupText } from './render/pickupText'
 import { DebugOverlay } from './render/debug'
 import { Tuner } from './ui/tuner'
 import { benchmark, simulateRun, autoPilot } from './dev/testPilot'
@@ -99,6 +100,7 @@ async function main() {
   }
 
   const hud = new Hud(octx)
+  const pickupText = new PickupText()
   const debug = new DebugOverlay(octx)
   const tuner = new Tuner(world)
   const draft = new DraftUI()
@@ -113,6 +115,7 @@ async function main() {
       combat.clear()
       plunderView.clear()
       terrainView.clear()
+      pickupText.clear()
       audioDirector.reset()
       camera.snapTo(world.player.pos)
     })
@@ -169,9 +172,10 @@ async function main() {
       // resolved elsewhere — can never strand a stale hand on screen.
       if (world.run.state === 'drafting' && world.run.draft) {
         if (!draft.open) {
-          draft.show(world.run.draft, world.run.level, world.run.taken, (upgrade) => {
-            world.run.choose(upgrade, world.player)
-          })
+          draft.show(
+            world.run.draft, world.run.level, world.run.taken, world.player,
+            (upgrade) => { world.run.choose(upgrade, world.player) },
+          )
         }
       } else if (draft.open) {
         draft.hide()
@@ -214,6 +218,10 @@ async function main() {
 
       fps += (1 / Math.max(frameDt, 1e-4) - fps) * 0.1
       octx.clearRect(0, 0, overlay.clientWidth, overlay.clientHeight)
+      // Pickup numbers sit under the instruments: they are the loudest thing
+      // on screen for a second and must never cover a reading.
+      pickupText.update(world, dt)
+      pickupText.draw(octx, camera)
       hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready)
       if (showDebug) debug.draw(world.player, playerWind, camera, fps)
     },

@@ -4,14 +4,25 @@ import type { WindSample } from './wind'
 import type { Vec2 } from '../core/math'
 
 /**
- * Plunder left behind by a wreck. It drifts downwind rather than sitting
- * still, which matters more than it sounds: a prize to leeward is free, and a
- * prize to windward costs you a beat to go and fetch. The pickup is where the
- * sailing model and the progression loop meet.
+ * What a wreck leaves floating. Two kinds, because they answer two different
+ * questions:
+ *
+ * - **Coin** is progress. It fills the experience bar and buys the next draft.
+ * - **Timber** is survival. Spare baulks and planking the carpenter can work
+ *   into a shot hole, so it mends the hull.
+ *
+ * Keeping them apart is the whole point. A single pickup that did both made
+ * every wreck worth the same beat to windward; two make it a question — level
+ * up, or stay afloat — and the wind decides what each answer costs, because
+ * both drift downwind from where she went down.
  */
+export type FlotsamKind = 'coin' | 'timber'
+
 export interface Plunder {
   pos: Vec2
   vel: Vec2
+  kind: FlotsamKind
+  /** Coin: plunder value. Timber: fraction of the hull it mends. */
   value: number
   /** Seconds before it sinks out of reach. */
   life: number
@@ -20,34 +31,57 @@ export interface Plunder {
   drawn: boolean
 }
 
+/** One wreck's worth of flotsam: her plunder in coin, her timbers alongside. */
 export function dropPlunder(list: Plunder[], at: Vec2, value: number, rand: () => number) {
+  const scatter = (kind: FlotsamKind, pieces: number, each: number) => {
+    for (let i = 0; i < pieces; i++) {
+      const a = rand() * Math.PI * 2
+      const speed = 20 + rand() * 45
+      list.push({
+        pos: { x: at.x, y: at.y },
+        vel: { x: Math.cos(a) * speed, y: Math.sin(a) * speed },
+        kind,
+        value: each,
+        life: T.plunderLifetime,
+        maxLife: T.plunderLifetime,
+        drawn: false,
+      })
+    }
+  }
+
   // Split a wreck's worth into a few pieces so collecting reads as a sweep
   // rather than a single tap.
-  const pieces = Math.max(1, Math.min(5, Math.round(value / 2)))
-  const each = value / pieces
-  for (let i = 0; i < pieces; i++) {
-    const a = rand() * Math.PI * 2
-    const speed = 20 + rand() * 45
-    list.push({
-      pos: { x: at.x, y: at.y },
-      vel: { x: Math.cos(a) * speed, y: Math.sin(a) * speed },
-      value: each,
-      life: T.plunderLifetime,
-      maxLife: T.plunderLifetime,
-      drawn: false,
-    })
-  }
+  const coins = Math.max(1, Math.min(5, Math.round(value / 2)))
+  scatter('coin', coins, value / coins)
+
+  // Timber scales with the hull that went down, so a Brigantine is worth
+  // chasing when you are hurt and a Pinnace barely covers a scratch.
+  const hull = value * T.wreckTimber
+  if (hull <= 0) return
+  // Sized so a baulk is always a visible bite out of the damage, never a
+  // crumb: pieces are added rather than shrunk as the prize gets richer.
+  const baulks = Math.max(1, Math.min(3, Math.round(hull / 0.07)))
+  scatter('timber', baulks, hull / baulks)
 }
 
-/** Returns the total value collected this step. */
+/** One piece coming aboard, so the renderer can say so over the ship. */
+export interface Pickup {
+  pos: Vec2
+  kind: FlotsamKind
+  value: number
+}
+
+/** Returns the coin taken aboard this step, and the hull the timber mends. */
 export function stepPlunder(
   list: Plunder[],
   player: Ship,
   windAt: (p: Vec2) => WindSample,
   dt: number,
-): { remaining: Plunder[]; collected: number } {
+): { remaining: Plunder[]; collected: number; mended: number; taken: Pickup[] } {
   const remaining: Plunder[] = []
+  const taken: Pickup[] = []
   let collected = 0
+  let mended = 0
 
   const magnet = T.plunderMagnetRadius * player.mods.pickupRadius
   const grab = T.plunderPickupRadius * player.mods.pickupRadius
@@ -61,7 +95,9 @@ export function stepPlunder(
     const dist = Math.hypot(dx, dy)
 
     if (dist <= grab && !player.sunk) {
-      collected += p.value
+      if (p.kind === 'timber') mended += p.value
+      else collected += p.value
+      taken.push({ pos: { ...p.pos }, kind: p.kind, value: p.value })
       continue
     }
 
@@ -89,5 +125,5 @@ export function stepPlunder(
     remaining.push(p)
   }
 
-  return { remaining, collected }
+  return { remaining, collected, mended, taken }
 }

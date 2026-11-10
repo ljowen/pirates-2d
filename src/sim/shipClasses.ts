@@ -54,6 +54,19 @@ export interface ShipClass {
    */
   playerMods?: Partial<ShipMods>
 
+  /**
+   * What this hull loads, as a bias on where her shot lands — the same split
+   * the player's shot-type cards edit, renormalised the same way.
+   *
+   * This is how the rigging and crew pools come alive for the *player*. With
+   * every hull afloat firing plain round shot, two of the three bars could
+   * only ever be grazed, so the only ship that ever threatened your canvas was
+   * one that did not exist. A Frigate standing off and cutting your rigging to
+   * ribbons is a different fight from a Barque hammering your waterline, and
+   * it is the same fight the player gets to pick when they draft chain.
+   */
+  shotBias?: { hull: number; sails: number; crew: number }
+
   /** One line of character, shown when choosing a ship. */
   blurb?: string
 
@@ -228,6 +241,10 @@ export const ROYAL_SLOOP: ShipClass = {
   id: 'royal-sloop', name: 'Royal Sloop', tier: 2, behaviour: 'skirmisher',
   turnRate: 1.35, thrust: 1.08, drag: 0.95, crewSpeed: 1.15,
   guns: 0.5, reload: 0.85, range: 0.8, damage: 0.8,
+  // She gets inside your reach and sweeps your deck. Little weight of shot,
+  // but she thins your crew, and a thinned crew reloads slower — which is
+  // exactly how an irritant that cannot sink you still beats you.
+  shotBias: { hull: 0.9, sails: 1, crew: 2.6 },
   hullStrength: 0.42,
   draught: 0.4,
   scale: 0.8,
@@ -246,6 +263,9 @@ export const FRIGATE: ShipClass = {
   // away with no reply at all, which is oppressive rather than interesting —
   // the point is that closing costs you, not that closing is the only option.
   guns: 0.84, reload: 0.95, range: 1.18, damage: 1.0,
+  // She fights at arm's length, so she cuts up your rigging to keep you
+  // there. This is the ship that makes the rigging bar frightening.
+  shotBias: { hull: 0.85, sails: 2.4, crew: 1 },
   hullStrength: 0.8,
   draught: 0.8,
   scale: 0.95,

@@ -174,25 +174,29 @@ export class Audio {
   }
 
   /**
-   * A broadside, fired as a ripple down the ship's side rather than one blast.
-   * The spacing is driven by the same ripple gap the guns themselves use, so
-   * what you hear lines up with the smoke you see.
+   * A broadside: one crash made of several cracks, scattered across the same
+   * window the guns themselves use, so what you hear lines up with the smoke
+   * you see. They are drawn independently rather than spaced in sequence —
+   * the guns go off together, and the scatter is only the hand of each gun
+   * captain, not a roll down the ship's side.
    */
-  cannon(x: number, y: number, guns: number, rippleGap = 0.075) {
+  cannon(x: number, y: number, guns: number, scatter = 0.06) {
     if (!this.canPlay(4)) return
     const { gain: dist, pan } = this.spatial(x, y)
     if (dist < 0.05) return
     const ctx = this.ctx!
     const now = ctx.currentTime
     const cracks = clamp(Math.round(guns / 1.5), 1, 6)
+    // Overlapping cracks sum where a ripple's did not, so the peak has to come
+    // down as the battery grows. The exponent is under a half deliberately: a
+    // heavier broadside should still land heavier, just not loud enough to
+    // clip the master and turn into mud.
+    const peak = (dist * 0.5) / Math.pow(cracks, 0.42)
 
-    let offset = 0
     for (let i = 0; i < cracks; i++) {
-      // The gap is a ceiling, not a metronome — matching how the guns
-      // themselves are now scheduled. An even ripple sounds mechanical.
-      const t = now + offset
-      offset += rippleGap * (0.45 + Math.random() * 0.55)
-      const level = dist * 0.5 * (1 - i * 0.12)
+      const t = now + Math.random() * scatter
+      // No two guns are charged quite alike either.
+      const level = peak * (0.82 + Math.random() * 0.36)
 
       // Body: a noise burst with the filter sweeping shut.
       const v = this.voice(t, 0.6, pan)
@@ -203,22 +207,28 @@ export class Audio {
       v.gain.gain.setValueAtTime(0, t)
       v.gain.gain.linearRampToValueAtTime(level, t + 0.006)
       v.gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.5)
-
-      // Sub: the thump you feel more than hear.
-      const osc = ctx.createOscillator()
-      const og = ctx.createGain()
-      const op = ctx.createStereoPanner()
-      op.pan.value = pan
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(110, t)
-      osc.frequency.exponentialRampToValueAtTime(38, t + 0.22)
-      og.gain.setValueAtTime(0, t)
-      og.gain.linearRampToValueAtTime(level * 1.1, t + 0.012)
-      og.gain.exponentialRampToValueAtTime(0.0008, t + 0.4)
-      osc.connect(og).connect(op).connect(this.master)
-      osc.start(t)
-      osc.stop(t + 0.45)
     }
+
+    // Sub: the thump you feel more than hear. One for the whole broadside
+    // rather than one per crack — six sines at the same pitch inside the same
+    // sixtieth of a second add coherently and boom rather than thump, and a
+    // volley has one collective punch in any case. It grows with the battery,
+    // which is where the weight of a heavy broadside now lives.
+    const t0 = now + Math.random() * scatter * 0.5
+    const thump = dist * 0.42 * Math.pow(cracks, 0.3)
+    const osc = ctx.createOscillator()
+    const og = ctx.createGain()
+    const op = ctx.createStereoPanner()
+    op.pan.value = pan
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(110, t0)
+    osc.frequency.exponentialRampToValueAtTime(38, t0 + 0.22)
+    og.gain.setValueAtTime(0, t0)
+    og.gain.linearRampToValueAtTime(thump, t0 + 0.012)
+    og.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.4)
+    osc.connect(og).connect(op).connect(this.master)
+    osc.start(t0)
+    osc.stop(t0 + 0.45)
   }
 
   /** Shot striking timber: a hard crack with a splintery tail. */

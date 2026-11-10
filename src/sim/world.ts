@@ -5,9 +5,9 @@ import {
 } from './shipClasses'
 import { Director } from './director'
 import { Run } from './run'
-import { dropPlunder, stepPlunder, type Plunder } from './plunder'
+import { dropPlunder, stepPlunder, type Pickup, type Plunder } from './plunder'
 import { UPGRADES_BY_ID } from './upgrades'
-import { Terrain } from './terrain'
+import { draughtDepth, Terrain } from './terrain'
 import { makeRng } from '../core/rng'
 import { angleDiff, type Vec2 } from '../core/math'
 import { T } from './tuning'
@@ -25,6 +25,7 @@ import {
  * private relationship with the wind.
  */
 const EMPTY_SHIPS: Ship[] = []
+const EMPTY_PICKUPS: Pickup[] = []
 
 /**
  * How long a wreck stays in the world after sinking. Must outlast the
@@ -64,6 +65,7 @@ export class World {
    * events accumulate here until explicitly taken.
    */
   private sunkEvents: Ship[] = []
+  private pickupEvents: Pickup[] = []
 
   /** Player steering input for this step, in [-1, 1]. */
   steerInput = 0
@@ -79,20 +81,41 @@ export class World {
     this.run.grantStarting(this.player)
   }
 
-  /** Open the run in open water, however the terrain seed falls. */
+  /**
+   * Open the run in open water with somewhere to go, however the terrain seed
+   * falls.
+   *
+   * Deep water is not enough on its own. Broad shoals and bars across open
+   * water can between them enclose a pool this hull cannot get out of, and
+   * waking up in a lagoon is the one position the player never chose — so a
+   * candidate also has to have several courses that run clear to sea. The
+   * spiral is a sunflower pattern, which covers ground evenly without ever
+   * retracing a ring.
+   */
   private placePlayerClearOfLand() {
     const ship = this.spawn('player', this.playerClass, 0, 0, 0)
-    for (let i = 0; i < 64 && this.terrain.probe(ship.pos).depth < 1; i++) {
+    const needs = draughtDepth(ship.cls.draught)
+    let best = { pos: { ...ship.pos }, ways: -1 }
+
+    for (let i = 0; i < 96; i++) {
       const a = i * 2.39996
-      const r = 120 * Math.sqrt(i + 1)
-      ship.pos = { x: Math.cos(a) * r, y: Math.sin(a) * r }
+      const r = i === 0 ? 0 : 120 * Math.sqrt(i)
+      const pos = { x: Math.cos(a) * r, y: Math.sin(a) * r }
+      if (this.terrain.probe(pos).depth < 1) continue
+      // Four courses clear to sea is plenty of sea room, and asking for more
+      // walks a long way for no gain on a crowded seed.
+      const ways = this.terrain.escapes(pos, needs)
+      if (ways > best.ways) best = { pos, ways }
+      if (ways >= 4) break
     }
+
+    ship.pos = { ...best.pos }
     ship.prevPos = { ...ship.pos }
   }
 
   get player() { return this.ships[0] }
 
-  get enemies() { return this.ships.filter((s) => s.faction === 'enemy' && !s.sunk) }
+  get enemies() { return this.ships.filter((s) => s.faction === 'enemy' && !s.sunk && !s.struck) }
 
   /**
    * Enemies that actually press the player, which is what the spawn cap is
@@ -102,7 +125,7 @@ export class World {
    */
   get threats() {
     return this.ships.filter(
-      (s) => s.faction === 'enemy' && !s.sunk && s.cls.behaviour !== 'trader',
+      (s) => s.faction === 'enemy' && !s.sunk && !s.struck && s.cls.behaviour !== 'trader',
     )
   }
 
@@ -215,6 +238,14 @@ export class World {
     return out
   }
 
+  /** Take every piece collected since the last call. Safe to skip frames. */
+  drainPickups(): Pickup[] {
+    if (this.pickupEvents.length === 0) return EMPTY_PICKUPS
+    const out = this.pickupEvents
+    this.pickupEvents = []
+    return out
+  }
+
   /** Plunder a wreck is worth, by hull. */
   private plunderValue(cls: ShipClass): number {
     // A Fluyt is the prize: little threat, but her hold is worth running a
@@ -246,7 +277,7 @@ export class World {
       r = T.spawnRadius * (0.92 + this.rand() * 0.22)
       x = p.pos.x + Math.cos(a) * r
       y = p.pos.y + Math.sin(a) * r
-      if (this.terrain.probe({ x, y }).depth > 0.9) break
+      if (this.terrain.probe({ x, y }).depth > Math.max(0.9, draughtDepth(cls.draught) * 1.5)) break
     }
     const ship = this.spawn('enemy', cls, x, y, a + Math.PI)
     ship.sailOrder = 2
@@ -309,10 +340,18 @@ export class World {
     for (const ship of sunkThisStep) {
       if (ship.faction !== 'enemy') continue
       this.run.shipsSunk++
-      dropPlunder(this.plunder, ship.pos, this.plunderValue(ship.cls), () => this.rand())
+      // Everything she carries goes to the bottom with her, so a wreck is
+      // worth markedly less than a prize taken afloat.
+      dropPlunder(
+        this.plunder, ship.pos,
+        this.plunderValue(ship.cls) * T.sinkShare, () => this.rand(),
+      )
     }
+    this.strikings()
     if (sunkThisStep.length) this.sunkEvents.push(...sunkThisStep)
     const swept = stepPlunder(this.plunder, this.player, (p) => this.windAt(p), dt)
+    // Presentation drains these; the simulation never looks at them again.
+    if (swept.taken.length) this.pickupEvents.push(...swept.taken)
     this.plunder = swept.remaining
     // Spoils washed up on a beach would be unreachable through no fault of the
     // player, so nudge any that drift ashore back into navigable water.
@@ -325,10 +364,34 @@ export class World {
       piece.pos.x += (dx / len) * (-probe.distance + 12)
       piece.pos.y += (dy / len) * (-probe.distance + 12)
     }
+    // Timber goes straight into the hull; anything over what she needs is
+    // worked into her rigging and then her people, so a baulk fished aboard is
+    // never simply wasted.
+    if (swept.mended > 0 && !this.player.sunk) {
+      let left = swept.mended
+      for (const pool of ['hull', 'sails', 'crew'] as const) {
+        if (left <= 0) break
+        const room = 1 - this.player[pool]
+        const put = Math.min(room, left)
+        this.player[pool] += put
+        left -= put
+      }
+    }
     this.run.collect(swept.collected)
 
     // A trader that has run far enough has got clean away, and should stop
     // being tracked — otherwise escaped prizes accumulate off-screen forever.
+    // A prize is sailed away by a prize crew once she has had a moment to
+    // read as taken. Removed rather than sunk: she was not sunk.
+    for (let i = this.ships.length - 1; i > 0; i--) {
+      const ship = this.ships[i]
+      if (!ship.struck || ship.sunk) continue
+      ship.sinceStruck += dt
+      if (ship.sinceStruck < T.prizeLinger) continue
+      this.captains.delete(ship.id)
+      this.ships.splice(i, 1)
+    }
+
     const escapeRange = T.spawnRadius * 1.6
     for (let i = this.ships.length - 1; i > 0; i--) {
       const ship = this.ships[i]
@@ -357,6 +420,60 @@ export class World {
   }
 
   /**
+   * Ships that have had enough strike their colours.
+   *
+   * Both halves come from the *Pirates!* manual rather than invention. It says
+   * a ship whose sails are destroyed is no longer under control and may give
+   * up when you next come near; and its advice for taking a prize is to cut
+   * the crew down with grape before boarding, because a thinned crew loses the
+   * boarding action. So rigging and crew each give the player a way to take a
+   * ship that is not sinking her.
+   *
+   * The approach matters. A dismasted ship does not surrender to an enemy
+   * half a mile off; she surrenders when you come alongside and it is plain
+   * there is nothing left to do. That keeps chain and grape honest — they set
+   * up the capture, they do not perform it — and it means the last act of a
+   * fight is a decision to close rather than a damage threshold quietly
+   * passing.
+   */
+  private strikings() {
+    const player = this.player
+    if (player.sunk) return
+
+    for (const ship of this.ships) {
+      if (ship.faction !== 'enemy' || ship.sunk || ship.struck) continue
+      const beaten = ship.sails <= T.strikeSails || ship.crew <= T.strikeCrew
+      if (!beaten) continue
+      const range = Math.hypot(ship.pos.x - player.pos.x, ship.pos.y - player.pos.y)
+      if (range > T.boardingRange) continue
+
+      ship.struck = true
+      ship.sinceStruck = 0
+      // Her sails come down as she gives up, which is the whole visual tell.
+      ship.sailOrder = 0
+      ship.aiSteer = 0
+      this.run.shipsTaken++
+
+      // The manual is blunt that capturing pays far better than sinking, since
+      // a wreck takes her cargo down with her — and equally blunt that every
+      // ball you put into a ship lowers what she is worth. So a prize battered
+      // to the waterline is barely better than a wreck, and an intact one is
+      // worth going to some trouble for.
+      //
+      // Her crew was tried as a second factor here — a prize has to be sailed
+      // home, and a ship whose people are gone has nobody left to work her —
+      // and it was reverted. Grape captures are *by definition* low-crew
+      // captures, so the factor was not a trade but a flat tax on one
+      // doctrine: even at a modest weight it cost that build two levels and a
+      // hundred seconds of run, and dropped its plunder below taking no shot
+      // card at all. Whatever separates the two doctrines has to live
+      // somewhere other than the value of the prize.
+      const prize = this.plunderValue(ship.cls) * T.prizeValue * (0.45 + 0.55 * ship.hull)
+      dropPlunder(this.plunder, ship.pos, prize, () => this.rand())
+    }
+  }
+
+  /**
    * Land stops ships, and shallows slow the deep-draughted ones. Handled here
    * rather than inside `Ship` so the hull physics stay free of any knowledge
    * of terrain — the same reason gunnery and AI live outside it.
@@ -364,16 +481,9 @@ export class World {
   private groundings(dt: number) {
     for (const ship of this.ships) {
       if (ship.sunk) continue
-      const { island, distance, depth } = this.terrain.probe(ship.pos)
+      const { island, distance, depth, escape } = this.terrain.probe(ship.pos)
       ship.depth = depth
       ship.aground = false
-      if (!island) continue
-
-      const dx = ship.pos.x - island.x
-      const dy = ship.pos.y - island.y
-      const len = Math.hypot(dx, dy) || 1
-      const nx = dx / len
-      const ny = dy / len
 
       // Shallows drag on a deep keel long before she actually touches.
       if (depth < 1) {
@@ -383,40 +493,60 @@ export class World {
         ship.vel.y *= scale
       }
 
-      // Aground: the bottom has come up to meet the keel. Contact is measured
-      // against the hull's half-beam, not against the shoreline itself — a
-      // ship touches before her centre is over dry land, and testing for the
-      // latter meant grounding could never fire at all.
-      // How far out she touches depends on how deep she draws. This is what
-      // makes draught a real mechanic rather than a drag modifier: a Pinnace
-      // can cross water that strands a Brigantine, so leading a heavy hull
-      // over a shoal is a weapon.
-      const keel = 10 + 26 * ship.cls.draught
-      if (distance < keel) {
-        ship.aground = true
+      // Aground when the water is shallower than she draws.
+      //
+      // Depth rather than distance-to-a-beach, which is what lets a bar with
+      // no land in it strand a Galleon while a Pinnace sails over the top. It
+      // also makes the island shoals mean something: a heavy hull now touches
+      // a long way out, where before every hull could close to within a few
+      // lengths of any beach.
+      const needs = draughtDepth(ship.cls.draught)
+      // She still cannot sail up a beach, however little she draws.
+      const beached = island !== null && distance < 8
+      if (depth >= needs && !beached) continue
+      ship.aground = true
 
-        // Speed into the shore at the moment of contact, used to scale the
-        // damage: drifting onto a beach should not cost what charging it does.
-        const into = ship.vel.x * nx + ship.vel.y * ny
-        const impact = Math.max(0, -into)
-
-        const push = (keel - distance) * Math.min(1, T.groundingDrag * dt)
-        ship.pos.x += nx * push
-        ship.pos.y += ny * push
-
-        if (into < 0) {
-          ship.vel.x -= nx * into
-          ship.vel.y -= ny * into
-        }
-
-        const severity = 0.25 + 0.75 * Math.min(1, impact / 140)
-        const died = ship.applyDamage(T.groundingDamage * severity * dt, 0, 0)
-        if (died) this.sunkEvents.push(ship)
-
-        const hold = Math.max(0, 1 - T.groundingDrag * dt)
-        ship.vel.x *= hold
-        ship.vel.y *= hold
+      // Which way the water deepens. On an island that is straight out from
+      // its middle; on a bar it is across her, by the shortest way off.
+      let nx = escape?.x ?? 0
+      let ny = escape?.y ?? 0
+      if (beached && island) {
+        const dx = ship.pos.x - island.x
+        const dy = ship.pos.y - island.y
+        const len = Math.hypot(dx, dy) || 1
+        nx = dx / len
+        ny = dy / len
       }
+      if (nx === 0 && ny === 0) continue
+
+      // Speed into the shoal at the moment of contact, used to scale the
+      // damage: drifting onto a bank should not cost what charging it does.
+      const into = ship.vel.x * nx + ship.vel.y * ny
+      const impact = Math.max(0, -into)
+
+      // Shove her toward deeper water, hard enough to work free but not so
+      // hard that touching bottom flings her off it.
+      const shortfall = Math.max(0, needs - depth) / Math.max(needs, 0.01)
+      const push = (beached ? 26 : 18 * shortfall) * Math.min(1, T.groundingDrag * dt)
+      ship.pos.x += nx * push
+      ship.pos.y += ny * push
+
+      if (into < 0) {
+        ship.vel.x -= nx * into
+        ship.vel.y -= ny * into
+      }
+
+      // A bar does not tear a hull open the way a rock does: it holds her.
+      // Most of what a grounding costs should be the time and the beating you
+      // take while stuck, not the damage itself.
+      const severity = 0.25 + 0.75 * Math.min(1, impact / 140)
+      const bite = beached ? 1 : 0.45
+      const died = ship.applyDamage(T.groundingDamage * severity * bite * dt, 0, 0)
+      if (died) this.sunkEvents.push(ship)
+
+      const hold = Math.max(0, 1 - T.groundingDrag * dt)
+      ship.vel.x *= hold
+      ship.vel.y *= hold
     }
   }
 
@@ -456,6 +586,7 @@ export class World {
     this.splashes = []
     this.plunder = []
     this.sunkEvents = []
+    this.pickupEvents = []
     this.spawnCursor = 0
     this.rand = makeRng(seed)
     this.gunRand = makeRng(seed ^ 0x9e3779b9)
