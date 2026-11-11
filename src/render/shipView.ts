@@ -95,19 +95,24 @@ export class ShipView {
       const cx2 = mx + yx * halfWidth
       const cy2 = yy * halfWidth
 
-      s.poly([
-        ax, ay,
-        mx - yx * halfWidth * 0.45 + bx * push * 0.72, -yy * halfWidth * 0.45 + by * push * 0.72,
-        mx + bx * push, by * push,
-        mx + yx * halfWidth * 0.45 + bx * push * 0.72, yy * halfWidth * 0.45 + by * push * 0.72,
-        cx2, cy2,
-      ])
-        .fill({ color: this.palette.canvas, alpha: H().sailAlpha * (0.45 + 0.55 * ship.sails) })
-      if (H().sailOutline > 0) {
-        s.stroke({ width: H().sailOutline, color: P().ship.line })
-      }
-
-      s.moveTo(ax, ay).lineTo(cx2, cy2).stroke({ width: H().sparWidth, color: P().ship.spar })
+      // The shape is solved here, because every term in it is simulation —
+      // the brace, the belly, the shiver and the shrink. How it is *drawn*
+      // belongs to the style.
+      H().drawSail(s, {
+        points: [
+          ax, ay,
+          mx - yx * halfWidth * 0.45 + bx * push * 0.72, -yy * halfWidth * 0.45 + by * push * 0.72,
+          mx + bx * push, by * push,
+          mx + yx * halfWidth * 0.45 + bx * push * 0.72, yy * halfWidth * 0.45 + by * push * 0.72,
+          cx2, cy2,
+        ],
+        spar: [ax, ay, cx2, cy2],
+        push: [bx, by],
+        depth: push,
+        drawing,
+        health: ship.sails,
+        half: halfWidth,
+      }, this.palette, H().sparWidth)
     })
   }
 

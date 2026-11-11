@@ -78,8 +78,13 @@ have too little contrast against pale water.
 Three things the renders settled that discussion would not have:
 
 - **The canvas hides the hull.** Under full sail the four hull treatments are nearly
-  indistinguishable; they only separate when furled. If the ships are to read differently,
-  **the sails are the lever**, not the hull.
+  indistinguishable; they only separate when furled. **The sails are the lever**, not the
+  hull — so the styles now own the sails too. A style is handed solved geometry and
+  decides only how it looks; the brace, the belly, the shiver and the shrink stay in
+  `ShipView`, because every one of them is a readout of how you are sailing and none of
+  them is decoration. Cel canvas is a flat fill, a hard terminator on the hollow side
+  nearest the yard, two seams and an ink outline — flat canvas reads as paper, panelled
+  canvas reads as sail.
 - **Pixel art confirmed the objection below rather than refuting it.** Cells drawn into
   the hull's own geometry rotate with the ship, so they read as a noisy vector shape, not
   as pixels. Real pixel art keeps its grid aligned to the *screen*, which needs the ship

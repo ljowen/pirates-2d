@@ -12,18 +12,56 @@ import type { ShipColors } from './palette'
  * Everything here is still procedural vector art, which is the only reason
  * comparing four treatments costs an afternoon rather than four art passes.
  */
+/**
+ * One sail, with its geometry already solved.
+ *
+ * The *shape* is simulation: the yard braces round with the point of sail, the
+ * canvas bellies by how hard she is drawing, it shivers when she is not, and
+ * it shrinks as the rigging is shot away. All of that is load-bearing — the
+ * rig is a readout of how you are sailing — so it stays in `ShipView` and the
+ * style is handed the result. A style chooses how canvas *looks*, never how it
+ * behaves.
+ */
+export interface SailDraw {
+  /** The bellied outline: spar end, three belly points, spar end. */
+  points: number[]
+  /** The yard itself. */
+  spar: [number, number, number, number]
+  /** Unit vector the belly pushes along, away from the wind. */
+  push: [number, number]
+  /** Belly depth in hull units. Zero when she is luffing. */
+  depth: number
+  /** How hard she is drawing, 0–1. */
+  drawing: number
+  /** Rigging condition, 0–1. */
+  health: number
+  /** Half the yard's length, for scaling detail to the sail. */
+  half: number
+}
+
 export interface HullStyle {
   id: string
   name: string
   blurb: string
   /** Draw the static hull, bow at +x, centred on the origin. */
   drawHull: (g: Graphics, L: number, B: number, c: ShipColors) => void
-  /** Outline weight on the sails. 0 for none. */
-  sailOutline: number
-  /** How solid the canvas sits against the water. */
-  sailAlpha: number
+  /** Draw one sail from solved geometry. */
+  drawSail: (g: Graphics, s: SailDraw, c: ShipColors, spar: number) => void
   /** Spar weight, so a heavier style does not get spindly rigging. */
   sparWidth: number
+}
+
+/** The same belly, drawn shallower — the inner edge of a hard shadow. */
+function innerBelly(s: SailDraw, scale: number): number[] {
+  const [px, py] = s.push
+  const d = s.depth * (1 - scale)
+  const p = s.points.slice()
+  // Points 1..3 are the bellied ones; pull them back toward the spar.
+  for (let i = 2; i <= 6; i += 2) {
+    p[i] -= px * d * (i === 4 ? 1 : 0.72)
+    p[i + 1] -= py * d * (i === 4 ? 1 : 0.72)
+  }
+  return p
 }
 
 // --- Colour helpers ---------------------------------------------------------
@@ -54,7 +92,12 @@ function hullPoints(L: number, B: number): number[] {
 /** What has always been there: one filled polygon, a deck, two rails. */
 const VECTOR: HullStyle = {
   id: 'vector', name: 'Flat vector', blurb: 'The current treatment — the control.',
-  sailOutline: 1, sailAlpha: 0.88, sparWidth: 2.4,
+  sparWidth: 2.4,
+  drawSail(g, s, c, spar) {
+    g.poly(s.points).fill({ color: c.canvas, alpha: 0.88 * (0.45 + 0.55 * s.health) })
+      .stroke({ width: 1, color: shade(c.canvas, -0.35) })
+    g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3]).stroke({ width: spar, color: shade(c.trim, -0.1) })
+  },
   drawHull(g, L, B, c) {
     g.poly(hullPoints(L, B)).fill({ color: c.hull }).stroke({ width: 1.5, color: c.trim, alignment: 0.5 })
     g.poly([
@@ -75,7 +118,16 @@ const VECTOR: HullStyle = {
  */
 const LOWPOLY: HullStyle = {
   id: 'lowpoly', name: 'Low-poly', blurb: 'PS1-era flat-shaded facets, coarse colour ramp, no outlines.',
-  sailOutline: 0, sailAlpha: 1, sparWidth: 2.6,
+  sparWidth: 2.6,
+  drawSail(g, s, c, spar) {
+    // Two flat facets with a hard seam between them, no outline: the canvas is
+    // a folded plane, which is how a low-poly rig would have been built.
+    const Q = 6
+    g.poly(s.points).fill({ color: quantise(c.canvas, Q), alpha: 0.45 + 0.55 * s.health })
+    g.poly(innerBelly(s, 0.5)).fill({ color: quantise(shade(c.canvas, -0.22), Q), alpha: 0.45 + 0.55 * s.health })
+    g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3])
+      .stroke({ width: spar, color: quantise(shade(c.trim, -0.1), Q) })
+  },
   drawHull(g, L, B, c) {
     const Q = 6
     const hull = quantise(c.hull, Q)
@@ -112,7 +164,29 @@ const CEL: HullStyle = {
   // 0.75 the whole ship is about 45px and the same line ate the fill, leaving
   // a dark smudge with no hull colour in it. Flattering a style by inspecting
   // it close up is an easy way to ship one that does not work.
-  sailOutline: 1.6, sailAlpha: 1, sparWidth: 2.6,
+  sparWidth: 2.6,
+  drawSail(g, s, c, spar) {
+    const ink = shade(c.trim, -0.45)
+    const fade = 0.5 + 0.5 * s.health
+
+    g.poly(s.points).fill({ color: c.canvas, alpha: fade })
+    // One hard terminator, on the hollow side nearest the yard — the same
+    // convention the hull uses, so a ship lights consistently.
+    if (s.depth > 0.6) {
+      g.poly(innerBelly(s, 0.42)).fill({ color: shade(c.canvas, -0.28), alpha: fade })
+    }
+    // Two seams, because flat canvas reads as paper and panelled canvas reads
+    // as sail. Scaled off the yard so they stay put as the sail shrinks.
+    for (const t of [-0.42, 0.42]) {
+      const ax = s.spar[0] + (s.spar[2] - s.spar[0]) * (0.5 + t * 0.5)
+      const ay = s.spar[1] + (s.spar[3] - s.spar[1]) * (0.5 + t * 0.5)
+      g.moveTo(ax, ay)
+        .lineTo(ax + s.push[0] * s.depth * 0.62, ay + s.push[1] * s.depth * 0.62)
+        .stroke({ width: 1.2, color: shade(c.canvas, -0.42), alpha: 0.85 * fade })
+    }
+    g.poly(s.points).stroke({ width: 1.5, color: ink, alignment: 0.5, alpha: fade })
+    g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3]).stroke({ width: spar, color: ink })
+  },
   drawHull(g, L, B, c) {
     const ink = shade(c.trim, -0.45)
     // Lifted, because the outline and the shadow both darken the read at size.
@@ -146,7 +220,14 @@ const CEL: HullStyle = {
  */
 const PIXEL: HullStyle = {
   id: 'pixel', name: 'Pixel (hull-aligned)', blurb: 'Chunky cells on a coarse ramp. See the caveat: the grid turns with the ship.',
-  sailOutline: 0, sailAlpha: 1, sparWidth: 3,
+  sparWidth: 3,
+  drawSail(g, s, c, spar) {
+    const Q = 10
+    g.poly(s.points).fill({ color: quantise(c.canvas, Q), alpha: 0.45 + 0.55 * s.health })
+    g.poly(innerBelly(s, 0.55)).fill({ color: quantise(shade(c.canvas, -0.16), Q), alpha: 0.45 + 0.55 * s.health })
+    g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3])
+      .stroke({ width: spar, color: quantise(shade(c.trim, -0.1), Q) })
+  },
   drawHull(g, L, B, c) {
     // 2.2 against a 58 x 17 hull gives roughly 26 x 8 cells — coarse enough to
     // read as pixels, fine enough that the sheer still reads as a sheer. At
