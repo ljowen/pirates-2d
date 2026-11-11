@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 // built asset URLs need that prefix or every script 404s. The dev server stays
 // at / — `base` is applied for the build only, so nothing about running
 // locally changes.
-const REPO = '/pirates2D/'
+const REPO = '/pirates-2d/'
 
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? REPO : '/',
