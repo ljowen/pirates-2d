@@ -310,6 +310,84 @@ share names and silhouettes only.
 and large ones hard to miss. Without it, size was cosmetic and the Pinnace was simply
 worse than everything rather than differently good.
 
+## Weather
+
+**A squall is a term in `Wind.at(x, y)`, not a new system.** The wind query was already
+positional and already the single place anything asks what the air is doing, so the AI,
+the cat's paws, the compass rose and the ambient audio picked squalls up without being
+told they existed. Building weather as a parallel system would have meant teaching every
+one of those about it.
+
+**Weather is generated upwind of the player, not scattered over the map.** The sea is
+unbounded, so a cell placed at random would almost never be met. The better reason is that
+a squall has to arrive from somewhere the player can watch it come from — the decision it
+asks for only exists if the warning arrives in time to act on it. Same rule as the reefs:
+a hazard you can only learn by hitting it is a trap rather than a tactic.
+
+**Canvas splits, because a speed penalty was never a cost.** `overcanvasPenalty` had
+existed since the first wind model and had never once made anyone shorten sail: on her
+best point of sail a Sloop does 160 under battle sails in ordinary air and 274 under a
+full suit in a squall *after* paying the penalty. Carrying on was strictly faster, so there
+was no question. Splitting canvas is what turns more wind from a gift into a gamble.
+
+**Blow-out is driven by how deep in the squall you are, not by absolute wind strength.**
+Keyed to strength it was *unreliable*, which to a player is indistinguishable from broken:
+the ambient wind wanders between 0.72 and 1.21, so the same squall split canvas at full
+force one minute and did nothing the next, and a typical core only ever reached 0.30 of
+the effect. `WindSample` now carries a `squall` reading, 0 outside a cell and 1 in the
+thick of one, so a ship can be hurt by weather without knowing weather cells exist — and
+so the physics agrees with the shading, which is painted from the same intensity.
+
+**A cost nothing can pay is not a cost, and this one failed three ways.** Blow-out shipped
+cancelled out by the ship's own rigging repair (0.0082/s against 0.0085/s), then keyed to
+the wrong quantity, then simply too small — a six-second crossing cost 2.7% of a suit, and
+the tuner slider's maximum was not enough to make it noticeable. All three had to be fixed
+before the warning on screen meant anything. Worth remembering that each one individually
+looked like a tuning detail.
+
+**Enemy captains shorten sail by the same rule.** Enemies never repair, so weather they
+could not respond to simply mowed the fleet down, and a squall read as a free weapon
+rather than a hazard both sides sail through. They still pay for it in speed, so leading a
+chase into a squall remains a real tactic — just not a free kill.
+
+**A cell is sized against the screen, not against the sea.** The first squalls had a
+radius of 1150 against a view roughly 2500 x 1300 of world. That is not weather you can
+see coming; it is a grey wash with no edge. 560 is the shipped figure, and it is the
+difference between a thing on the water and an atmosphere.
+
+**A squall punishes the helm, not the hull.** Giving the Brigantine a Sloop's `turnRate`
+and changing nothing else flips the weather from costing her 19 points of win rate to
+gaining her 19. A squall is a disturbance to *position* — the wind shifts under you and
+everything speeds up at once — and recovering position is what a slow helm cannot do.
+This was not designed and is the most interesting thing weather does.
+
+**A ship mends nothing under way.** Baseline repair and salvaged timber between them
+healed faster than the sea could hurt, so attrition quietly reversed itself while the
+player did what they were going to do anyway. Both are gone; heaving to is the whole of
+sustain. The thing this buys is that recovery now asks the same question as everything
+else in the game — *can you afford to be here?* — rather than being a rate that ticks
+along underneath it.
+
+**The mechanic that measured best was the one the bot could use.** Timber scored far
+better than heaving to on every number, and a good part of why is that collecting flotsam
+needs no judgement while engineering sea room does. Worth distrusting a result that
+favours the option requiring less skill.
+
+**A card needs a second effect to be a card.** Taller Masts and Careened Hull were
+`thrust × 1.1` and `drag × 0.91` — mathematically the same upgrade, since steady speed
+depends only on the ratio of the two, and they measured 0.05% apart. Pure multipliers on
+the same quantity cannot be told apart no matter what the flavour text says. Careened Hull
+was deleted; Taller Masts kept, with a cost in a system a speed multiplier cannot reach.
+
+**Card text is the number, not the picture.** Descriptions were prose — "Boys at the
+powder", "Straight at the waterline" — which is padding on a card being chosen between
+three others under fire. Every card now leads with its figure, and the consequence is
+stated only where the figure does not carry it (that chain catches runners; that a shot
+type locks out the others). Two descriptions had also silently gone *wrong*: the repair
+cards still promised mending "under way" long after a ship stopped mending under way at
+all. **Prose does not get checked against the code the way a number does** — which is an
+argument for numbers quite apart from how they read.
+
 ## Land
 
 **Terrain is generated from a hashed grid, not stored.** The arena is unbounded, so
@@ -341,6 +419,12 @@ of AI time aground.
   [plans/progression-meta.md](plans/progression-meta.md) both press on it.
 - **Turn-rate upgrades stack multiplicatively with no cap**, and enough of them will let
   the ship pivot on the spot. Wants diminishing returns.
-- **The voyage may now be too easy**, at a 50% win rate for a crude scripted pilot, up
-  from 10%. Endless mode absorbs some of this concern, but the voyage itself may want
-  re-hardening. See [plans/balance.md](plans/balance.md).
+- **The voyage is not too easy after all.** Re-measured at 32 seeds per hull across four
+  hulls: 32% before weather, 28% with squalls. The earlier "50%" was 16 seeds of one hull.
+  See [plans/balance.md](plans/balance.md) for the baseline to preserve.
+- **Capture is arithmetically unreachable without a shot doctrine** — 0 prizes in 128 runs
+  of a default build, because a ship sinks at 1.6 units of damage and needs 3.3 to be
+  dismasted. Doctrine-gated capture is defensible; capture being *invisible* to anyone who
+  does not draft chain or grape probably is not.
+- **Heavy hulls spend ~9% of a run aground** and the reefs are not the cause (9.6% with
+  `reefDensity = 0`). It is the island shoals and the pilot's own draught handling.

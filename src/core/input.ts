@@ -57,6 +57,7 @@ export class Input {
       case 'Backquote': return 'tuner'
       case 'KeyR': return 'reset'
       case 'KeyE': return 'spawnEnemy'
+      case 'KeyQ': return 'spawnSquall'
       case 'KeyM': return 'mute'
       case 'KeyC': return 'continue'
       default: return null

@@ -1,6 +1,7 @@
 import { Noise1D, Noise2D } from '../core/noise'
 import { T } from './tuning'
-import { clamp, wrapAngle } from '../core/math'
+import { clamp, wrapAngle, type Vec2 } from '../core/math'
+import { Weather } from './weather'
 
 /** The wind as experienced at one spot on the sea. */
 export interface WindSample {
@@ -9,6 +10,16 @@ export interface WindSample {
   /** Heading it pushes TOWARD. */
   to: number
   strength: number
+  /**
+   * How deep in a squall this point is, 0 outside and 1 in the thick of one.
+   *
+   * Carried on the sample so a ship can be hurt by *weather* without knowing
+   * that weather cells exist — and, more importantly, so the hurt does not
+   * depend on what the ambient wind happened to be doing. Keyed to absolute
+   * strength instead, the identical squall split canvas at full force one
+   * minute and did nothing at all the next.
+   */
+  squall: number
 }
 
 /**
@@ -20,6 +31,11 @@ export interface WindSample {
  * passes and as you sail across the map, and a favourable lane is something
  * worth going to find.
  *
+ * Squalls ride on top of all this and are owned here rather than by the
+ * World, because a weather cell is a property of the wind and nothing else —
+ * it needs no terrain and no ships. That keeps `at()` the single place any
+ * part of the game asks what the air is doing.
+ *
  * This class stays pure: islands blanketing the wind in their lee is handled
  * by `World.windAt`, which is the layer that knows about terrain.
  */
@@ -30,6 +46,7 @@ export class Wind {
   get to() { return wrapAngle(this.from + Math.PI) }
 
   strength = 1
+  readonly weather = new Weather()
   private readonly meanFrom: number
   private swingNoise: Noise1D
   private gustNoise: Noise1D
@@ -49,7 +66,7 @@ export class Wind {
     this.gustField = new Noise2D(seed ^ 0x2545f491)
   }
 
-  step(dt: number) {
+  step(dt: number, focus: Vec2 = ORIGIN) {
     this.t += dt
 
     const swing = this.swingNoise.fbm(this.t * T.windSwingRate, 3)
@@ -62,6 +79,8 @@ export class Wind {
     // rather than sitting over one stretch of water forever.
     this.patternX -= Math.cos(this.to) * T.windPatternDrift * dt
     this.patternY -= Math.sin(this.to) * T.windPatternDrift * dt
+
+    this.weather.step(dt, this.to, this.from, focus)
   }
 
   /**
@@ -76,17 +95,19 @@ export class Wind {
     const veer = this.veerField.fbm(sx, sy, 2) * (T.windVeerDegrees * Math.PI) / 180
     const gust = this.gustField.fbm(sx * 1.3 + 11.7, sy * 1.3 - 4.2, 2) * T.windLocalGust
 
-    const from = wrapAngle(this.from + veer)
+    const squall = this.weather.sample(x, y)
+    const from = wrapAngle(this.from + veer + squall.veer)
     return {
       from,
       to: wrapAngle(from + Math.PI),
-      strength: clamp(this.strength * (1 + gust), 0.05, 3),
+      strength: clamp(this.strength * (1 + gust) * (1 + squall.gain), 0.05, 4),
+      squall: squall.intensity,
     }
   }
 
   /** The ambient wind, ignoring local variation. */
   get ambient(): WindSample {
-    return { from: this.from, to: this.to, strength: this.strength }
+    return { from: this.from, to: this.to, strength: this.strength, squall: 0 }
   }
 
   /**
@@ -103,6 +124,7 @@ export class Wind {
     this.gustNoise = new Noise1D(seed ^ 0x9e3779b9)
     this.veerField = new Noise2D(seed ^ 0x51ed270b)
     this.gustField = new Noise2D(seed ^ 0x2545f491)
+    this.weather.reseed(seed)
   }
 
   reset() {
@@ -111,6 +133,7 @@ export class Wind {
     this.strength = 1
     this.patternX = 0
     this.patternY = 0
+    this.weather.reset()
   }
 
   /** Beaufort-ish label for the HUD. */
@@ -121,6 +144,9 @@ export class Wind {
     if (s < 1.15) return 'Steady breeze'
     if (s < 1.45) return 'Fresh breeze'
     if (s < 1.75) return 'Strong breeze'
-    return 'Gale'
+    if (s < 2.3) return 'Gale'
+    return 'Hard gale'
   }
 }
+
+const ORIGIN: Vec2 = { x: 0, y: 0 }

@@ -121,6 +121,15 @@ export function describeStats(cls: ShipClass, mods: ShipMods, polar: PolarCurve)
       key: 'makeSail', group: 'Sailing', label: 'Make sail', better: 'lower',
       value: makeSailTime(cls, mods), format: seconds,
     },
+    {
+      key: 'rigAtRisk', group: 'Sailing', label: 'Rig in a squall', better: 'lower',
+      // Rigging lost per second under a full suit in the thick of one. This is
+      // what stops Taller Masts being a pure speed multiplier — and a pure
+      // speed multiplier is indistinguishable from any other, since steady
+      // speed depends only on thrust over drag.
+      value: T.blowoutRate * mods.blowout,
+      format: (v) => `${(v * 100).toFixed(0)}%/s`,
+    },
 
     // --- Gunnery ---------------------------------------------------------
     {
@@ -168,29 +177,23 @@ export function describeStats(cls: ShipClass, mods: ShipMods, polar: PolarCurve)
     },
 
     // --- Quarterdeck ------------------------------------------------------
+    // Every one of these is quoted hove to, because that is the only state in
+    // which a ship mends at all. Showing an under-way figure would be quoting
+    // a rate the player can never actually be paid.
     {
-      key: 'mendHull', group: 'Quarterdeck', label: 'Mend hull', better: 'lower',
-      value: mendTime(mods.hullRepair), format: mending,
-    },
-    {
-      key: 'mendRigging', group: 'Quarterdeck', label: 'Mend rigging', better: 'lower',
-      value: mendTime(mods.sailRepair), format: mending,
-    },
-    {
-      key: 'mendCrew', group: 'Quarterdeck', label: 'Mend crew', better: 'lower',
-      value: mendTime(mods.crewRepair), format: mending,
-    },
-    {
-      key: 'mendHove', group: 'Quarterdeck', label: 'Hove to', better: 'lower',
-      // The same hull, mended with the canvas off her. Shown next to the
-      // under-way figure because the gap between them *is* the mechanic: it is
-      // what the player is buying with the time they spend stopped.
+      key: 'mendHull', group: 'Quarterdeck', label: 'Mend hull (hove to)', better: 'lower',
       value: mendTime(mods.hullRepair * T.heaveToRepair), format: mending,
     },
     {
+      key: 'mendRigging', group: 'Quarterdeck', label: 'Mend rigging (hove to)', better: 'lower',
+      value: mendTime(mods.sailRepair * T.heaveToRepair), format: mending,
+    },
+    {
+      key: 'mendCrew', group: 'Quarterdeck', label: 'Mend crew (hove to)', better: 'lower',
+      value: mendTime(mods.crewRepair * T.heaveToRepair), format: mending,
+    },
+    {
       key: 'plunderReach', group: 'Quarterdeck', label: 'Plunder reach', better: 'higher',
-      // Timber is swept up on the same radius as coin, so this is a sustain
-      // number as much as a progress one.
       value: T.plunderMagnetRadius * mods.pickupRadius, format: whole,
     },
   ]

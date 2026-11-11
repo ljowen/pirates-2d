@@ -147,7 +147,7 @@ export const SLOOP: ShipClass = {
   // know her. Without something of her own she was the only hull with no
   // identity, which is a poor reward for picking the honest option.
   playerMods: { crewSpeed: 1.15, reload: 0.93 },
-  blurb: 'Handy, well armed, and a crew who know her. Quick on the sheets and quick to reload.',
+  blurb: 'The baseline. +15% sail handling, -7% reload.',
 }
 
 /**
@@ -164,7 +164,7 @@ export const PLAYER_PINNACE: ShipClass = {
   draught: 0.22,
   scale: 0.74,
   colors: { hull: 0x7a6a3f, deck: 0xbda95f, trim: 0x332c17, canvas: 0xf4efd8 },
-  blurb: 'Draws almost nothing and turns on a sixpence. Live in the shoals, where the heavy hulls cannot follow.',
+  blurb: '+50% turn rate, +20% sail handling. -22% guns, -22% timbers. Draws 0.22: crosses bars that strand everything else.',
 }
 
 /**
@@ -183,7 +183,7 @@ export const PLAYER_BRIGANTINE: ShipClass = {
   draught: 1.0,
   scale: 1.15,
   colors: { hull: 0x58323c, deck: 0x90616a, trim: 0x29161b, canvas: 0xf0e4e4 },
-  blurb: 'Weight of shot and timber to soak it. Too deep for the shallows, so there is nowhere to run.',
+  blurb: '+10% guns, +15% timbers, +5% damage. -32% turn rate, +14% reload. Draws 1.0: no shallows to run to.',
 }
 
 /**
@@ -202,7 +202,7 @@ export const PLAYER_FLUYT: ShipClass = {
   // Her hold is the point: plunder from much further out, so she out-levels
   // every other hull and wins on upgrades rather than gunnery.
   playerMods: { pickupRadius: 2.1 },
-  blurb: 'Few guns and a vast hold. Sweep up plunder from far off and out-level your troubles.',
+  blurb: '+30% timbers, x2.1 plunder reach. -38% guns, -15% damage. Out-levels rather than out-shoots.',
 }
 
 /** Hulls the player may take to sea. */

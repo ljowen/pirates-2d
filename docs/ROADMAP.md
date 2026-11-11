@@ -11,6 +11,7 @@
 | — Sound | **Done** |
 | — Endless mode | **Done** |
 | — Land: islands, shoals, draught, grounding, cover | **Done** |
+| — Weather: squalls | **Done** |
 
 The game is playable end to end. The systems are in place and measured. What it does not
 yet have is a finished difficulty curve, any visual identity beyond programmer art, or
@@ -29,7 +30,7 @@ as the baseline to preserve when adding content, and re-measure against it.
 
 ### 2. Combat refinement — [plans/combat-refinement.md](plans/combat-refinement.md)
 
-The draft currently has fifteen cards and runs out of interesting choices. Deepening
+The draft currently has fourteen cards and runs out of interesting choices. Deepening
 gunnery — real range/damage/accuracy trade-offs, carronades vs long guns, raking fire,
 more shot behaviour — adds draft content cheaply because the systems already exist.
 
@@ -43,9 +44,10 @@ different directions. The actual art should wait until the entity roster stops c
 
 ### 4. Scenario — [plans/scenario.md](plans/scenario.md)
 
-**Landmasses are done** — see [TERRAIN.md](TERRAIN.md). What remains of this plan is
-weather, which is nearly free since squalls are half-built, plus reefs as standalone
-hazards and eventually authored coastlines.
+**Landmasses, reefs and squalls are done** — see [TERRAIN.md](TERRAIN.md) and
+[SAILING.md](SAILING.md#squalls). What remains is calms (now nearly free: a calm is a
+weather cell with a negative gain, and the cell machinery exists), night and weather
+states, sea state, and eventually authored coastlines.
 
 ### 5. Meta progression — [plans/progression-meta.md](plans/progression-meta.md)
 

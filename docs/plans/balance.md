@@ -1,16 +1,77 @@
 # Plan: balance
 
-**Status: resolved, and possibly overshot.** A human completes runs comfortably, and the
-scripted pilot now wins **50% of 16 seeds** — up from 10% before shot types were made
-exclusive. The voyage may have become too easy.
+**Status: resolved. The curve holds.** The history below is kept because the findings
+generalise, and because any future content will need re-tuning against them.
 
-The counter-argument is that endless mode now carries the challenge: the voyage is a
-campaign you can beat, and sailing on is where difficulty lives. Whether to re-harden the
-voyage is a design call, not a bug. If you do, the levers in order of bluntness are the
-final boss wave composition, `enemyCapEnd`, and `runDuration`.
+## Current baseline
 
-What remains is refinement rather than a blocked curve. The history below is kept because
-the findings generalise, and because any future content will need re-tuning against them.
+Re-measured after sustain, draught, aim and capture all shipped, on the suspicion that
+the batch had quietly made the voyage easier. **It had not.** 32 seeds per hull, scripted
+pilot, default tuning, confirmed byte-identical across three consecutive runs:
+
+| Hull | Win | Median | Range | Level | Sunk | Taken | Plunder | Aground |
+|---|---|---|---|---|---|---|---|---|
+| Sloop | 44% | 447s | 302–480 | 8.53 | 29.31 | 0 | 45.0 | 5.1% |
+| Pinnace | 19% | 433s | 200–480 | 8.69 | 22.34 | 0 | 47.5 | 3.9% |
+| Brigantine | 38% | 448s | 183–480 | 8.25 | 27.72 | 0 | 42.9 | 8.9% |
+| Fluyt | 28% | 453s | 182–480 | 8.03 | 16.56 | 0 | 38.9 | 7.2% |
+| **All** | **32%** | **447s** | | | | | | |
+
+The Sloop's 44% against the previously documented "50% of 16 seeds" is the same number at
+a seed count that can support it. **Treat 32% across all hulls / 44% on the Sloop as the
+figure to preserve**, and re-measure anything that touches damage, sustain or spawning.
+
+### Two things the baseline exposed
+
+**Capture is arithmetically unreachable without a shot doctrine — 0 prizes in 128 runs.**
+Not noise, and not the pilot's draft priorities alone. Damage splits 62/24/14 across hull,
+rigging and crew, all three pools divide by the same `hullStrength`, and enemies do not
+repair at all. So a default build sinks a ship after `1/0.62` = **1.6 units of damage**
+while needing `0.78/0.24` = **3.3** to drive her rigging below `strikeSails`. She goes
+down at half the damage required to make her strike. Chain shot inverts exactly this —
+`shotSails ×2.1, shotHull ×0.82` gives 1.78 to strike against 2.27 to sink — which is why
+chain takes prizes and round shot never does. Capture being doctrine-gated is a defensible
+design; **capture being invisible to every player who does not draft chain or grape is
+probably not**, and it is worth knowing that is the current state.
+
+**Heavy hulls spend ~9% of the run aground, and the reefs are not why.** With
+`reefDensity = 0` the Brigantine measures 9.6% aground; with reefs on, 8.94%. It is the
+island shoals, and it is the scripted pilot's land avoidance failing to respect its own
+draught, not a terrain bug. Worth remembering before weather starts pushing ships to
+leeward onto a lee shore.
+
+Reefs do appear to do their job: turning them on moved the Sloop 31% → 44% and the Pinnace
+9% → 19% while costing the deep-draught Fluyt 38% → 28%. At 32 seeds a 13-point swing is
+roughly 1.5 standard errors, so read that as consistent-with-intent rather than proven.
+
+### After squalls
+
+Weather shipped on top of the baseline above. The aggregate barely moved — **32% → 28%,
+median 447s → 440s** — but the hull spread narrowed from 25 points to 15:
+
+| Hull | Before weather | With squalls |
+|---|---|---|
+| Sloop | 44% | 34% |
+| Pinnace | 19% | 34% |
+| Brigantine | 38% | 19% |
+| Fluyt | 28% | 25% |
+
+Canvas blow-out was later made to actually bite (see
+[SAILING.md](../SAILING.md#squalls)), which moved this to **26%** — Sloop 28%, Pinnace 28%,
+Brigantine 16%, Fluyt 31%.
+
+**Then sustain was cut back to heaving-to alone** — timber and baseline under-way repair
+both removed, because the game played as though nothing was ever at stake. That is a much
+larger change than anything above: **26% → 5% win, median 440s → 310s.**
+
+Treat **5%** as the current floor rather than the current difficulty. The harness is
+structurally bad at the only sustain route left (it is hove to for 3–7% of a run, where a
+player picks the moment far better), so this figure understates the game by more than any
+previous one. `heaveToRepair` is the dial: 6 → 10 roughly doubles the scripted win rate.
+
+Earlier figure, kept for comparison: 26% across four hulls with timber and baseline repair. See
+[SAILING.md](../SAILING.md#squalls) for which half of the mechanic does what — it is not
+the half that was designed to.
 
 ## The problem (as it was)
 
@@ -83,7 +144,7 @@ the back half starts to feel powerful rather than merely survivable.
 
 ### 2. The run is simply too long for the current content depth
 
-480 seconds against fifteen upgrade cards may just be more than the content supports.
+480 seconds against fourteen upgrade cards may just be more than the content supports.
 
 **Try:** `runDuration` to 300–360s and see whether the curve resolves cleanly. A shorter
 run that works is far more useful than a longer one that does not, and the length can grow

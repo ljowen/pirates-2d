@@ -7,38 +7,47 @@ Two very different pieces of work that are easy to conflate.
 below proved right: starting with simple obstacles answered "is this worth it?" cheaply,
 and the steering-behaviour bet for AI navigation held up at 0.00% time aground.
 
-**Weather is still open**, and remains the cheap half.
+**Weather is part built.** Squalls shipped; calms, night and sea state have not.
 
 ## Part 1: Weather (cheap, do it early)
 
 The wind system already has direction drift, strength variation and gusts. Most of what
 follows is new modulation of existing values rather than new machinery.
 
-### Squalls
+### Squalls — **done**
 
-A travelling weather cell that crosses the arena. Inside it: wind strength spikes,
-direction shifts sharply, visibility drops.
+See [../SAILING.md](../SAILING.md#squalls) for what shipped and what it measured. The
+sequencing note below proved right: `Wind.at(x, y)` was already positional, so the whole
+cell system is one extra term in a sample everything already asks for, and no consumer
+needed touching.
 
-**Why it is good:** it makes the wind a *threat* rather than only a constraint, and it
-rewards reading the sky. Carrying full canvas into a squall should hurt — the
-`overcanvasPenalty` mechanic already exists and currently almost never triggers.
+Three things the plan did not anticipate:
 
-**Implementation:** a moving position and radius; the wind query becomes positional rather
-than global. That is the one real change — `Wind.from` and `Wind.strength` become
-functions of location. Every consumer already asks the wind object, so the blast radius is
-small.
+- **The speed penalty was never going to be the cost.** `overcanvasPenalty` is only a
+  speed loss, and a full suit in a squall beats battle sails in a steady breeze *even
+  after paying it* — so it had never once made anyone shorten sail. The mechanic needed
+  canvas that actually splits before there was a decision at all.
+- **The hazard turned out to be a hull differentiator**, because shortening sail takes
+  time and how much is `cls.crewSpeed`. The win-rate spread between hulls narrowed from
+  25 points to 15, with the Pinnace gaining 15 and the Brigantine losing 19.
+- **Visibility was the easy half and the size was the hard one.** The first cells had a
+  radius of 1150 against a view about 2500 x 1300 of world, which is not a squall you can
+  see coming — it is a grey wash over the whole screen. 560 is the shipped figure.
 
-**Watch for:** the AI reads the same wind, so squalls affect enemies too. That is correct
-and desirable, but it means a squall can scatter a swarm, which may be a feature or an
-exploit depending on how it tunes.
+**Watch for — resolved:** the AI reads the same wind, so squalls affect enemies too.
+Enemy captains were given the same reflex to shorten sail; without it the weather mowed
+the fleet down, since enemies never repair, and the squall read as a free weapon rather
+than a shared hazard.
 
-### Calms
+### Calms — next, and now nearly free
 
 The opposite: a region of near-zero wind. Terrifying in a swarm game — you cannot
 manoeuvre, and anything already moving closes on you.
 
-Cheap to implement alongside squalls, and it gives the furled-sails state a purpose it
-currently lacks.
+**The machinery is built.** A calm is a `Squall` with a negative `gain`: same cell, same
+drift, same spawning, same renderer with the shading inverted to glassy water. The work
+is a sign, a second set of tuning values, and deciding whether a calm should also be
+*spawned* upwind or simply sat in.
 
 ### Night and weather states
 

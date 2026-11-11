@@ -31,6 +31,17 @@ export interface ShipMods {
   thrust: number
   drag: number
   crewSpeed: number
+  /**
+   * How fast her canvas splits in heavy weather.
+   *
+   * This exists because `thrust` and `drag` turned out to be the *same stat*:
+   * steady speed solves `a.v^2 + b.v = thrust` where both a and b carry the
+   * drag scale, so speed depends only on `thrust / drag` and nothing else.
+   * Taller Masts at x1.1 and Careened Hull at /0.91 differed by 0.05% — two of
+   * fifteen draft cards were one card. Careened Hull was deleted and Taller
+   * Masts given a cost in a system a pure speed multiplier cannot reach.
+   */
+  blowout: number
 
   // Gunnery
   damage: number
@@ -57,7 +68,7 @@ export interface ShipMods {
 }
 
 export const STOCK_MODS: ShipMods = {
-  turnRate: 1, thrust: 1, drag: 1, crewSpeed: 1,
+  turnRate: 1, thrust: 1, drag: 1, crewSpeed: 1, blowout: 1,
   damage: 1, reload: 1, range: 1, spread: 1, extraGuns: 0,
   shotHull: 1, shotSails: 1, shotCrew: 1,
   pickupRadius: 1, hullRepair: 0, sailRepair: 0, crewRepair: 0,
@@ -93,6 +104,13 @@ export class Ship {
   rudder = 0
   /** Helm demanded by an AI captain, in [-1, 1]. Unused by the player ship. */
   aiSteer = 0
+
+  /**
+   * How hard her canvas is splitting right now, 0–1. Read by the HUD so the
+   * warning is on screen while it is happening rather than afterwards, when
+   * all the player would see is a rigging bar that had quietly dropped.
+   */
+  blowout = 0
 
   /** Visual roll, in radians. Presentation only — never fed back into physics. */
   heel = 0
@@ -207,11 +225,26 @@ export class Ship {
     // trickle: you have to make the sea room first, which is the same
     // positional problem the rest of the game poses. The cost is that you are
     // stopped, visible and barely able to answer while it happens.
-    this.mending = 1 + (T.heaveToRepair - 1) * this.hoveTo
+    // Under way she mends nothing. Not a trickle, nothing.
+    //
+    // A baseline repair rate meant attrition quietly reversed itself while the
+    // player did what they were going to do anyway, so the hull bar only ever
+    // moved when something big was already on top of them. Making the whole of
+    // sustain conditional on heaving to turns recovery into the one thing the
+    // rest of the game is also about: deciding where you can afford to be.
+    this.mending = T.heaveToRepair * this.hoveTo
     if (this.mods.hullRepair > 0) {
       this.hull = clamp(this.hull + this.mods.hullRepair * this.mending * dt, 0, 1)
     }
-    if (this.mods.sailRepair > 0) {
+    // Nobody bends on a new sail while the one aloft is blowing out of its
+    // bolt-ropes. Without this the two rates simply cancelled: blow-out took
+    // 0.0082/s in the thick of a squall against 0.0085/s of self-repair, so
+    // the loudest warning in the game had a net effect of zero.
+    //
+    // Reads last frame's `blowout`, which is computed further down once the
+    // local wind is known. One frame of lag, and worth it to keep the wind
+    // sampled in exactly one place.
+    if (this.mods.sailRepair > 0 && this.blowout <= 0.05) {
       this.sails = clamp(this.sails + this.mods.sailRepair * this.mending * dt, 0, 1)
     }
     // Wounded hands return to duty. Without this, crew damage was the one
@@ -246,6 +279,33 @@ export class Ship {
 
     // Carrying full canvas in heavy air costs you speed instead of gaining it.
     const overcanvas = 1 - T.overcanvasPenalty * this.canvas * smoothstep(1.1, 2.0, wind.strength)
+
+    // --- Canvas blowing out --------------------------------------------------
+    // The speed penalty above is not a cost: even paying it, a full suit in a
+    // squall still drives harder than battle sails in a steady breeze, so on
+    // its own it never once made anyone shorten sail. This is the cost.
+    //
+    // Keyed to canvas between battle sails and a full suit, so the threshold
+    // sits exactly where the existing three-position sail control already is:
+    // reefed down she will ride out anything, and the decision the weather
+    // asks for is one the player can already make with a key they know.
+    //
+    // Driven by how deep in the squall she is rather than by absolute wind
+    // strength. Keyed to strength it was unreliable in a way that read as a
+    // bug: the ambient wind wanders between 0.72 and 1.21, so the *same*
+    // squall produced anything from no damage at all to full force, and a
+    // typical core only ever reached 0.30 of the effect. Intensity also
+    // matches what is drawn — a cell fading out looks faint and now is.
+    this.blowout =
+      smoothstep(T.blowoutAt, 1, wind.squall) *
+      smoothstep(SAIL_STATES[1].canvas, 1, this.canvas)
+    if (this.blowout > 0 && T.blowoutRate > 0) {
+      // `blowout` stays a 0-1 reading of how hard it is blowing on her; the
+      // rig's own vulnerability is a multiplier on the damage, so the HUD and
+      // the AI thresholds keep meaning the same thing on every ship.
+      const rate = T.blowoutRate * this.mods.blowout
+      this.sails = clamp(this.sails - rate * this.blowout * dt, 0, 1)
+    }
 
     // --- Drive ---------------------------------------------------------------
     // The polar multiplier is squared because drag here is dominated by its
@@ -381,6 +441,7 @@ export class Ship {
     this.sailOrder = 1
     this.canvas = SAIL_STATES[1].canvas
     this.hull = this.sails = this.crew = 1
+    this.blowout = 0
     this.sunk = false
     this.sinceSunk = 0
     this.struck = false

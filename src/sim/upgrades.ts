@@ -7,6 +7,27 @@ import type { ShipMods } from './ship'
  * `weight` biases how often a card is offered; `maxStacks` stops any single
  * line running away.
  */
+/**
+ * Card text is the number, then the consequence only where the number does
+ * not carry it on its own.
+ *
+ * It used to be prose — "Boys at the powder: reload 13% faster", "Straight at
+ * the waterline" — which reads as padding on a card the player is choosing
+ * between three others under fire. Two of them had also quietly gone *wrong*:
+ * the repair cards still promised mending "under way" long after a ship stopped
+ * mending under way at all. Flavour does not get checked against the code the
+ * way a number does.
+ *
+ * Rates that only apply hove to are quoted hove to, because that is the only
+ * rate the player can ever actually be paid. Shot cards quote the *landed*
+ * split rather than the multiplier in `apply`: the three biases are
+ * renormalised at damage time, so chain's `x2.1` into rigging arrives as +82%.
+ *
+ * Every number here was checked against `describeStats` rather than against
+ * the `apply` beside it, which caught three that were wrong on the first pass
+ * — Taller Masts among them, where +10% thrust is +5% speed because steady
+ * speed goes as the square root of drive.
+ */
 export interface Upgrade {
   id: string
   name: string
@@ -28,25 +49,19 @@ export const UPGRADES: Upgrade[] = [
   // --- Sailing ------------------------------------------------------------
   {
     id: 'rakish-lines', name: 'Rakish Lines', group: 'Sailing',
-    text: 'Answers the helm 12% faster.',
+    text: '+12% turn rate.',
     maxStacks: 5, weight: 1,
     apply: (m) => { m.turnRate *= 1.12 },
   },
   {
-    id: 'careened-hull', name: 'Careened Hull', group: 'Sailing',
-    text: 'Weed scraped off: 9% less drag, so more speed everywhere.',
-    maxStacks: 4, weight: 1,
-    apply: (m) => { m.drag *= 0.91 },
-  },
-  {
     id: 'taller-masts', name: 'Taller Masts', group: 'Sailing',
-    text: '10% more drive from every point of sail.',
+    text: '+5% top speed. +40% rigging lost in a squall.',
     maxStacks: 4, weight: 1,
-    apply: (m) => { m.thrust *= 1.1 },
+    apply: (m) => { m.thrust *= 1.1; m.blowout *= 1.4 },
   },
   {
     id: 'veteran-topmen', name: 'Veteran Topmen', group: 'Sailing',
-    text: 'Hands who know their work. Sails change 18% faster, and the wounded return to duty sooner.',
+    text: '+18% sail handling. +4.8%/s crew repair, hove to.',
     maxStacks: 3, weight: 0.9,
     // Deliberately no reload bonus: that is Powder Monkeys' job, and two cards
     // quietly doing the same thing made both harder to read.
@@ -56,31 +71,31 @@ export const UPGRADES: Upgrade[] = [
   // --- Gunnery -------------------------------------------------------------
   {
     id: 'heavier-shot', name: 'Heavier Shot', group: 'Gunnery',
-    text: '16% more damage from every ball.',
+    text: '+16% damage.',
     maxStacks: 5, weight: 1.1,
     apply: (m) => { m.damage *= 1.16 },
   },
   {
     id: 'powder-monkeys', name: 'Powder Monkeys', group: 'Gunnery',
-    text: 'Boys at the powder: reload 13% faster.',
+    text: '-13% reload time.',
     maxStacks: 5, weight: 1.1,
     apply: (m) => { m.reload *= 0.87 },
   },
   {
     id: 'long-nines', name: 'Long Nines', group: 'Gunnery',
-    text: 'Reach 16% further, and open fire before they can answer.',
+    text: '+16% range.',
     maxStacks: 4, weight: 1,
     apply: (m) => { m.range *= 1.16 },
   },
   {
     id: 'extra-gunport', name: 'Another Gunport', group: 'Gunnery',
-    text: 'One more gun in every broadside.',
+    text: '+1 gun a side.',
     maxStacks: 6, weight: 0.85,
     apply: (m) => { m.extraGuns += 1 },
   },
   {
     id: 'trained-gunners', name: 'Trained Gunners', group: 'Gunnery',
-    text: 'A tighter pattern: 18% less scatter at range.',
+    text: '-18% scatter.',
     maxStacks: 3, weight: 0.9,
     apply: (m) => { m.spread *= 0.82 },
   },
@@ -93,19 +108,19 @@ export const UPGRADES: Upgrade[] = [
   // loadout silently wasted draft picks.
   {
     id: 'chain-shot', exclusive: 'shot', name: 'Chain Shot', group: 'Shot',
-    text: 'Bar and chain, aimed high. Tears rigging and strands them — at the cost of hull damage.',
+    text: '+82% into rigging, -29% into hull. Catches runners.',
     maxStacks: 3, weight: 0.8,
     apply: (m) => { m.shotSails *= 2.1; m.shotHull *= 0.82 },
   },
   {
     id: 'grape-shot', exclusive: 'shot', name: 'Grape Shot', group: 'Shot',
-    text: 'Sweeps the deck. Guts their crew, blunting their gunnery and their helm.',
+    text: '+118% into crew, -23% into hull. -11% hits taken.',
     maxStacks: 3, weight: 0.8,
     apply: (m) => { m.shotCrew *= 2.4; m.shotHull *= 0.85 },
   },
   {
     id: 'round-shot', exclusive: 'shot', name: 'Double-Shotted', group: 'Shot',
-    text: 'Straight at the waterline. Everything into the hull — the fastest way to sink her.',
+    text: '+32% into hull, -53% into rigging and crew. Sinks fastest.',
     maxStacks: 3, weight: 0.8,
     // Has to be a harder shove than it was. Once chain and grape led to a
     // prize worth more than a wreck, merely sinking things a little faster was
@@ -117,19 +132,19 @@ export const UPGRADES: Upgrade[] = [
   // --- Quarterdeck ---------------------------------------------------------
   {
     id: 'ships-carpenter', name: "Ship's Carpenter", group: 'Quarterdeck',
-    text: 'Plugs shot holes under way. Slowly mends your hull.',
+    text: '+3.6%/s hull repair, hove to.',
     maxStacks: 3, weight: 0.95,
     apply: (m) => { m.hullRepair += 0.006 },
   },
   {
     id: 'sailmaker', name: 'Sailmaker', group: 'Quarterdeck',
-    text: 'Patches canvas as you sail. Slowly mends your rigging.',
+    text: '+7.2%/s rigging repair, hove to.',
     maxStacks: 3, weight: 0.95,
     apply: (m) => { m.sailRepair += 0.012 },
   },
   {
     id: 'loot-hooks', name: 'Grappling Hooks', group: 'Quarterdeck',
-    text: 'Sweeps up plunder from 55% further out.',
+    text: '+55% plunder reach.',
     maxStacks: 3, weight: 0.9,
     apply: (m) => { m.pickupRadius *= 1.55 },
   },

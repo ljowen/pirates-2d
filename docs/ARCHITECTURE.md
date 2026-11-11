@@ -63,6 +63,7 @@ about all four.
 | `world.ts` | Owns everything; the single `step(dt)` entry point |
 | `ship.ts` | Hull physics, condition, the `ShipMods` upgrade surface |
 | `wind.ts` | Persistent wandering wind, direction and strength |
+| `weather.ts` | Squalls: cells that make up to windward, cross, and blow out. Sampled through `wind.at` |
 | `polar.ts` | The speed-vs-angle curve, as an editable table |
 | `combat.ts` | Gun batteries, shot, hit resolution, damage split |
 | `ai.ts` | Enemy captains — same physics, same wind |
@@ -76,7 +77,7 @@ about all four.
 | `tuning.ts` | Every number that shapes feel, plus its UI schema |
 
 **`render/`** — `camera`, `water`, `shipView`, `wake`, `combatView`, `plunderView`,
-`terrainView`, `pickupText`, `hud`, `debug`. Pixi draws the world; a plain 2D canvas overlay draws every instrument,
+`terrainView`, `squallView`, `pickupText`, `hud`, `debug`. Pixi draws the world; a plain 2D canvas overlay draws every instrument,
 because text, arcs and plots are far easier in Canvas2D than in a scene graph.
 
 **`audio/`** — `audio.ts` is a procedural synthesiser; `director.ts` watches simulation

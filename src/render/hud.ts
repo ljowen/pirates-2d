@@ -34,6 +34,7 @@ export class Hud {
     this.drawReadouts(player, 24, 128)
     this.drawCondition(player, 24, 246)
     this.drawShoalWarning(player)
+    this.drawSquallWarning(world, player)
     this.drawBroadsides(player, world, 24, 336)
     this.drawUpgrades(world, 24, 412)
 
@@ -355,6 +356,45 @@ export class Hud {
     ctx.fillText(
       touching ? 'AGROUND — she is on the bottom' : 'SHOAL WATER — she will touch',
       ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 92,
+    )
+    ctx.restore()
+  }
+
+  /**
+   * Weather warnings.
+   *
+   * The squall itself is drawn on the water and is meant to be read there —
+   * this is the backstop, because the one thing that must never happen is a
+   * player discovering the mechanic by finding their rigging gone. Two
+   * different messages, because they want two different actions: one while
+   * there is still time to shorten sail, and one once the canvas is actually
+   * splitting.
+   */
+  private drawSquallWarning(world: World, ship: Ship) {
+    if (ship.sunk) return
+    const ctx = this.ctx
+    const splitting = ship.blowout > 0.02
+    const near = world.wind.weather.nearest(ship.pos.x, ship.pos.y)
+    // Roughly the time it takes to get the topsails in, converted to the
+    // ground a cell covers in that time.
+    const coming = !splitting && near !== null && near.power > 0.15 &&
+      near.distance > 0 && near.distance < T.squallSpeed * 7
+    if (!splitting && !coming) return
+
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * (splitting ? 0.014 : 0.005))
+    ctx.save()
+    ctx.font = 'bold 16px ui-monospace, monospace'
+    ctx.textAlign = 'center'
+    ctx.fillStyle = splitting
+      ? `rgba(255,122,107,${0.6 + 0.4 * pulse})`
+      : `rgba(159,196,216,${0.45 + 0.35 * pulse})`
+    // Name the bearing rather than saying "to windward": a cell is only
+    // upwind at the moment it makes up, and by the time it matters it has
+    // travelled. Telling the player where to look is the entire job here.
+    const where = coming && near ? ` ${compassName(near.bearing)}` : ''
+    ctx.fillText(
+      splitting ? 'CANVAS SPLITTING — take in the topsails' : `SQUALL BEARING${where}`,
+      ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 116,
     )
     ctx.restore()
   }

@@ -4,25 +4,27 @@ import type { WindSample } from './wind'
 import type { Vec2 } from '../core/math'
 
 /**
- * What a wreck leaves floating. Two kinds, because they answer two different
- * questions:
+ * What a wreck leaves floating.
  *
- * - **Coin** is progress. It fills the experience bar and buys the next draft.
- * - **Timber** is survival. Spare baulks and planking the carpenter can work
- *   into a shot hole, so it mends the hull.
+ * Coin, and only coin: it fills the experience bar and buys the next draft.
  *
- * Keeping them apart is the whole point. A single pickup that did both made
- * every wreck worth the same beat to windward; two make it a question — level
- * up, or stay afloat — and the wind decides what each answer costs, because
- * both drift downwind from where she went down.
+ * Wrecks used to shed **timber** as well, which mended the hull — a second
+ * kind of flotsam so that every wreck asked "level up, or stay afloat?". It
+ * worked, and it was removed anyway, because between timber and a baseline
+ * repair rate the hull quietly healed faster than the sea could hurt it: whole
+ * runs went by without the player ever feeling in danger until a Galleon
+ * arrived. Sustain now comes from one place only — heaving to — so the
+ * question is no longer which flotsam to chase but whether you can afford to
+ * stop at all. The kind is kept as a type so the seam for a second flotsam
+ * remains obvious.
  */
-export type FlotsamKind = 'coin' | 'timber'
+export type FlotsamKind = 'coin'
 
 export interface Plunder {
   pos: Vec2
   vel: Vec2
   kind: FlotsamKind
-  /** Coin: plunder value. Timber: fraction of the hull it mends. */
+  /** Plunder value. */
   value: number
   /** Seconds before it sinks out of reach. */
   life: number
@@ -31,7 +33,7 @@ export interface Plunder {
   drawn: boolean
 }
 
-/** One wreck's worth of flotsam: her plunder in coin, her timbers alongside. */
+/** One wreck's worth of flotsam. */
 export function dropPlunder(list: Plunder[], at: Vec2, value: number, rand: () => number) {
   const scatter = (kind: FlotsamKind, pieces: number, each: number) => {
     for (let i = 0; i < pieces; i++) {
@@ -53,15 +55,6 @@ export function dropPlunder(list: Plunder[], at: Vec2, value: number, rand: () =
   // rather than a single tap.
   const coins = Math.max(1, Math.min(5, Math.round(value / 2)))
   scatter('coin', coins, value / coins)
-
-  // Timber scales with the hull that went down, so a Brigantine is worth
-  // chasing when you are hurt and a Pinnace barely covers a scratch.
-  const hull = value * T.wreckTimber
-  if (hull <= 0) return
-  // Sized so a baulk is always a visible bite out of the damage, never a
-  // crumb: pieces are added rather than shrunk as the prize gets richer.
-  const baulks = Math.max(1, Math.min(3, Math.round(hull / 0.07)))
-  scatter('timber', baulks, hull / baulks)
 }
 
 /** One piece coming aboard, so the renderer can say so over the ship. */
@@ -71,17 +64,16 @@ export interface Pickup {
   value: number
 }
 
-/** Returns the coin taken aboard this step, and the hull the timber mends. */
+/** Returns the coin taken aboard this step. */
 export function stepPlunder(
   list: Plunder[],
   player: Ship,
   windAt: (p: Vec2) => WindSample,
   dt: number,
-): { remaining: Plunder[]; collected: number; mended: number; taken: Pickup[] } {
+): { remaining: Plunder[]; collected: number; taken: Pickup[] } {
   const remaining: Plunder[] = []
   const taken: Pickup[] = []
   let collected = 0
-  let mended = 0
 
   const magnet = T.plunderMagnetRadius * player.mods.pickupRadius
   const grab = T.plunderPickupRadius * player.mods.pickupRadius
@@ -95,8 +87,7 @@ export function stepPlunder(
     const dist = Math.hypot(dx, dy)
 
     if (dist <= grab && !player.sunk) {
-      if (p.kind === 'timber') mended += p.value
-      else collected += p.value
+      collected += p.value
       taken.push({ pos: { ...p.pos }, kind: p.kind, value: p.value })
       continue
     }
@@ -125,5 +116,5 @@ export function stepPlunder(
     remaining.push(p)
   }
 
-  return { remaining, collected, mended, taken }
+  return { remaining, collected, taken }
 }

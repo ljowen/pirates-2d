@@ -24,10 +24,8 @@ const MERGE_WINDOW = 0.35
  *
  * Plunder is swept up by a magnet from nearly two hundred units out, which
  * means it is routinely collected off-screen-ish and behind the ship, with no
- * feedback beyond a bar somewhere else moving slightly. Two different things
- * are being picked up now — coin and timber — and which one you just got is
- * the whole question when you are hurt, so it has to be said at the moment it
- * happens and at the place it happens.
+ * feedback beyond a bar somewhere else moving slightly. Saying it at the
+ * moment it happens, and at the place it happens, is the whole job.
  *
  * Drawn in world space on the instrument canvas rather than as a Pixi object:
  * it is text, and text is far easier in Canvas2D, which is the same reason
@@ -85,19 +83,14 @@ export class PickupText {
       // Hold full opacity for the first half, then fade.
       const alpha = t < 0.5 ? 1 : 1 - (t - 0.5) * 2
 
-      const coin = f.kind === 'coin'
-      const text = coin
-        ? `+${f.value < 10 ? f.value.toFixed(1) : f.value.toFixed(0)}`
-        : `+${Math.round(f.value * 100)}% hull`
+      const text = `+${f.value < 10 ? f.value.toFixed(1) : f.value.toFixed(0)}`
 
       // A dark edge, because these land on open water, on pale shoals and on
       // green islands, and nothing readable survives all three unaided.
       ctx.lineWidth = 3
       ctx.strokeStyle = `rgba(4,14,24,${0.65 * alpha})`
       ctx.strokeText(text, screen.x, screen.y)
-      ctx.fillStyle = coin
-        ? `rgba(240,193,75,${alpha})`
-        : `rgba(127,224,160,${alpha})`
+      ctx.fillStyle = `rgba(240,193,75,${alpha})`
       ctx.fillText(text, screen.x, screen.y)
     }
     ctx.restore()

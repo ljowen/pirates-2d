@@ -82,33 +82,25 @@ doctrines. See [COMBAT.md](COMBAT.md#three-pools-three-ways-to-take-a-ship).
 
 ### Two kinds of flotsam
 
-A wreck leaves **coin** and **timber**, and they answer different questions.
+A wreck leaves **coin**, and only coin: it fills the experience bar toward the next draft.
 
-| | Is | Does |
-|---|---|---|
-| **Coin** — a bright gold disc | Progress | Fills the experience bar toward the next draft |
-| **Timber** — a pale baulk of planking | Survival | Mends the hull, spilling into rigging and then crew once she is sound |
+It used to leave **timber** as well — pale baulks of planking that mended the hull,
+spilling into rigging and then crew once she was sound. The design was sound on its own
+terms: self-limiting (timber did nothing for a ship that was already whole), legible by
+silhouette rather than colour, and measurably the thing that removed the run's dependency
+on drafting a repair card.
 
-Timber scales with the hull that went down — `value × wreckTimber`, so a Brigantine is
-worth chasing when you are hurt and a Pinnace barely covers a scratch — and is split so
-that a baulk is always about 7% of the hull rather than a crumb.
+**It was removed anyway, and the reason is worth keeping.** Between timber and a baseline
+under-way repair rate, the hull healed faster than the sea could hurt it. Played rather
+than measured, whole runs went by without the player ever feeling in danger until a
+Frigate or a Galleon arrived — the bars moved, the median looked healthy, and nothing was
+ever at stake. A sustain system that works on paper and removes all tension in the hand is
+not working.
 
-Keeping them apart is the whole point. One pickup that did both made every wreck worth
-the same beat to windward; two make it a question — level up, or stay afloat — and since
-both drift downwind from where she sank, the wind decides what each answer costs.
-
-They are told apart by **silhouette before colour**: a coin is a small bright disc, a
-baulk is long, pale and lying at its own angle across the swell. A player glancing at the
-water while being shot at has to know which prize is which without reading anything, and
-shape survives distance and a busy sea where a hue does not.
-
-**It is self-limiting, which is the property that makes it work.** Timber does nothing
-for a sound ship, so a run that is going well gets no benefit from it and a run that is
-sinking gets all of it. That is why the rate barely moves the median: between
-`wreckTimber` 0.008 and 0.015 the scripted pilot lands within 4 seconds of itself, while
-the share of the run spent under 40% hull falls from 9.8% to about 4%. It helps precisely
-where it should and nowhere else. The shipped value, 0.015, was chosen on how large a
-baulk reads on the water rather than on the median.
+So sustain collapsed to exactly one route: **[heaving
+to](SAILING.md#furled-is-not-just-stopped--it-is-the-only-way-to-mend)**. Under way a ship
+now mends nothing at all. The question a wreck asks is no longer "level up or stay afloat"
+but the much harder one the rest of the game already asks — *can you afford to stop?*
 
 ### Levels
 
@@ -133,24 +125,34 @@ cards and 449s without. **Any flat repair rate racing a flat damage rate is eith
 mandatory or dead**, because the gap between them is narrower than one card's
 contribution.
 
-So sustain moved out of the draft and into play, by two routes:
-
-- **Timber from wrecks** (above) — recovery you earn by sinking things.
-- **[Heaving to](SAILING.md#furled-is-not-just-stopped--it-is-how-you-mend)** — recovery
-  you earn by making sea room, paid for in tempo and gunnery.
+So sustain moved out of the draft and into play. It first moved by two routes — timber
+from wrecks, and heaving to — which measured well:
 
 | | Median | Refusing every repair card | Dependency |
 |---|---|---|---|
 | Before | 391s | 324s | **−67s** |
 | Timber only | 439s | 438s | −1s |
 | Heaving to only | 415s | 313s | −102s |
-| **Both** | **437s** | **433s** | **−4s** |
+| Both | 437s | 433s | −4s |
 
-Timber is what removes the dependency. Heaving to does not, because **the harness cannot
-play it** — the pilot spends barely 2% of a run hove to even with the behaviour wired in,
-since engineering the sea room is exactly the judgement it does not have. Its value has
-to be judged by hand, and the arithmetic is the honest part: 118 seconds to mend under
-way against 20 hove to.
+**Timber was what removed the dependency, and that turned out to be the problem.** It
+removed the dependency by removing the danger. Heaving to never removed it, because **the
+harness cannot play it** — the pilot spends 3–7% of a run hove to even with the behaviour
+wired in and tuned, since engineering the sea room is exactly the judgement it does not
+have.
+
+Timber and baseline repair are both gone now, and heaving to carries all of sustain
+alone. The cost of that is measured and large:
+
+| | All four hulls, 32 seeds each |
+|---|---|
+| With timber and baseline repair | 26% win, 440s median |
+| Heaving to only | **5% win, 310s median** |
+
+Read that as a floor rather than a verdict, and a lower floor than usual: the one mechanic
+the harness is worst at is now the only one holding the player up. `heaveToRepair` is the
+single dial — raising it 6 → 10 roughly doubles the scripted win rate to 12% — but the
+real calibration has to be done by hand.
 
 The repair cards survive the change with a different job. Ship's Carpenter no longer
 decides whether you recover; it decides **how long you are stopped while you do** — 20
@@ -175,7 +177,7 @@ opening loadout is a one-line edit if one is ever wanted again.
 
 ## The draft
 
-Fifteen upgrades across four groups. **Four cards offered** (`draftCards`), drawn weighted
+Fourteen upgrades across four groups. **Four cards offered** (`draftCards`), drawn weighted
 and without replacement, excluding anything already at max stacks.
 
 Four rather than three deliberately: with the ceiling far above the median, the difference
@@ -187,9 +189,26 @@ spread problem rather than a wall problem.
 | Card | Effect | Max |
 |---|---|---|
 | Rakish Lines | +12% turn rate | 5 |
-| Careened Hull | −9% drag | 4 |
-| Taller Masts | +10% drive | 4 |
+| Taller Masts | +10% drive (+5% top speed), +40% rigging lost in a squall | 4 |
 | Veteran Topmen | +18% sail handling, +0.008 crew recovery/s | 3 |
+
+### Careened Hull was deleted because it was Taller Masts
+
+For most of this project they were `thrust × 1.1` and `drag × 0.91`, described as
+different things and doing one thing. Steady speed is the positive root of
+`a·v² + b·v = thrust`, and **both** `a` and `b` carry the drag scale — so dividing
+through, speed depends only on `thrust / drag` and nothing else. ×1.1 and ÷0.91 are the
+same number. Measured on a stock Sloop they differed by **0.05% at one stack and 0.24% at
+four**, and moved exactly one stat row between them.
+
+Careened Hull was cut rather than re-themed, and Taller Masts kept with a cost in a
+system a speed multiplier cannot reach: a taller rig has far more to lose in a squall
+(`blowout × 1.4` a stack, which at four stacks is +284% rigging torn out per second).
+**Two pure multipliers on the same quantity cannot be told apart no matter what the
+flavour text says** — a second card needs a second effect, not a second description.
+
+The curve does not move (5% win, 310s median, before and after): the scripted pilot
+shortens sail in every squall, so it never pays the new cost.
 
 **Gunnery**
 | Card | Effect | Max |

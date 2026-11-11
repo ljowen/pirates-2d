@@ -92,25 +92,37 @@ guns matters more than speed.
 
 Full sail in heavy air costs you speed rather than gaining it (`overcanvasPenalty`).
 
-### Furled is not just "stopped" — it is how you mend
+### Furled is not just "stopped" — it is the *only* way to mend
 
-Take the canvas off her and the hands come off the yards and go to the pumps. Repair
-runs up to **six times faster** (`heaveToRepair`) and the guns are served at 60% of
-their usual rate (`heaveToGunnery`) while it happens.
+Take the canvas off her and the hands come off the yards and go to the pumps. **Under way
+she mends nothing at all**: `mending` is `heaveToRepair × hoveTo`, which is zero at battle
+sails and six at furled, and the guns are served at 60% of their usual rate while it
+happens.
 
-That turns recovery into the same kind of decision as everything else here: you have to
-make the sea room first. The cost is honest — you are stopped, visible, slow to answer
-the helm and slow to answer a broadside — so heaving to inside somebody's gun range is
-simply dying more comfortably.
+It did not start that way. There was a baseline repair rate under way, and wrecks shed
+timber that mended the hull on top of it. Both worked, and both were removed, because
+together they healed faster than the sea could hurt: **whole runs went by without the
+player ever feeling in danger until a Galleon arrived.** Attrition that quietly reverses
+itself while you do what you were going to do anyway is not attrition.
+
+So recovery is now the same kind of decision as everything else here, and it is the only
+one of its kind: you have to make the sea room first, and then spend the time. The cost is
+honest — you are stopped, visible, slow to answer the helm and slow to answer a broadside
+— so heaving to inside somebody's gun range is simply dying more comfortably.
 
 The multiplier scales with `hoveTo`, which is driven by the canvas actually set rather
 than the order given. The crew's time on the yards is therefore part of the price, in
 both directions: she does not begin mending the instant you give the order, and she does
 not get under way the instant you want to run.
 
-A Sloop mends her hull from nothing in 118 seconds under way and 20 hove to. With three
-stacks of Ship's Carpenter that falls to 6, which is the card's real job now — not
-whether you recover, but **how long you are a sitting target while you do**.
+A Sloop mends her hull from nothing in **20 seconds hove to, and never under way**. With
+three stacks of Ship's Carpenter that falls to 6 — the card's job is not whether you
+recover but **how long you are a sitting target while you do**.
+
+**This is the hardest thing in the game to measure**, and it now carries all of sustain.
+See [TUNING.md](TUNING.md) — the scripted pilot heaves to for 3–7% of a run and a human
+does it far better, so every win-rate figure taken after this change is a floor well below
+what the mechanic is actually worth.
 
 ## Steering
 
@@ -183,7 +195,169 @@ way off your own ship, which is the classic sailing problem and now a real decis
 *there* — hulls, plunder, the compass rose, the ambient audio — rather than reading a
 global value.
 
-Labels run from "Light airs" to "Gale" based on local strength.
+Labels run from "Light airs" to "Hard gale" based on local strength.
+
+### Squalls
+
+A squall is a cell of hard wind that makes up to windward, crosses, and blows itself out
+— `sim/weather.ts`. Inside one the wind runs to about **2.4x ambient** and bends by up to
+20 degrees, which is enough to take a close-hauled ship aback.
+
+The architecture made this nearly free. `Wind.at(x, y)` was already positional and already
+the single place anything asks what the air is doing, so a squall is one more term in that
+sample: no consumer changed, and the AI, the cat's paws, the compass rose and the audio all
+picked the weather up without being told about it.
+
+**Cells are generated upwind of the player, not scattered at random.** The sea is
+unbounded, so a cell placed anywhere would almost never be met. More importantly a squall
+has to arrive from somewhere you can watch it come from — the decision it asks for is only
+a decision if the warning arrives in time to act on it.
+
+#### Canvas splits — the cost that makes it a decision
+
+`overcanvasPenalty` has existed since the first wind model and had **never once made
+anyone shorten sail**, because it is only a speed penalty: on her best point of sail a
+Sloop does 160 under battle sails in a steady breeze, and *even paying the penalty* she
+does 274 under a full suit in a squall. Carrying on was strictly faster, so there was no
+question to answer.
+
+So carrying too much canvas in heavy air now splits it. The threshold is keyed to canvas
+between battle sails and a full suit, which puts the decision exactly on the three-position
+sail control the player already has:
+
+| Under | In a squall |
+|---|---|
+| **Furled** | Safe. Also stopped. |
+| **Battle sails** | Safe, and about as fast as a full suit in ordinary air |
+| **Full sails** | ~20% faster again, and the rigging goes |
+
+It took three goes to make that cost real, and all three failures are worth keeping.
+
+**First: rigging mended itself as fast as it split.** A ship repairs her own rigging at
+`playerSailRepair` = 0.0085/s. Blow-out in the thick of a squall took 0.0082/s. The two
+cancelled to within 4% — the loudest warning in the game had a net effect of **zero**.
+Hands are not bending on a new sail while the one aloft is blowing out of its bolt-ropes,
+so self-repair now stops while `blowout` is non-trivial.
+
+**Second: the trigger was keyed to absolute wind, which made it unreliable.** The ambient
+wind wanders between 0.72 and 1.21, so the identical squall produced anything from full
+force to nothing at all, and a *typical* core only ever reached **0.30** of the effect.
+Blow-out is now driven by how deep in the cell you are — `WindSample.squall`, 0 outside and
+1 in the thick of one — so the thick of any squall always splits a full suit. It also makes
+the physics match the drawing, since cell intensity is what the shading is painted from: a
+cell that looks faded now *is* faded.
+
+**Third, and the real one: the rate was two orders of magnitude too small.** Even with both
+fixes above, a six-second crossing under a full suit cost 2.7% of a suit. `blowoutRate` is
+now 0.14/s and the tuner slider goes to 0.6 — the old range topped out at 0.06, which was
+not enough to feel the mechanic even with the dial at maximum.
+
+Measured in the running game, parked in the core of a cell:
+
+| Under | Effect |
+|---|---|
+| **Full sails** | 100% → 65% rigging in **3.5 seconds** |
+| **Battle sails** | `blowout` 0.00, rigging *recovering*, indefinitely |
+
+The curve barely notices — 28% before, **26%** after — because the scripted pilot always
+shortens sail, and so do the enemy captains. That is the right shape: this is a cost paid
+only by a captain who chooses to carry on.
+
+Enemy captains shorten sail by the same rule. Without that the weather would have mown the
+fleet down, since enemies never repair, and a squall would have read as a free weapon
+rather than as a hazard both sides have to sail through.
+
+#### What it measured
+
+32 seeds per hull, against the same seas with `squallInterval = 0`:
+
+| Hull | Win (none -> squalls) | Level | Plunder | Hands (`crewSpeed`) |
+|---|---|---|---|---|
+| Sloop | 44% -> **34%** | 8.53 -> 9.81 | 45.0 -> 59.6 | 1.15 |
+| Pinnace | 19% -> **34%** | 8.69 -> 9.50 | 47.5 -> 55.4 | 1.20 |
+| Brigantine | 38% -> **19%** | 8.25 -> 7.25 | 42.9 -> 34.3 | 0.92 |
+| Fluyt | 28% -> **25%** | 8.03 -> 7.19 | 38.9 -> 33.4 | 0.90 |
+| **All** | **32% -> 28%** | | | |
+
+The overall curve barely moves. **What moves is the spread between hulls, and it narrows
+from 25 points to 15** — the Pinnace stops being the weak hull and the Brigantine stops
+being a safe one.
+
+#### Which half does which — and the explanation that was wrong
+
+The obvious reading is that heavy hulls suffer because shortening sail takes time and how
+much time is `cls.crewSpeed`, so a Brigantine is still getting her topsails in when the
+squall is already on her. **That reading is wrong**, and running the weather with
+`blowoutRate = 0` is what showed it:
+
+| Hull | No weather | Squalls, no blow-out | Squalls as shipped | Wind | Canvas |
+|---|---|---|---|---|---|
+| Sloop | 44% | 41% | 34% | −3 | **−7** |
+| Pinnace | 19% | 19% | 34% | 0 | **+15** |
+| Brigantine | 38% | 22% | 19% | **−16** | −3 |
+| Fluyt | 28% | 19% | 25% | **−9** | +6 |
+
+The two halves do almost opposite jobs:
+
+- **The wind itself is what punishes the heavy hulls.** The Brigantine loses 16 of her 19
+  points before a single sail splits — see below for what actually causes that, because
+  the obvious answer is wrong again.
+- **Canvas splitting mostly helps the small hulls**, because it is not a cost paid only by
+  the player. Enemy captains shorten sail by the same rule and **never repair**, so a
+  squall leaves the fleet slower and worse-rigged — which is worth more to a Pinnace,
+  whose entire plan is not being caught, than the rigging she loses herself.
+
+So the cost deliberately designed *for the player* lands hardest on the fleet, and the
+hazard that was not designed at all — more wind than a heavy ship can use — is what
+actually re-ranks the hulls.
+
+**Read the per-hull column with care.** Thirty-two seeds puts roughly 8 points of standard
+error on a win rate, so only the Brigantine's −16 and the Pinnace's +15 are clearly
+signal; the −3s and +6s are not worth defending.
+
+#### What the weather actually punishes: the helm
+
+The intuitive reading is that a slow hull gets *taken aback* by the wind shift. **She does
+not.** The Brigantine's time in irons falls slightly under weather, 14.7% to 14.1%, and
+her polar multiplier is flat at 0.669 against 0.671. She is not being stalled.
+
+Giving her a faster helm and changing nothing else settles it:
+
+| Her `turnRate` | No weather | Squalls | Weather is worth |
+|---|---|---|---|
+| **0.68** (stock) | 38% | 19% | **−19 points**, −1.00 levels, −20% plunder |
+| 1.00 | 31% | 50% | **+19 points**, +0.31 levels, +5% plunder |
+| 1.50 | 22% | 44% | **+22 points**, +0.40 levels, +9% plunder |
+
+**The sign flips.** The same weather that costs the stock Brigantine 19 points of win rate
+*gains* her 19 once she can turn like a Sloop. Nothing else about her changed — same
+timbers, same broadside, same draught.
+
+So a squall is a disturbance to your *position*, not to your speed: the wind shifts under
+you by up to 20 degrees and everything on the board starts moving half again as fast.
+Recovering a firing position after that is precisely what a slow helm cannot do. The
+cross-hull numbers agree — the win-rate loss to the veer alone runs Pinnace (`turnRate`
+1.5) 0, Sloop (1.0) −13, Fluyt (0.84) −9, Brigantine (0.68) −25. The Brigantine suffers
+most because she has the slowest helm in the game *and* the deepest draught, so she cannot
+duck into the shoals to buy the time back either.
+
+Worth noting for its own sake: a handier Brigantine **wins less in calm weather** (38% at
+0.68 against 22% at 1.5) while earning far more (8.25 levels and 42.9 plunder against
+11.38 and 73.8). Turning well means engaging more, which means earning more and dying more
+— the same engagement-throttle effect that makes sail state impossible to read cleanly in
+[TUNING.md](TUNING.md).
+
+#### How much weather there actually is
+
+About **eight to nine squalls a run**, with the player inside one for **5–6% of the time**
+and losing **4–7% of a suit of rigging** to blow-out over a whole run. That is far less
+exposure than the numbers above might suggest, which is the point: a cell crossing the
+view is a frequent sight, being caught in the middle of one is not, and the direct damage
+is small next to what the wind does to where you can go.
+
+(An earlier build at `squallRadius: 1150` put the player in a squall 19% of the time and
+cost 18–20% of a suit. It also cost 10–13 points of win rate on every hull, with none of
+the re-ranking — more weather simply made the game harder.)
 
 ## Presentation
 

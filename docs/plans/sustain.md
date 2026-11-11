@@ -1,20 +1,29 @@
 # Plan: health and healing
 
-**Status: resolved. Options 1 and 3 shipped** — timber salvaged from wrecks, and heaving
-to to mend. Raised after the free starting Carpenter was removed and runs became hard to
-survive unless one was drafted — which was the symptom, not the problem.
+**Status: resolved, then reopened, then resolved the other way.**
 
-**Outcome, 32 seeds:** the run's dependency on drafting a repair card fell from −67s to
-−4s, median survival rose 391 → 437s, average level 9.8 → 11.9, and the share of a run
-spent under 40% hull fell from 9.8% to 3.3%. Timber did the work; heaving to is
-unmeasurable by the harness and has to be judged by hand. See
+Options 1 and 3 shipped first — timber salvaged from wrecks, and heaving to to mend — and
+measured well: the run's dependency on drafting a repair card fell from −67s to −4s,
+median survival rose 391 → 437s, and the share of a run spent under 40% hull fell from
+9.8% to 3.3%.
+
+**Played rather than measured, it was too much.** Between timber and the baseline
+under-way repair rate the hull healed faster than the sea could hurt it, and whole runs
+went by without the player ever feeling under threat until a Frigate or Galleon arrived.
+Every number said the economy was healthy; the experience was that nothing was at stake.
+
+So both were removed. **Heaving to is now the only way to mend anything** — under way a
+ship repairs nothing at all. See
 [PROGRESSION.md](../PROGRESSION.md#sustain-is-earned-not-drafted) for the shipped design
-and [SAILING.md](../SAILING.md#furled-is-not-just-stopped--it-is-how-you-mend) for the
-heaving-to rules.
+and [SAILING.md](../SAILING.md#furled-is-not-just-stopped--it-is-the-only-way-to-mend)
+for the rules.
 
-Options 2, 4 and 5 below were **not** taken and are kept because they are still live
-ideas — option 2 especially, which is a combat question wearing a sustain question's
-clothes.
+**The lesson is the one that keeps coming back in this project from the other direction:**
+the harness measures what it can play, and it plays heaving to badly. Timber scored well
+partly *because* it needed no judgement — it was sustain the bot could collect. A mechanic
+that measures better may simply be one the proxy can use, not one the game is better for.
+
+Options 2, 4 and 5 below were never taken and are kept as live ideas.
 
 ## The diagnosis
 

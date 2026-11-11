@@ -7,7 +7,7 @@ exist — most of this is new numbers and new cards rather than new machinery.
 
 ## Why this is next after balance
 
-The draft currently offers fifteen cards. By the back half of a run the pool is thin and
+The draft currently offers fourteen cards. By the back half of a run the pool is thin and
 choices stop being interesting. Gunnery is the natural place to grow because:
 
 - The `ShipMods` surface already carries `damage`, `reload`, `range`, `spread`,

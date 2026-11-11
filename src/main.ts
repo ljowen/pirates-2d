@@ -9,6 +9,7 @@ import { ShipView } from './render/shipView'
 import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
+import { SquallView } from './render/squallView'
 import { DraftUI } from './ui/draft'
 import { ShipSelect } from './ui/shipSelect'
 import { Hud } from './render/hud'
@@ -51,9 +52,14 @@ async function main() {
   const combat = new CombatView()
   const plunderView = new PlunderView()
   const terrainView = new TerrainView()
-  // Land sits on the water; wake above it so a ship's trail is never buried,
-  // then plunder, hulls, and finally shot and smoke over everything.
-  worldLayer.addChild(terrainView.view, wake.view, plunderView.view, shipLayer, combat.view)
+  const squallView = new SquallView()
+  // Land sits on the water; the shadow of a squall falls across both. Wake
+  // above that so a ship's trail is never buried, then plunder, hulls, shot
+  // and smoke — and the rain last of all, thin enough to see through.
+  worldLayer.addChild(
+    terrainView.view, squallView.shadow, wake.view, plunderView.view,
+    shipLayer, combat.view, squallView.rain,
+  )
   app.stage.addChild(water.view, worldLayer)
 
   // One view per ship, created on sight and dropped once she has gone under.
@@ -115,6 +121,7 @@ async function main() {
       combat.clear()
       plunderView.clear()
       terrainView.clear()
+      squallView.clear()
       pickupText.clear()
       audioDirector.reset()
       camera.snapTo(world.player.pos)
@@ -155,6 +162,11 @@ async function main() {
       if (input.consumePress('sailUp')) world.player.trimSails(1)
       if (input.consumePress('sailDown')) world.player.trimSails(-1)
       if (input.consumePress('spawnEnemy')) world.spawnWave(1)
+      // Weather on demand. A squall arrives every forty-odd seconds on its
+      // own, which is far too slow to judge how one looks or handles.
+      if (input.consumePress('spawnSquall')) {
+        world.wind.weather.spawn(world.wind.from, world.player.pos)
+      }
       if (input.consumePress('mute')) audio.muted = !audio.muted
       // Decline the safe harbour: the clock stops being a finish line.
       if (input.consumePress('continue')) world.run.continueEndless()
@@ -201,6 +213,7 @@ async function main() {
       water.update(camera, cameraWind, frameDt)
       water.updateGusts(camera, (p) => world.windAt(p), frameDt)
       terrainView.update(world.terrain, camera)
+      squallView.update(world.wind.weather, camera, frameDt)
       wake.update(world.ships, dt)
       syncShipViews(dt, alpha)
       combat.update(world.ships, world.projectiles, world.splashes, cameraWind, dt)

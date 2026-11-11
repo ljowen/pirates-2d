@@ -198,14 +198,36 @@ keeps running and whatever you were trying to inspect flies away. Use `loop.stop
 headless work, or press `P` to freeze a scene for a screenshot.
 
 **Give the measurement bot every capability the *player* has — this keeps recurring.**
-Three times now a mechanic has measured as weak because the pilot could not use it: land
+Four times now a mechanic has measured as weak because the pilot could not use it: land
 avoidance (terrain looked like it halved the win rate), heaving to (unmeasurable, since
-the bot never engineers sea room), and chasing a trader. The last is the clearest case —
-the pilot engaged whatever was nearest, so two Fluyts a run sailed off untouched under
-every build, and chain shot's entire purpose went unmeasured. Teaching it to give chase
-moved chain from behind grape to ahead of it **without changing a single balance number**.
-Before concluding that a mechanic is weak, check that the proxy can actually perform the
-play the mechanic exists to enable.
+the bot never engineers sea room), chasing a trader, and reading a squall. The trader is
+the clearest case — the pilot engaged whatever was nearest, so two Fluyts a run sailed off
+untouched under every build, and chain shot's entire purpose went unmeasured. Teaching it
+to give chase moved chain from behind grape to ahead of it **without changing a single
+balance number**. Before concluding that a mechanic is weak, check that the proxy can
+actually perform the play the mechanic exists to enable.
+
+*The squall case added a wrinkle:* the pilot first shortened sail by reacting to the wind
+it was already in. But canvas takes seconds to come down, so it was splitting its rigging
+during the transition — measuring the price of reacting late, which is not the skill the
+mechanic asks for. A player watches the cell cross the water and shortens sail while it is
+still a mile off. The pilot had to be given the same sight (`Weather.nearest`) before the
+number meant anything.
+
+**Build the ablation into the thing being measured, not around it.** The first attempt at
+pricing weather skill ran three captains by overriding `sailOrder` from outside the pilot
+after calling it. That also clobbered the sail changes the pilot makes for *fighting* —
+so the "careless" captain was not a careless captain, it was one that fought every action
+under a full suit, and the comparison measured engagement rate rather than seamanship. The
+fix was a `WeatherSense` parameter on `autoPilot` itself. If an ablation reaches in and
+overwrites state the subject also writes, it is measuring a different subject.
+
+**Some levers are two levers.** Even done properly, win rate could not cleanly price
+reading the sky, because sail state is *also* the throttle on how much combat the pilot
+takes: shortening sail keeps her near the enemy, so the careful captain fought more, earned
+more (plunder 45.8 against 37.9) and died more. When a control has a second job, pick an
+outcome measure that only the first job touches — here, rigging lost — and say plainly
+that the headline number is confounded.
 
 **Give the measurement bot every capability the AI has.** Adding land avoidance to the
 enemy captains but not to the test pilot made terrain look like it halved the win rate
@@ -225,6 +247,48 @@ was run twice and matched.
 the same code, two batches apart, purely on seed draw. Thirty-two is the floor for any
 number that gets written down, and a difference under ~20s should not be reported as a
 difference at all.
+
+**Check that a new cost is not cancelled by an existing regeneration.** Canvas blow-out
+took 0.0082/s from the rigging in the thick of a squall. Rigging self-repair gave back
+0.0085/s, unconditionally. The mechanic shipped, warned loudly on screen, measured as
+roughly nothing, and *was* roughly nothing — net zero to within 4%. Two rates that meet on
+the same pool need to be read against each other before either is tuned; the benchmark
+could not see the problem because the scripted pilot avoided the state entirely.
+
+*Corollary:* when a mechanic exists to punish a choice, measure the captain who **makes**
+that choice. Overall win rate was identical with the bug and without it, because the pilot
+always shortens sail. Only the careless-captain ablation showed the fix doing anything
+(4% of a suit per run before, 10% after) — and showed that beforehand, ignoring the warning
+had cost *less* than heeding it.
+
+**Measure the encounter, not the run — and not a rig you built to be convenient.** The
+blow-out figure quoted for a week came from a ship parked in a 4000-radius cell held at
+full power. Real cells are 560 across and sweep past in a few seconds, so the honest number
+was 2.7% of a suit where the parked test implied 8%+. Per-run averages hid it further by
+dividing a small effect across 400 seconds. **A player reported it as "basically no damage"
+and was right.** If a mechanic fires in short bursts, the unit of measurement is one burst.
+
+**A tuning slider's range is a design statement.** `blowoutRate` shipped with a maximum of
+0.06 when the value it needed was 0.14. Someone trying to answer "should this hurt more?"
+could not turn it up far enough to find out, and reasonably concluded the mechanic was
+broken rather than under-tuned. If a range cannot express "obviously too much", it cannot
+be used to find "about right".
+
+**Two upgrades can be the same upgrade, and arithmetic is the only way to notice.**
+Taller Masts (`thrust × 1.1`) and Careened Hull (`drag × 0.91`) read as different cards,
+were described as different cards, and were the same card: steady speed depends only on
+`thrust / drag`, so they differed by 0.05%. Nothing in play would ever have shown it —
+both just made the ship faster. What exposed it was deriving the draft preview from the
+same arithmetic as the physics (`sim/stats.ts`): the two cards lit up the *same single
+row* by the *same amount*. Cards are worth diffing against each other, not just reading.
+
+**Check card text against `describeStats`, not against the `apply` beside it.** Rewriting
+the draft text to lead with numbers, three of the figures were wrong on the first pass
+even though each was copied straight off its own `apply`. Taller Masts' `thrust × 1.1` is
+**+5%** top speed, not +10%, because steady speed goes as the square root of drive; and
+the shot types' biases are renormalised at damage time, so chain's `× 2.1` into rigging
+lands as **+82%**. The multiplier in the code and the number the player experiences are
+different quantities more often than not.
 
 **A feel change can be a balance change.** Staggering the guns was asked for as a
 presentation tweak and cut the win rate nearly in half, because it quietly made every

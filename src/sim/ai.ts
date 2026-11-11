@@ -39,6 +39,11 @@ export class CaptainAI {
     // A runner never shortens sail — her whole plan is speed.
     const station = this.station(self)
     self.sailOrder = self.cls.behaviour === 'trader' || dist > station * 1.25 ? 2 : 1
+    // ...but no captain carries a full suit into a squall. Without this the
+    // weather would simply mow the fleet down, since enemies never repair:
+    // every chase would end in a shredded rig and the squall would read as a
+    // free weapon rather than as a hazard both sides have to sail through.
+    if (self.blowout > 0.1 && self.sailOrder > 1) self.sailOrder = 1
   }
 
   /**

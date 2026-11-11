@@ -18,7 +18,7 @@ import type { Upgrade } from '../sim/upgrades'
 const DRAFT_PRIORITY: Record<string, number> = {
   'heavier-shot': 10, 'powder-monkeys': 10, 'extra-gunport': 9,
   'ships-carpenter': 8, 'sailmaker': 7, 'trained-gunners': 6, 'long-nines': 6,
-  'rakish-lines': 5, 'round-shot': 5, 'careened-hull': 4, 'taller-masts': 4,
+  'rakish-lines': 5, 'round-shot': 5, 'taller-masts': 4,
   'veteran-topmen': 4, 'chain-shot': 3, 'grape-shot': 3, 'loot-hooks': 2,
 }
 
@@ -35,7 +35,15 @@ export function pickCard(hand: Upgrade[]): Upgrade {
  * badly hurt, sweep up nearby plunder, otherwise hold the nearest enemy abeam
  * so the broadside bears. Never steers inside the no-go zone.
  */
-export function autoPilot(world: World) {
+/**
+ * How the pilot handles weather. Exposed so an ablation can ask what reading
+ * the sky is actually worth, without reaching in and overriding `sailOrder`
+ * from outside — which also clobbers the sail decisions she makes for
+ * fighting, and silently measures a different captain than the one intended.
+ */
+export type WeatherSense = 'reads' | 'reacts' | 'never'
+
+export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
   const p = world.player
   if (p.sunk) return
 
@@ -71,6 +79,12 @@ export function autoPilot(world: World) {
 
   const wind = world.windAt(p.pos)
 
+  // Already stopped? Then hold on longer and accept a closer enemy, so the
+  // decision has somewhere to settle. See the heave-to branch below.
+  const mending = p.sailOrder === 0
+  const wantsToMend = T.heaveToRepair > 0 && p.hull < (mending ? 0.92 : 0.7)
+  const roomToMend = nearest > (mending ? 430 : 620)
+
   let want: number
   if (p.hull < 0.38 && target && drawsLessThan(p, target)) {
     // Hurt, and drawing less water than the ship chasing us: make for the
@@ -79,16 +93,23 @@ export function autoPilot(world: World) {
     // as unplayable when it had simply never tried the thing it is for.
     want = towardShallows(world) ?? wind.to
     p.sailOrder = 2
-  } else if (p.hull < 0.6 && nearest > 640 && T.heaveToRepair > 1) {
-    // Hurt, with sea room: take the way off her and let the hands work. A
-    // pilot that cannot heave to would report the mechanic's absence as
-    // difficulty — the same trap land avoidance fell into. It is still a crude
-    // version of the skill: a human picks the moment far better than a
-    // fixed range threshold does.
+  } else if (wantsToMend && roomToMend) {
+    // Hurt, with sea room: take the way off her and let the hands work.
+    //
+    // Thresholds are hysteretic — she breaks off at 0.70 hull and 620 of sea
+    // room, but once stopped she will hold on until 0.92 and let an enemy come
+    // to 430. Without the gap she flapped between making and shortening sail
+    // every time a hull drifted across a single fixed range, and mended almost
+    // nothing. Heaving to is the *only* sustain in the game now, so a proxy
+    // that does it 3.6% of the time reports the economy as unsurvivable when
+    // it is merely demanding.
     want = wind.to
     p.sailOrder = 0
-  } else if (p.hull < 0.35 && target) {
-    // Badly hurt with nowhere shallow to go: run downwind instead.
+  } else if (p.hull < 0.55 && target && nearest < 900) {
+    // Hurt and crowded, so there is no room to stop: run downwind and make
+    // some. This is the half a player does without thinking and the pilot
+    // never did — it waited for sea room to appear instead of going and
+    // getting it, which with no passive repair means waiting to die.
     want = wind.to
     p.sailOrder = 2
   } else if (runner && runnerDist < 1300 && p.hull > 0.45) {
@@ -122,6 +143,22 @@ export function autoPilot(world: World) {
   } else {
     want = p.heading
     p.sailOrder = 2
+  }
+
+  // Take in the topsails before it comes on to blow.
+  //
+  // A player watches a squall march across the water and shortens sail while
+  // it is still a mile off; canvas takes several seconds to come down, so
+  // reacting to the wind you are already in means splitting the rig during
+  // the transition. Reading the cell is the whole skill the mechanic exists
+  // to ask for, so the pilot is given the same sight — the fourth time this
+  // exact lesson has come round, after land avoidance, heaving to and
+  // chasing a trader.
+  if (weatherSense !== 'never' && p.sailOrder > 1) {
+    const squall = world.wind.weather.nearest(p.pos.x, p.pos.y)
+    const closing = weatherSense === 'reads' && squall !== null &&
+      squall.power > 0.15 && squall.distance < T.squallSpeed * 6
+    if (closing || wind.squall > T.blowoutAt) p.sailOrder = 1
   }
 
   // Wind constraint first, then land — in that order. Clamping for the no-go
@@ -229,12 +266,17 @@ export interface RunResult {
   seconds: number
   level: number
   shipsSunk: number
+  /** Prizes taken whole rather than sunk. Worth more; costs you the closing. */
+  shipsTaken: number
+  plunder: number
   /** Share of the run spent with the keel on the bottom. Should be near zero. */
   agroundPercent: number
 }
 
 /** Play one run start to finish with no renderer attached. */
-export function simulateRun(world: World, seed: number, maxSeconds = 500): RunResult {
+export function simulateRun(
+  world: World, seed: number, maxSeconds = 500, weatherSense: WeatherSense = 'reads',
+): RunResult {
   world.reset(seed)
   world.player.sailOrder = 1
   const dt = 1 / 60
@@ -248,7 +290,7 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
     }
     if (world.run.state !== 'sailing') break
     world.drainSunk()
-    autoPilot(world)
+    autoPilot(world, weatherSense)
     world.step(dt)
     steps++
     if (world.player.aground) aground++
@@ -260,13 +302,19 @@ export function simulateRun(world: World, seed: number, maxSeconds = 500): RunRe
     seconds: Math.round(world.run.elapsed),
     level: world.run.level,
     shipsSunk: world.run.shipsSunk,
+    shipsTaken: world.run.shipsTaken,
+    plunder: +world.run.totalPlunder.toFixed(1),
     agroundPercent: +(100 * aground / Math.max(1, steps)).toFixed(2),
   }
 }
 
 /** Run a batch and summarise. The standard way to compare a tuning change. */
-export function benchmark(world: World, seeds = 16, maxSeconds = 500) {
-  const runs = Array.from({ length: seeds }, (_, i) => simulateRun(world, i + 1, maxSeconds))
+export function benchmark(
+  world: World, seeds = 16, maxSeconds = 500, weatherSense: WeatherSense = 'reads',
+) {
+  const runs = Array.from(
+    { length: seeds }, (_, i) => simulateRun(world, i + 1, maxSeconds, weatherSense),
+  )
   const times = runs.map((r) => r.seconds).sort((a, b) => a - b)
   const mean = (pick: (r: RunResult) => number) =>
     +(runs.reduce((sum, r) => sum + pick(r), 0) / runs.length).toFixed(2)
@@ -277,6 +325,8 @@ export function benchmark(world: World, seeds = 16, maxSeconds = 500) {
     range: `${times[0]}–${times[times.length - 1]}`,
     avgLevel: mean((r) => r.level),
     avgSunk: mean((r) => r.shipsSunk),
+    avgTaken: mean((r) => r.shipsTaken),
+    avgPlunder: mean((r) => r.plunder),
     avgAgroundPercent: mean((r) => r.agroundPercent),
     runs,
   }

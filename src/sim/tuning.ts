@@ -47,6 +47,16 @@ export interface TuningValues {
   windPatternDrift: number
   windShadowStrength: number
   windShadowLength: number
+  squallInterval: number
+  squallFirst: number
+  squallLife: number
+  squallRadius: number
+  squallSpawnRange: number
+  squallSpeed: number
+  squallGain: number
+  squallVeer: number
+  blowoutAt: number
+  blowoutRate: number
 
   // --- Gunnery ------------------------------------------------------------
   gunRange: number
@@ -85,7 +95,6 @@ export interface TuningValues {
   sinkShare: number
   prizeLinger: number
   prizeStop: number
-  wreckTimber: number
   heaveToRepair: number
   heaveToGunnery: number
   plunderLifetime: number
@@ -156,6 +165,23 @@ export const DEFAULT_TUNING: TuningValues = {
   windPatternDrift: 16,
   windShadowStrength: 0.7,
   windShadowLength: 2.4,
+  squallInterval: 46,
+  squallFirst: 40,
+  squallLife: 62,
+  // The view is about 2500 x 1300 of world at default zoom, so a cell much
+  // bigger than this stops being a thing on the water you can see coming and
+  // becomes a grey wash over the whole screen — which is the one thing the
+  // mechanic cannot afford.
+  squallRadius: 560,
+  squallSpawnRange: 2100,
+  squallSpeed: 115,
+  squallGain: 1.4,
+  squallVeer: 20,
+  // How deep into a squall canvas begins to split, as a fraction of the
+  // cell's intensity. The outer half of a cell is weather you can sail
+  // through; the thick of one is not.
+  blowoutAt: 0.35,
+  blowoutRate: 0.6,
 
   gunRange: 500,
   gunArcDegrees: 62,
@@ -196,7 +222,6 @@ export const DEFAULT_TUNING: TuningValues = {
   sinkShare: 0.75,
   prizeLinger: 2.2,
   prizeStop: 1.2,
-  wreckTimber: 0.015,
   heaveToRepair: 6,
   heaveToGunnery: 0.6,
   plunderLifetime: 26,
@@ -259,6 +284,16 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'windSwingDegrees', label: 'Wind swing (deg)', min: 0, max: 180, step: 1, group: 'Weather', help: 'How far the wind wanders from its mean heading.' },
   { key: 'windSwingRate', label: 'Wind swing rate', min: 0.001, max: 0.2, step: 0.001, group: 'Weather' },
   { key: 'overcanvasPenalty', label: 'Overcanvas penalty', min: 0, max: 1, step: 0.01, group: 'Weather', help: 'Speed lost for carrying full sail in heavy wind.' },
+  { key: 'squallInterval', label: 'Squall every (s)', min: 0, max: 240, step: 1, group: 'Weather', help: 'Average gap between squalls making up to windward. Zero removes weather cells entirely.' },
+  { key: 'squallFirst', label: 'First squall at (s)', min: 0, max: 240, step: 1, group: 'Weather', help: 'Grace at the start of a run, before any weather arrives.' },
+  { key: 'squallLife', label: 'Squall life (s)', min: 10, max: 180, step: 1, group: 'Weather' },
+  { key: 'squallRadius', label: 'Squall radius', min: 200, max: 3000, step: 50, group: 'Weather' },
+  { key: 'squallSpawnRange', label: 'Squall makes up at', min: 500, max: 5000, step: 100, group: 'Weather', help: 'How far upwind a squall forms. Must be far enough to see coming.' },
+  { key: 'squallSpeed', label: 'Squall speed', min: 0, max: 400, step: 5, group: 'Weather', help: 'How fast the cell travels downwind. Faster than a ship and you cannot outrun it.' },
+  { key: 'squallGain', label: 'Squall wind gain', min: 0, max: 3, step: 0.05, group: 'Weather', help: 'Extra wind strength in the thick of one, as a fraction of ambient.' },
+  { key: 'squallVeer', label: 'Squall veer (deg)', min: 0, max: 120, step: 1, group: 'Weather', help: 'How sharply the wind bends inside a squall. This is what takes you aback.' },
+  { key: 'blowoutAt', label: 'Canvas blows out past', min: 0, max: 1, step: 0.05, group: 'Weather', help: 'How deep into a squall canvas begins to split, as a fraction of the cell. Below battle sails you are safe anywhere in one.' },
+  { key: 'blowoutRate', label: 'Blow-out rate /s', min: 0, max: 1.5, step: 0.05, group: 'Weather', help: 'Rigging lost per second under full sail in a squall. Zero removes the one real cost of carrying on.' },
 
   { key: 'gunRange', label: 'Gun range', min: 120, max: 900, step: 10, group: 'Gunnery' },
   { key: 'gunArcDegrees', label: 'Broadside arc (±deg)', min: 10, max: 90, step: 1, group: 'Gunnery', help: 'How far off the beam the guns will bear. Small values demand precise positioning.' },
@@ -296,8 +331,7 @@ export const TUNING_SCHEMA: TuningParam[] = [
   { key: 'sinkShare', label: 'Wreck value', min: 0.2, max: 1, step: 0.05, group: 'The run', help: 'What a sunk ship is worth against her base value. Everything she carries goes to the bottom with her.' },
   { key: 'prizeLinger', label: 'Prize linger (s)', min: 0.5, max: 10, step: 0.5, group: 'The run', help: 'How long a struck ship lies there before a prize crew sails her away.' },
   { key: 'prizeStop', label: 'Prize stopping rate', min: 0.2, max: 8, step: 0.1, group: 'The run', help: 'How fast a ship that has struck takes her way off. Higher means she is dead in the water almost at once; low values leave her coasting, which reads as a ship still running.' },
-  { key: 'wreckTimber', label: 'Timber per wreck', min: 0, max: 0.06, step: 0.001, group: 'The run', help: 'Hull mended by the timber a wreck leaves, per point of her plunder. This is the sustain the player earns by fighting rather than drafts. Zero removes timber entirely.' },
-  { key: 'heaveToRepair', label: 'Heave-to repair', min: 1, max: 15, step: 0.5, group: 'The run', help: 'How much faster she mends with the canvas off her. 1 removes the whole mechanic; the cost is that you are stopped while it happens.' },
+  { key: 'heaveToRepair', label: 'Heave-to repair', min: 0, max: 15, step: 0.5, group: 'The run', help: 'Repair multiplier with the canvas fully off her. Under way she mends nothing at all, so this is the only sustain in the game: the cost is that you are stopped, visible and barely able to answer while it happens.' },
   { key: 'heaveToGunnery', label: 'Heave-to gunnery', min: 0.2, max: 1, step: 0.05, group: 'The run', help: 'How well the guns are served while the hands are at the pumps. 1 makes heaving to free.' },
   { key: 'plunderLifetime', label: 'Plunder lifetime (s)', min: 5, max: 90, step: 1, group: 'The run' },
   { key: 'plunderPickupRadius', label: 'Pickup radius', min: 15, max: 150, step: 1, group: 'The run' },

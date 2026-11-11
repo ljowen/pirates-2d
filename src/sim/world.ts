@@ -227,6 +227,9 @@ export class World {
       from: sample.from,
       to: sample.to,
       strength: sample.strength * (1 - T.windShadowStrength * shadow),
+      // An island takes the way off you; it does not stop the rain. The
+      // squall reading is a property of the weather, not of the local lee.
+      squall: sample.squall,
     }
   }
 
@@ -286,7 +289,9 @@ export class World {
   }
 
   step(dt: number) {
-    this.wind.step(dt)
+    // Weather makes up to windward of the player: see `Weather` for why it is
+    // generated around her rather than scattered over an unbounded sea.
+    this.wind.step(dt, this.player.pos)
 
     // --- Run clock and spawning --------------------------------------------
     const live = this.run.tick(dt, this.player)
@@ -363,19 +368,6 @@ export class World {
       const len = Math.hypot(dx, dy) || 1
       piece.pos.x += (dx / len) * (-probe.distance + 12)
       piece.pos.y += (dy / len) * (-probe.distance + 12)
-    }
-    // Timber goes straight into the hull; anything over what she needs is
-    // worked into her rigging and then her people, so a baulk fished aboard is
-    // never simply wasted.
-    if (swept.mended > 0 && !this.player.sunk) {
-      let left = swept.mended
-      for (const pool of ['hull', 'sails', 'crew'] as const) {
-        if (left <= 0) break
-        const room = 1 - this.player[pool]
-        const put = Math.min(room, left)
-        this.player[pool] += put
-        left -= put
-      }
     }
     this.run.collect(swept.collected)
 
