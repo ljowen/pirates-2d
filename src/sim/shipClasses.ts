@@ -25,6 +25,56 @@ export type Behaviour =
   /** Will not fight. Runs downwind and is worth a great deal if caught. */
   | 'trader'
 
+/**
+ * How a hull is laid out, for the renderer. Every field is a proportion of
+ * the standard hull, so 1 everywhere is the shape every ship used to share.
+ */
+export interface HullPlan {
+  /** Length and beam against the standard hull, on top of `scale`. */
+  length: number
+  beam: number
+  /**
+   * Where she reaches full breadth, as a share of the half-length forward of
+   * midships. High is a bluff, apple-cheeked bow; low is a long fine entry.
+   */
+  bow: number
+  /** Breadth of the transom against her greatest beam. A Fluyt's is tiny. */
+  stern: number
+  /** Raised decks: a poop aft, and a forecastle too on the tall ships. */
+  castle?: 'stern' | 'both'
+  /** Gunports a side drawn along the rail, and how many rows of them. */
+  ports?: number
+  decks?: number
+}
+
+/**
+ * One mast and what she sets on it.
+ *
+ *  - `square`: yards across the ship, one more per sail order up to `tiers`.
+ *  - `gaff`: a fore-and-aft sail on a boom that swings to leeward, with a
+ *    gaff topsail over it under full canvas.
+ *  - `lateen`: a long slanted yard crossing the mast — the old Mediterranean
+ *    rig, still carried on the mizzens of Galleons and Fluyts.
+ */
+export interface MastPlan {
+  /** Fore-and-aft position as a share of the half-length; + is forward. */
+  at: number
+  kind: 'square' | 'gaff' | 'lateen'
+  /** Square sails: yard half-width in beams. Fore-and-aft: boom in lengths. */
+  size: number
+  /** Square masts: the most yards she crosses. */
+  tiers?: number
+  /** Square masts: a gaff spanker set under the yards, as a Frigate's mizzen. */
+  spanker?: number
+}
+
+export interface ShipLook {
+  hull: HullPlan
+  masts: MastPlan[]
+  /** Headsails set from the bowsprit: 0, 1 or 2. */
+  jibs: number
+}
+
 export interface ShipClass {
   id: string
   name: string
@@ -90,9 +140,130 @@ export interface ShipClass {
   draught: number
 
   // --- Presentation --------------------------------------------------------
+  /**
+   * Rig and hull shape. Every ship used to be the same two-masted square
+   * rigger in different sizes and colours, which made a Pinnace and a
+   * Galleon the same silhouette at two zooms. Real rigs differ in kind, and
+   * reading one at a glance is how a captain knew what was coming.
+   */
+  look: ShipLook
   scale: number
   colors: { hull: number; deck: number; trim: number; canvas: number }
 }
+
+// --- Rigs ---------------------------------------------------------------------
+//
+// Taken from what these ships actually carried, because the real differences
+// are also the legible ones: a sloop is one mast and a boom, a brigantine is
+// square forward and fore-and-aft aft, a Galleon has lateen mizzens under a
+// castle. At the size a ship is drawn, that is the difference between knowing
+// what is coming and reading a label.
+
+/** A bare open boat: one lateen, nothing else. */
+const LOOK_PINNACE: ShipLook = {
+  hull: { length: 0.92, beam: 0.82, bow: 0.4, stern: 0.4 },
+  masts: [{ at: 0.2, kind: 'lateen', size: 0.62 }],
+  jibs: 0,
+}
+
+/** The player's Pinnace: the same boat, with a jib to point higher. */
+const LOOK_PINNACE_ARMED: ShipLook = {
+  hull: { length: 0.92, beam: 0.82, bow: 0.4, stern: 0.4 },
+  masts: [{ at: 0.22, kind: 'lateen', size: 0.62 }],
+  jibs: 1,
+}
+
+/** One tall mast, a long boom and a pair of headsails: the pirate's own. */
+const LOOK_SLOOP: ShipLook = {
+  hull: { length: 1, beam: 0.95, bow: 0.5, stern: 0.6 },
+  masts: [{ at: 0.18, kind: 'gaff', size: 0.78 }],
+  jibs: 2,
+}
+
+/** Square-rigged on the fore, a big fore-and-aft main aft. */
+const LOOK_BRIGANTINE: ShipLook = {
+  hull: { length: 1.05, beam: 1, bow: 0.55, stern: 0.7, ports: 4 },
+  masts: [
+    { at: 0.38, kind: 'square', size: 1.4, tiers: 3 },
+    { at: -0.2, kind: 'gaff', size: 0.62 },
+  ],
+  jibs: 1,
+}
+
+/** Two square masts: what every ship looked like before, now only the navy's brig. */
+const LOOK_BRIG: ShipLook = {
+  hull: { length: 0.95, beam: 0.9, bow: 0.45, stern: 0.65, ports: 4 },
+  masts: [
+    { at: 0.36, kind: 'square', size: 1.35, tiers: 3 },
+    { at: -0.3, kind: 'square', size: 1.2, tiers: 2, spanker: 0.42 },
+  ],
+  jibs: 1,
+}
+
+/** Three masts, square on two and fore-and-aft on the mizzen. A working ship. */
+const LOOK_BARQUE: ShipLook = {
+  hull: { length: 1.05, beam: 1.05, bow: 0.62, stern: 0.7 },
+  masts: [
+    { at: 0.46, kind: 'square', size: 1.3, tiers: 2 },
+    { at: 0.02, kind: 'square', size: 1.4, tiers: 2 },
+    { at: -0.5, kind: 'gaff', size: 0.42 },
+  ],
+  jibs: 1,
+}
+
+/**
+ * The Dutch carrier: a pear-shaped hull that tumbles home to a tiny stern,
+ * built to pay as little in tolls on deck breadth as possible. Square on two
+ * masts, a lateen on the mizzen.
+ */
+const LOOK_FLUYT: ShipLook = {
+  hull: { length: 1.02, beam: 1.22, bow: 0.72, stern: 0.32, castle: 'stern' },
+  masts: [
+    { at: 0.44, kind: 'square', size: 1.3, tiers: 2 },
+    { at: 0.0, kind: 'square', size: 1.4, tiers: 2 },
+    { at: -0.48, kind: 'lateen', size: 0.4 },
+  ],
+  jibs: 0,
+}
+
+/** Long, fine and fully square-rigged, with a spanker on the mizzen. */
+const LOOK_FRIGATE: ShipLook = {
+  hull: { length: 1.18, beam: 0.92, bow: 0.4, stern: 0.68, ports: 7 },
+  masts: [
+    { at: 0.46, kind: 'square', size: 1.3, tiers: 3 },
+    { at: 0.02, kind: 'square', size: 1.45, tiers: 3 },
+    { at: -0.48, kind: 'square', size: 1.05, tiers: 2, spanker: 0.38 },
+  ],
+  jibs: 2,
+}
+
+/**
+ * Castles fore and aft on a broad hull, square courses and topsails on the
+ * fore and main, and two lateen mizzens behind them. Nothing else afloat
+ * has that profile.
+ */
+const LOOK_GALLEON: ShipLook = {
+  hull: { length: 1.08, beam: 1.25, bow: 0.58, stern: 0.82, castle: 'both', ports: 6 },
+  masts: [
+    { at: 0.5, kind: 'square', size: 1.35, tiers: 2 },
+    { at: 0.06, kind: 'square', size: 1.55, tiers: 3 },
+    { at: -0.4, kind: 'lateen', size: 0.4 },
+    { at: -0.72, kind: 'lateen', size: 0.3 },
+  ],
+  jibs: 0,
+}
+
+/** A ship of the line: two rows of guns, three tall square masts, a poop. */
+const LOOK_MAN_OF_WAR: ShipLook = {
+  hull: { length: 1.2, beam: 1.15, bow: 0.5, stern: 0.78, castle: 'stern', ports: 8, decks: 2 },
+  masts: [
+    { at: 0.46, kind: 'square', size: 1.45, tiers: 3 },
+    { at: 0.02, kind: 'square', size: 1.6, tiers: 3 },
+    { at: -0.46, kind: 'square', size: 1.2, tiers: 3, spanker: 0.4 },
+  ],
+  jibs: 2,
+}
+
 
 /**
  * A nimble little scout with almost no teeth. Turns inside anything afloat but
@@ -104,6 +275,7 @@ export const PINNACE: ShipClass = {
   guns: 0.34, reload: 1.2, range: 0.72, damage: 0.8,
   hullStrength: 0.26,
   draught: 0.3,
+  look: LOOK_PINNACE,
   scale: 0.66,
   colors: { hull: 0x5c5a4a, deck: 0x8e8a72, trim: 0x2a2922, canvas: 0xe8e2d2 },
 }
@@ -115,6 +287,7 @@ export const BARQUE: ShipClass = {
   guns: 0.67, reload: 1.08, range: 0.88, damage: 0.9,
   hullStrength: 0.58,
   draught: 0.75,
+  look: LOOK_BARQUE,
   scale: 0.87,
   colors: { hull: 0x4e4436, deck: 0x8a7558, trim: 0x241f17, canvas: 0xe4dcc8 },
 }
@@ -130,6 +303,7 @@ export const BRIGANTINE: ShipClass = {
   guns: 1.0, reload: 1.0, range: 1.0, damage: 1.0,
   hullStrength: 1.0,
   draught: 1.0,
+  look: LOOK_BRIGANTINE,
   scale: 1.0,
   colors: { hull: 0x4a3a46, deck: 0x7d6470, trim: 0x241c22, canvas: 0xdcd2d8 },
 }
@@ -152,6 +326,7 @@ export const SLOOP: ShipClass = {
   guns: 1.0, reload: 1.0, range: 1.0, damage: 1.0,
   hullStrength: 1.0,
   draught: 0.55,
+  look: LOOK_SLOOP,
   scale: 1.0,
   colors: { hull: 0x6b4423, deck: 0xa8763f, trim: 0x33210f, canvas: 0xf2ead6 },
   // Her multipliers must stay at 1.0 — every other number in the game is
@@ -175,6 +350,7 @@ export const PLAYER_PINNACE: ShipClass = {
   guns: 0.78, reload: 0.84, range: 0.85, damage: 0.95,
   hullStrength: 0.78,
   draught: 0.22,
+  look: LOOK_PINNACE_ARMED,
   scale: 0.74,
   colors: { hull: 0x7a6a3f, deck: 0xbda95f, trim: 0x332c17, canvas: 0xf4efd8 },
   blurb: '+50% turn rate, +20% sail handling. -22% guns, -22% timbers. Draws 0.22: crosses bars that strand everything else.',
@@ -195,6 +371,7 @@ export const PLAYER_BRIGANTINE: ShipClass = {
   guns: 1.1, reload: 1.14, range: 1.05, damage: 1.05,
   hullStrength: 1.15,
   draught: 1.0,
+  look: LOOK_BRIGANTINE,
   scale: 1.15,
   colors: { hull: 0x58323c, deck: 0x90616a, trim: 0x29161b, canvas: 0xf0e4e4 },
   blurb: '+10% guns, +15% timbers, +5% damage. -32% turn rate, +14% reload. Draws 1.0: no shallows to run to.',
@@ -212,6 +389,7 @@ export const PLAYER_FLUYT: ShipClass = {
   guns: 0.62, reload: 1.12, range: 0.9, damage: 0.85,
   hullStrength: 1.3,
   draught: 0.8,
+  look: LOOK_FLUYT,
   scale: 1.05,
   colors: { hull: 0x6a5230, deck: 0xa88a52, trim: 0x2e2415, canvas: 0xf0e6cd },
   // Her hold is the point: plunder from much further out, so she out-levels
@@ -241,6 +419,7 @@ export const PLAYER_FRIGATE: ShipClass = {
   guns: 1.17, reload: 0.94, range: 1.16, damage: 1.05,
   hullStrength: 1.25,
   draught: 0.8,
+  look: LOOK_FRIGATE,
   scale: 1.08,
   colors: { hull: 0x2f4a5c, deck: 0x6f95ad, trim: 0x15232c, canvas: 0xf4f1e6 },
   blurb: '+17% guns, +16% range, +6% speed, +25% timbers. Chooses her own range.',
@@ -259,6 +438,7 @@ export const PLAYER_GALLEON: ShipClass = {
   guns: 1.67, reload: 1.16, range: 1.1, damage: 1.2,
   hullStrength: 1.95,
   draught: 1.0,
+  look: LOOK_GALLEON,
   scale: 1.3,
   colors: { hull: 0x6b2f2a, deck: 0xb0705a, trim: 0x2c1210, canvas: 0xf6edd6 },
   blurb: '+67% guns, +20% damage, +95% timbers. -36% turn rate. Draws 1.0. Nothing small can hurt her.',
@@ -277,6 +457,7 @@ export const PLAYER_MAN_OF_WAR: ShipClass = {
   guns: 2.0, reload: 1.08, range: 1.18, damage: 1.25,
   hullStrength: 2.5,
   draught: 1.0,
+  look: LOOK_MAN_OF_WAR,
   scale: 1.45,
   colors: { hull: 0x23232b, deck: 0x8c7a4a, trim: 0x0e0e12, canvas: 0xf2ecd8 },
   blurb: 'x2 guns, +25% damage, +18% range, x2.5 timbers. -40% turn rate. Draws 1.0. The hunter, hunting.',
@@ -311,6 +492,7 @@ export const FLUYT: ShipClass = {
   guns: 0.34, reload: 1.5, range: 0.7, damage: 0.7,
   hullStrength: 0.95,
   draught: 0.85,
+  look: LOOK_FLUYT,
   scale: 1.0,
   colors: { hull: 0x6a5230, deck: 0xa88a52, trim: 0x2e2415, canvas: 0xf0e6cd },
 }
@@ -330,6 +512,7 @@ export const ROYAL_SLOOP: ShipClass = {
   shotBias: { hull: 0.9, sails: 1, crew: 2.6 },
   hullStrength: 0.42,
   draught: 0.4,
+  look: LOOK_BRIG,
   scale: 0.8,
   colors: { hull: 0x3c4f63, deck: 0x6f8498, trim: 0x1b242e, canvas: 0xeef2f6 },
 }
@@ -351,6 +534,7 @@ export const FRIGATE: ShipClass = {
   shotBias: { hull: 0.85, sails: 2.4, crew: 1 },
   hullStrength: 0.8,
   draught: 0.8,
+  look: LOOK_FRIGATE,
   scale: 0.95,
   colors: { hull: 0x53333a, deck: 0x8a5f62, trim: 0x251418, canvas: 0xf4ece0 },
 }
@@ -366,6 +550,7 @@ export const GALLEON: ShipClass = {
   guns: 1.5, reload: 1.3, range: 1.1, damage: 1.25,
   hullStrength: 1.7,
   draught: 1.0,
+  look: LOOK_GALLEON,
   scale: 1.3,
   colors: { hull: 0x5a4330, deck: 0x9c7b4e, trim: 0x2b1f13, canvas: 0xf6edd6 },
 }
@@ -388,6 +573,7 @@ export const MAN_OF_WAR: ShipClass = {
   guns: 1.84, reload: 1.2, range: 1.0, damage: 1.3,
   hullStrength: 2.6,
   draught: 1.0,
+  look: LOOK_MAN_OF_WAR,
   scale: 1.5,
   colors: { hull: 0x23232b, deck: 0x8c7a4a, trim: 0x0e0e12, canvas: 0xf2ecd8 },
 }

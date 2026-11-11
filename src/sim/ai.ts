@@ -1,6 +1,6 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
-import { SAIL_FIGHTING, SAIL_FULL } from './ship'
+import { SAIL_FURLED, SAIL_FIGHTING, SAIL_FULL } from './ship'
 import type { WindSample } from './wind'
 import { angleDiff, clamp, wrapAngle, type Vec2 } from '../core/math'
 import { draughtDepth, landRadius, type Island, type Terrain } from './terrain'
@@ -19,6 +19,13 @@ export class CaptainAI {
   think(self: Ship, target: Ship, wind: WindSample, terrain: Terrain, dt: number) {
     this.sinceTack += dt
     if (self.sunk || self.struck) return
+    // Flying the white flag: she lets fly her sheets and waits to be boarded
+    // rather than sailing about under a flag of surrender.
+    if (self.yielding) {
+      self.sailOrder = SAIL_FURLED
+      self.aiSteer = 0
+      return
+    }
 
     const dx = target.pos.x - self.pos.x
     const dy = target.pos.y - self.pos.y

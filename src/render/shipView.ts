@@ -2,9 +2,8 @@ import { Container, Graphics } from 'pixi.js'
 import type { Ship } from '../sim/ship'
 import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
-import { T } from '../sim/tuning'
 import { P } from './palette'
-import { solveRig, LENGTH, BEAM } from './rig'
+import { solveRig, hullSize, mainMast, BEAM } from './rig'
 import { H } from './hullStyle'
 
 
@@ -25,8 +24,10 @@ export class ShipView {
 
   private readonly palette: ShipClass['colors']
   private readonly baseScale: number
+  private readonly look: ShipClass['look']
 
   constructor(cls: ShipClass) {
+    this.look = cls.look
     this.palette = P().shipTint(cls.colors)
     this.view.addChild(this.shadow, this.heelLayer)
     this.heelLayer.addChild(this.hull, this.sails, this.colours)
@@ -38,12 +39,14 @@ export class ShipView {
   }
 
   private drawShadow() {
-    this.shadow.ellipse(0, 0, LENGTH * 0.55, BEAM * 0.95).fill({ color: P().ship.shadow, alpha: 0.35 })
+    const { L, B } = hullSize(this.look.hull)
+    this.shadow.ellipse(0, 0, L * 1.1, B * 1.9).fill({ color: P().ship.shadow, alpha: 0.35 })
   }
 
   /** The shape is the class's; how it is drawn belongs to the hull style. */
   private drawHull() {
-    H().drawHull(this.hull, LENGTH / 2, BEAM / 2, this.palette)
+    const { L, B } = hullSize(this.look.hull)
+    H().drawHull(this.hull, L, B, this.palette, this.look.hull)
   }
 
   /**
@@ -59,7 +62,7 @@ export class ShipView {
     // Geometry from the shared solver; paint from the style. The build's
     // sprite sheet runs the same `solveRig` in Node, which is what stops the
     // sheet from being a picture of a second, drifting copy of the art.
-    const rig = solveRig(ship, performance.now())
+    const rig = solveRig(ship, performance.now(), this.look)
     for (const b of rig.bare) {
       s.moveTo(b.spar[0], b.spar[1]).lineTo(b.spar[2], b.spar[3])
         .stroke({ width: H().sparWidth, color: P().ship.spar })
@@ -118,10 +121,9 @@ export class ShipView {
     const c = this.colours
     c.clear()
     if (ship.sunk || ship.faction !== 'enemy') return
-    const beaten = ship.struck || ship.sails <= T.strikeSails || ship.crew <= T.strikeCrew
-    if (!beaten) return
+    if (!ship.yielding) return
 
-    const mx = LENGTH * 0.18
+    const mx = mainMast(this.look)
     const flutter = Math.sin(performance.now() * 0.006) * 1.6
     // Flagstaff at the main, and a plain white flag hanging off it.
     c.moveTo(mx, 0).lineTo(mx, -BEAM * 1.5).stroke({ width: 1.6, color: P().ship.spar })

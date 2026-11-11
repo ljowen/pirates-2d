@@ -80,7 +80,9 @@ Discrete states, Up/Down stepping between them rather than ramping a continuous
 throttle. The crew takes a couple of seconds to work the canvas.
 
 They are a **sail plan**, set from the deck upward the way a square rigger actually makes
-sail, and each order is one more yard crossed on the mast:
+sail, and each order is one more yard crossed on the mast (fore-and-aft rigs map the same
+orders onto a reefed main, the full main and jib, then the gaff topsail and flying jib —
+see *Every class has her own rig* below):
 
 | Order | Canvas | Yards a mast |
 |---|---|---|
@@ -92,7 +94,9 @@ sail, and each order is one more yard crossed on the mast:
 **The ship shows which.** The sprite carries one sail per yard, each higher one narrower
 and stepped a little toward the bow — from directly overhead a course and a topsail sit
 at the same plan position and would draw exactly on top of each other, so the stack is
-false perspective, the same trick the two masts already rely on. The HUD draws the mast
+false perspective. They are painted lowest first, so each smaller sail sits over the
+larger one below it, as it is seen from aloft — for a long time they were painted the
+other way round and the course hid everything above it. The HUD draws the mast
 itself: a filled yard is carrying canvas, an outlined one has been ordered and the hands
 are still getting it on her. Yards are derived from the canvas actually aloft rather than
 from the order, so sail appears one yard at a time as the crew works.
@@ -442,3 +446,29 @@ speed disappears. Two tiling layers at different scales, creeping downwind.
 
 Heel, wake and bow spray are all driven from speed and turn rate. None of them feed back
 into physics.
+
+## Every class has her own rig
+
+Every ship used to be the same two-masted square rigger at a different size and colour,
+which made a Pinnace and a Galleon one silhouette at two zooms. Each class now carries a
+`look` in `sim/shipClasses.ts` — a hull plan and a list of masts — taken from what such
+ships actually carried, because the real differences are also the legible ones:
+
+| Class | Rig | Hull |
+|---|---|---|
+| Pinnace | One lateen (the player's adds a jib) | Small, fine |
+| Sloop | One mast, gaff main and topsail, two jibs | Standard |
+| Brigantine | Square fore, gaff main | Long, a few gunports |
+| Royal Sloop | Brig: two square masts, spanker aft | Navy |
+| Barque | Square fore and main, gaff mizzen | Bluff bow |
+| Fluyt | Square fore and main, lateen mizzen | Pear-shaped: broad, bluff, pinched stern, poop |
+| Frigate | Three square masts, spanker, two jibs | Long and fine, a row of ports |
+| Galleon | Square fore and main, two lateen mizzens | Broad, castles fore and aft |
+| Man-o'-War | Three tall square masts, spanker, two jibs | Biggest, two rows of ports, poop |
+
+`solveRig` (`render/rig.ts`) solves every kind with the same terms — brace, belly, shiver
+and shrink — and hands each style the same `SailDraw`, so a jib, a gaff main and a course
+all go through one `drawSail`. A boom trims to leeward by how far off the wind she is,
+nearly fore and aft close-hauled and squared out when running, so a fore-and-aft rig
+reads its point of sail the way braced yards do. Yards brace no further than 45° — they
+were allowed 66°, and near the wind that folded a three-master's canvas into one stack.

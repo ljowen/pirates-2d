@@ -181,6 +181,15 @@ a scene that is otherwise entirely diegetic. A flag that appeared only after the
 would be a receipt; what the player needs is a ship saying *come and take me* while there
 is still a decision about whether to go. It goes when she does.
 
+**The flag is a ceasefire, both ways.** From the moment it goes up (`Ship.yielding`) she
+stops firing, lets fly her sheets and lies there; the player's gun captains stop laying
+on her; and shot already in the air when she gave up lands without doing harm. The flag
+was decoration for a while — she kept trading broadsides under it until boarded, and the
+player's own auto-fire kept knocking the prize to pieces on the approach — which made the
+one signal that a ship was beaten a lie on both counts. A yielding ship no longer counts
+against the enemy cap, and one left far enough astern is removed as escaped, since she can
+no longer be sunk.
+
 **Pickups say what they were.** A number pops where a piece comes aboard — gold for
 plunder, green for hull mended. The magnet sweeps flotsam in from nearly two hundred
 units, often from behind the ship, so without this the only feedback for collecting is a

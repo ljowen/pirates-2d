@@ -150,7 +150,7 @@ export class Hud {
         // Galleon from a Barque by weight of shot until one has sunk them;
         // the warning goes away by itself as the build outgrows the ship,
         // which is the whole progression of the game drawn on the water.
-        const run = outmatches(e, player)
+        const run = !e.yielding && outmatches(e, player)
         ctx.fillStyle = run ? '#ff5a4a' : TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)'
         if (run) ctx.font = 'bold 12px ui-monospace, monospace'
         ctx.fillText(run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56)
@@ -191,7 +191,7 @@ export class Hud {
         ctx.rotate(a)
         // A ship to run from gets a bigger, hotter arrow: knowing where she
         // is matters most exactly when she is not on screen yet.
-        const run = outmatches(e, player)
+        const run = !e.yielding && outmatches(e, player)
         if (run) ctx.scale(1.7, 1.7)
         ctx.fillStyle = run ? '#ff3b2f' : 'rgba(255,122,107,0.8)'
         ctx.beginPath()

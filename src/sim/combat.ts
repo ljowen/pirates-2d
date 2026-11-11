@@ -150,7 +150,7 @@ export function updateGunnery(
   pending: PendingShot[],
   rand: () => number,
 ): void {
-  if (ship.sunk || ship.struck) return
+  if (ship.sunk || ship.yielding) return
   const arc = (T.gunArcDegrees * Math.PI) / 180
 
   for (const battery of [0, 1] as const) {
@@ -163,7 +163,8 @@ export function updateGunnery(
     let bestDist = Infinity
     let bestDir = 0
     for (const target of enemies) {
-      if (target.sunk) continue
+      // Never lay a gun on a ship that has given up.
+      if (target.sunk || target.yielding) continue
       const { dir, dist } = firingSolution(ship, target)
       if (dist > T.gunRange * ship.cls.range * ship.mods.range || dist > bestDist) continue
       if (Math.abs(angleDiff(dir, bearing)) > arc) continue
@@ -262,8 +263,9 @@ export function releasePending(
   for (const shot of pending) {
     shot.delay -= dt
     if (shot.delay > 0) { waiting.push(shot); continue }
-    // A ship that sinks or strikes mid-volley does not get to finish it.
-    if (shot.ship.sunk || shot.ship.struck) continue
+    // A ship that sinks or strikes mid-volley does not get to finish it, and
+    // a gun captain whose target has hoisted the white flag holds his fire.
+    if (shot.ship.sunk || shot.ship.yielding || shot.target.yielding) continue
 
     const side = BATTERY_SIDE[shot.battery]
     const lx = -Math.sin(shot.ship.heading) * side
@@ -331,6 +333,14 @@ export function stepProjectiles(
       if (ship.faction === p.ownerFaction) continue
       const radius = HIT_RADIUS * ship.cls.scale
       if (Math.hypot(ship.pos.x - p.pos.x, ship.pos.y - p.pos.y) > radius) continue
+
+      // A ball already in the air when she gave up still lands on her, but
+      // does nothing: the prize is not knocked to pieces on the way in.
+      if (ship.yielding) {
+        events.splashes.push({ pos: { ...p.pos }, life: 0.3, maxLife: 0.3, hit: false })
+        struck = true
+        break
+      }
 
       const d = p.damage
       const wentDown = ship.applyDamage(

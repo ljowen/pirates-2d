@@ -1,5 +1,6 @@
 import type { Painter } from './painter'
 import type { ShipColors } from './palette'
+import type { HullPlan } from '../sim/shipClasses'
 
 /**
  * How a hull is drawn, as opposed to what colour it is.
@@ -45,8 +46,13 @@ export interface HullStyle {
   id: string
   name: string
   blurb: string
-  /** Draw the static hull, bow at +x, centred on the origin. */
-  drawHull: (g: Painter, L: number, B: number, c: ShipColors) => void
+  /**
+   * Draw the static hull, bow at +x, centred on the origin. `plan` is the
+   * class's shape — fine or bluff bow, broad or pinched stern, castles and
+   * gunports — and every style has to honour it, because the silhouette is
+   * how a ship is recognised before her colours are.
+   */
+  drawHull: (g: Painter, L: number, B: number, c: ShipColors, plan?: HullPlan) => void
   /** Draw one sail from solved geometry. */
   drawSail: (g: Painter, s: SailDraw, c: ShipColors, spar: number) => void
   /** Spar weight, so a heavier style does not get spindly rigging. */
@@ -82,11 +88,61 @@ function quantise(c: number, steps: number): number {
 
 // --- The hull outline every style starts from -------------------------------
 
-function hullPoints(L: number, B: number): number[] {
+/** The shape every ship used to share, and still the default. */
+const STANDARD: HullPlan = { length: 1, beam: 1, bow: 0.55, stern: 0.72 }
+
+function hullPoints(L: number, B: number, p: HullPlan = STANDARD): number[] {
+  const f = p.bow
+  const t = p.stern
   return [
-    L, 0, L * 0.55, -B * 0.85, -L * 0.55, -B,
-    -L, -B * 0.72, -L, B * 0.72, -L * 0.55, B, L * 0.55, B * 0.85,
+    L, 0, L * f, -B * 0.85, -L * 0.55, -B,
+    -L, -B * t, -L, B * t, -L * 0.55, B, L * f, B * 0.85,
   ]
+}
+
+/** One side of the hull, split down the keel — the half a fixed light leaves in shadow. */
+function starboardHalf(L: number, B: number, p: HullPlan = STANDARD): number[] {
+  return [L, 0, -L, 0, -L, B * p.stern, -L * 0.55, B, L * p.bow, B * 0.85]
+}
+function portHalf(L: number, B: number, p: HullPlan = STANDARD): number[] {
+  return [L, 0, L * p.bow, -B * 0.85, -L * 0.55, -B, -L, -B * p.stern, -L, 0]
+}
+
+/** The deck: the hull outline drawn in from the rail. */
+function deckPoints(L: number, B: number, p: HullPlan = STANDARD): number[] {
+  return hullPoints(L, B, p).map((v, i) => v * (i % 2 === 0 ? 0.78 : 0.6))
+}
+
+/**
+ * Castles and gunports, which every style draws the same way because they
+ * are the class's, not the style's: a raised poop is a block on the deck,
+ * and a gunport is a dark notch in the rail. From overhead neither is
+ * realistic and both are instantly read.
+ */
+function fittings(g: Painter, L: number, B: number, c: ShipColors, p: HullPlan, ink: number) {
+  if (p.castle) {
+    const aft = -L * 0.94
+    const fwd = -L * 0.5
+    const w = B * Math.max(0.5, p.stern * 0.75)
+    g.poly([fwd, -B * 0.66, aft, -w, aft, w, fwd, B * 0.66])
+      .fill({ color: shade(c.deck, -0.2) }).stroke({ width: 1.3, color: ink, alignment: 0.5 })
+    // A taffrail across the poop, so the step up reads as a step.
+    g.moveTo(fwd, -B * 0.66).lineTo(fwd, B * 0.66).stroke({ width: 1.6, color: ink })
+  }
+  if (p.castle === 'both') {
+    const fwd = L * (p.bow + 0.12)
+    const aft = L * 0.38
+    g.poly([aft, -B * 0.6, fwd, -B * 0.42, fwd, B * 0.42, aft, B * 0.6])
+      .fill({ color: shade(c.deck, -0.2) }).stroke({ width: 1.3, color: ink, alignment: 0.5 })
+  }
+  const ports = p.ports ?? 0
+  for (let row = 0; row < (ports ? p.decks ?? 1 : 0); row++) {
+    const y = B * (0.86 - row * 0.2)
+    for (let i = 0; i < ports; i++) {
+      const x = -L * 0.48 + (i + 0.5) * (L * 0.92) / ports
+      for (const side of [-1, 1]) g.rect(x - 1.3, side * y - 1.1, 2.6, 2.2).fill({ color: ink })
+    }
+  }
 }
 
 // --- Styles -----------------------------------------------------------------
@@ -100,14 +156,12 @@ const VECTOR: HullStyle = {
       .stroke({ width: 1, color: shade(c.canvas, -0.35) })
     g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3]).stroke({ width: spar, color: shade(c.trim, -0.1) })
   },
-  drawHull(g, L, B, c) {
-    g.poly(hullPoints(L, B)).fill({ color: c.hull }).stroke({ width: 1.5, color: c.trim, alignment: 0.5 })
-    g.poly([
-      L * 0.78, 0, L * 0.4, -B * 0.55, -L * 0.78, -B * 0.6,
-      -L * 0.78, B * 0.6, L * 0.4, B * 0.55,
-    ]).fill({ color: c.deck })
+  drawHull(g, L, B, c, plan = STANDARD) {
+    g.poly(hullPoints(L, B, plan)).fill({ color: c.hull }).stroke({ width: 1.5, color: c.trim, alignment: 0.5 })
+    g.poly(deckPoints(L, B, plan)).fill({ color: c.deck })
     g.moveTo(L * 0.5, -B * 0.82).lineTo(-L * 0.8, -B * 0.88).stroke({ width: 2, color: c.trim })
     g.moveTo(L * 0.5, B * 0.82).lineTo(-L * 0.8, B * 0.88).stroke({ width: 2, color: c.trim })
+    fittings(g, L, B, c, plan, c.trim)
     g.moveTo(L, 0).lineTo(L + 13, 0).stroke({ width: 2.5, color: c.trim })
   },
 }
@@ -130,7 +184,7 @@ const LOWPOLY: HullStyle = {
     g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3])
       .stroke({ width: spar, color: quantise(shade(c.trim, -0.1), Q) })
   },
-  drawHull(g, L, B, c) {
+  drawHull(g, L, B, c, plan = STANDARD) {
     const Q = 6
     const hull = quantise(c.hull, Q)
     const lit = quantise(shade(c.hull, 0.3), Q)
@@ -140,14 +194,16 @@ const LOWPOLY: HullStyle = {
 
     // Port side catches the light, starboard falls away — a fixed key light,
     // as an untextured model of the period would have had baked in.
-    g.poly([L, 0, L * 0.55, -B * 0.85, -L * 0.55, -B, -L, -B * 0.72, -L, 0]).fill({ color: lit })
-    g.poly([L, 0, -L, 0, -L, B * 0.72, -L * 0.55, B, L * 0.55, B * 0.85]).fill({ color: dark })
+    g.poly(portHalf(L, B, plan)).fill({ color: lit })
+    g.poly(starboardHalf(L, B, plan)).fill({ color: dark })
     // A keel facet down the centreline to break the two halves.
     g.poly([L, 0, L * 0.5, -B * 0.2, -L * 0.85, -B * 0.18, -L * 0.85, B * 0.18, L * 0.5, B * 0.2])
       .fill({ color: hull })
     // Deck as two facets rather than one, so it faceted-shades too.
-    g.poly([L * 0.72, 0, L * 0.38, -B * 0.5, -L * 0.74, -B * 0.55, -L * 0.74, 0]).fill({ color: deck })
-    g.poly([L * 0.72, 0, -L * 0.74, 0, -L * 0.74, B * 0.55, L * 0.38, B * 0.5]).fill({ color: deckDark })
+    const d = deckPoints(L, B, plan)
+    g.poly(d.slice(0, 8).concat([d[6], 0])).fill({ color: deck })
+    g.poly([d[0], 0, d[6], 0].concat(d.slice(8))).fill({ color: deckDark })
+    fittings(g, L, B, c, plan, quantise(shade(c.trim, -0.3), Q))
     // Bowsprit as a tapered facet, not a line.
     g.poly([L, -B * 0.1, L + 13, 0, L, B * 0.1]).fill({ color: quantise(c.trim, Q) })
   },
@@ -189,24 +245,21 @@ const CEL: HullStyle = {
     g.poly(s.points).stroke({ width: 1.5, color: ink, alignment: 0.5, alpha: fade })
     g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3]).stroke({ width: spar, color: ink })
   },
-  drawHull(g, L, B, c) {
+  drawHull(g, L, B, c, plan = STANDARD) {
     const ink = shade(c.trim, -0.45)
     // Lifted, because the outline and the shadow both darken the read at size.
-    g.poly(hullPoints(L, B)).fill({ color: shade(c.hull, 0.2) })
+    g.poly(hullPoints(L, B, plan)).fill({ color: shade(c.hull, 0.2) })
 
     // A single hard shadow terminator down the starboard side. No gradient:
     // the hard edge is the point. Shallow enough that it still reads as one
     // hull rather than as two tones stuck together.
-    g.poly([L, 0, -L, 0, -L, B * 0.72, -L * 0.55, B, L * 0.55, B * 0.85])
-      .fill({ color: shade(c.hull, -0.16) })
+    g.poly(starboardHalf(L, B, plan)).fill({ color: shade(c.hull, -0.16) })
 
-    g.poly([
-      L * 0.78, 0, L * 0.4, -B * 0.55, -L * 0.78, -B * 0.6,
-      -L * 0.78, B * 0.6, L * 0.4, B * 0.55,
-    ]).fill({ color: c.deck }).stroke({ width: 1.4, color: ink, alignment: 0.5 })
+    g.poly(deckPoints(L, B, plan)).fill({ color: c.deck }).stroke({ width: 1.4, color: ink, alignment: 0.5 })
+    fittings(g, L, B, c, plan, ink)
 
     // The outline goes on last so nothing paints over it.
-    g.poly(hullPoints(L, B)).stroke({ width: 2.2, color: ink, alignment: 0.5 })
+    g.poly(hullPoints(L, B, plan)).stroke({ width: 2.2, color: ink, alignment: 0.5 })
     g.moveTo(L, 0).lineTo(L + 13, 0).stroke({ width: 2.2, color: ink })
   },
 }
@@ -230,7 +283,7 @@ const PIXEL: HullStyle = {
     g.moveTo(s.spar[0], s.spar[1]).lineTo(s.spar[2], s.spar[3])
       .stroke({ width: spar, color: quantise(shade(c.trim, -0.1), Q) })
   },
-  drawHull(g, L, B, c) {
+  drawHull(g, L, B, c, plan = STANDARD) {
     // 2.2 against a 58 x 17 hull gives roughly 26 x 8 cells — coarse enough to
     // read as pixels, fine enough that the sheer still reads as a sheer. At
     // 3.6 the hull was six cells wide and became an orange brick.
@@ -244,7 +297,7 @@ const PIXEL: HullStyle = {
 
     // Walk the bounding box and keep the cells whose centre is inside the
     // hull outline, which is what a sprite artist's first pass amounts to.
-    const pts = hullPoints(L, B)
+    const pts = hullPoints(L, B, plan)
     for (let x = -L - CELL; x <= L + CELL * 4; x += CELL) {
       for (let y = -B - CELL; y <= B + CELL; y += CELL) {
         const cx = x + CELL / 2
@@ -263,6 +316,7 @@ const PIXEL: HullStyle = {
         g.rect(x, y, CELL, CELL).fill({ color: col })
       }
     }
+    fittings(g, L, B, c, plan, quantise(shade(c.trim, -0.3), Q))
   },
 }
 

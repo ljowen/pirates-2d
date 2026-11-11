@@ -66,7 +66,7 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
   for (const e of world.enemies) {
     const d = Math.hypot(e.pos.x - p.pos.x, e.pos.y - p.pos.y)
     if (d < nearest) { nearest = d; target = e }
-    if ((e.sails <= T.strikeSails || e.crew <= T.strikeCrew) && d < prizeDist) {
+    if (e.yielding && d < prizeDist) {
       prizeDist = d
       prize = e
     }

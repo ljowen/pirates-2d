@@ -158,7 +158,7 @@ export class World {
    */
   get threats() {
     return this.ships.filter(
-      (s) => s.faction === 'enemy' && !s.sunk && !s.struck &&
+      (s) => s.faction === 'enemy' && !s.sunk && !s.yielding &&
         s.cls.behaviour !== 'trader' && !s.isHunter,
     )
   }
@@ -166,7 +166,7 @@ export class World {
   /** The Man-o'-War still on the chase, if there is one. */
   get hunter(): Ship | null {
     for (const s of this.ships) {
-      if (s.isHunter && !s.sunk && !s.struck && !s.breakingOff) return s
+      if (s.isHunter && !s.sunk && !s.yielding && !s.breakingOff) return s
     }
     return null
   }
@@ -451,7 +451,11 @@ export class World {
     const escapeRange = T.spawnRadius * 1.6
     for (let i = this.ships.length - 1; i > 0; i--) {
       const ship = this.ships[i]
-      if (ship.sunk || (ship.cls.behaviour !== 'trader' && !ship.breakingOff)) continue
+      // A beaten ship left far astern is as good as escaped: she no longer
+      // fights and can no longer be sunk, so without this she would sit on
+      // the edge of the world forever.
+      if (ship.sunk || ship.struck ||
+          (ship.cls.behaviour !== 'trader' && !ship.breakingOff && !ship.yielding)) continue
       const away = Math.hypot(ship.pos.x - this.player.pos.x, ship.pos.y - this.player.pos.y)
       if (away < escapeRange) continue
       this.captains.delete(ship.id)
@@ -488,7 +492,8 @@ export class World {
    */
   private hunt(dt: number) {
     for (const ship of this.ships) {
-      if (!ship.isHunter || ship.sunk || ship.struck || ship.breakingOff) continue
+      // A beaten hunter is waiting to be boarded, not running down her clock.
+      if (!ship.isHunter || ship.sunk || ship.yielding || ship.breakingOff) continue
       ship.huntLeft -= dt * (ship.aground ? 2 : 1)
       if (ship.huntLeft > 0) continue
       ship.breakingOff = true
@@ -528,8 +533,7 @@ export class World {
 
     for (const ship of this.ships) {
       if (ship.faction !== 'enemy' || ship.sunk || ship.struck) continue
-      const beaten = ship.sails <= T.strikeSails || ship.crew <= T.strikeCrew
-      if (!beaten) continue
+      if (!ship.yielding) continue
       const range = Math.hypot(ship.pos.x - player.pos.x, ship.pos.y - player.pos.y)
       if (range > T.boardingRange * player.mods.boarding) continue
 

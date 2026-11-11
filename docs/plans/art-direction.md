@@ -104,8 +104,9 @@ free, suits a swarm, and keeps the period flavour.
 
 ## Silhouette language
 
-Ship class must be readable at a glance in a crowd. Currently handled by size and colour
-plus a name label — the label is a crutch that should eventually not be needed.
+Ship class must be readable at a glance in a crowd. Now handled by rig and hull shape as
+well as size and colour — see [SAILING.md](../SAILING.md#every-class-has-her-own-rig). The
+name label is still drawn; whether it can go is a playtest question.
 
 Suggested axes:
 - **Length and beam ratio** — a Pinnace is short and fine, a Brigantine long and full

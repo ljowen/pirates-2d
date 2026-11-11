@@ -143,6 +143,24 @@ export class Ship {
 
   get name() { return this.cls.name }
 
+  /**
+   * Out of the fight: an enemy that has struck, or is beaten badly enough to
+   * fly the white flag and is only waiting to be boarded.
+   *
+   * Both halves are the same promise to the player. Once the flag is up she
+   * stops shooting, your gun captains stop shooting at her, and shot that
+   * was already in the air when she gave up does her no more harm. That
+   * flag used to be decoration over a ship that was still trading
+   * broadsides, so the prize the player had worked for was either firing
+   * on them or being pounded to a wreck by their own auto-fire on the way
+   * in. Never the player's ship: her rigging can be shot away too, and she
+   * does not get to stop fighting because of it.
+   */
+  get yielding(): boolean {
+    return this.faction === 'enemy' &&
+      (this.struck || this.sails <= T.strikeSails || this.crew <= T.strikeCrew)
+  }
+
   pos: Vec2 = { x: 0, y: 0 }
   vel: Vec2 = { x: 0, y: 0 }
   heading = 0

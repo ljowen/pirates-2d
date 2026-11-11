@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { SvgPainter } from './svgPainter'
 import { SAIL_STATES } from '../src/sim/ship'
 import { ENEMY_CLASSES, PLAYER_CLASSES, type ShipClass } from '../src/sim/shipClasses'
-import { solveRig, LENGTH, BEAM, type RigState } from '../src/render/rig'
+import { solveRig, hullSize, type RigState } from '../src/render/rig'
 import { HULL_STYLES, setHullStyle } from '../src/render/hullStyle'
 import { PALETTES, setPalette } from '../src/render/palette'
 
@@ -35,8 +35,8 @@ const roster: { cls: ShipClass; side: 'PLAYABLE' | 'ENEMY' }[] = [
   ...ENEMY_CLASSES.map((cls) => ({ cls, side: 'ENEMY' as const })),
 ]
 
-const CELL_W = 150
-const CELL_H = 74
+const CELL_W = 190
+const CELL_H = 92
 const LEFT = 118
 const TOP = 52
 const ZOOM = 1.25
@@ -71,20 +71,24 @@ roster.forEach(({ cls, side }, r) => {
     const colors = pal.shipTint(cls.colors)
     const g = new SvgPainter()
 
-    g.ellipse(0, 0, LENGTH * 0.55, BEAM * 0.95).fill({ color: pal.ship.shadow, alpha: 0.35 })
-    hull.drawHull(g, LENGTH / 2, BEAM / 2, colors)
+    const { L, B } = hullSize(cls.look.hull)
+    g.ellipse(0, 0, L * 1.1, B * 1.9).fill({ color: pal.ship.shadow, alpha: 0.35 })
+    hull.drawHull(g, L, B, colors, cls.look.hull)
 
-    // A beam reach at full draw: the yards brace round to something, rather
-    // than sitting square and hiding the mechanic the rig exists to show.
+    // A broad reach at full draw: the yards brace round to something rather
+    // than sitting square, and the booms swing well out. On a beam reach a
+    // three-masted ship's yards are braced so hard round that every rig
+    // collapses into the same stack of slivers, which is the one view in
+    // which the rigs cannot be told apart.
     const state: RigState = {
       canvas: st.canvas,
       polarMult: 0.96,
-      awaSigned: Math.PI / 2,
+      awaSigned: Math.PI * 0.72,
       sails: 1,
       yardsSet: st.yards,
     }
     // A fixed instant, so the shiver term is reproducible.
-    const rig = solveRig(state, 0)
+    const rig = solveRig(state, 0, cls.look)
     for (const b of rig.bare) {
       g.moveTo(b.spar[0], b.spar[1]).lineTo(b.spar[2], b.spar[3])
         .stroke({ width: hull.sparWidth, color: pal.ship.spar })
