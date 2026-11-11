@@ -3,6 +3,7 @@ import type { Ship } from '../sim/ship'
 import type { Projectile, Splash } from '../sim/combat'
 import { batteryBearing } from '../sim/combat'
 import type { WindSample } from '../sim/wind'
+import { P } from './palette'
 
 interface Smoke { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }
 
@@ -98,7 +99,7 @@ export class CombatView {
     for (const s of this.smoke) {
       const t = s.life / s.maxLife
       const grow = 1 + (1 - t) * 2.4
-      g.circle(s.x, s.y, s.r * grow).fill({ color: 0xd8d8d0, alpha: t * 0.34 })
+      g.circle(s.x, s.y, s.r * grow).fill({ color: P().combat.splash, alpha: t * 0.34 })
     }
   }
 
@@ -116,10 +117,10 @@ export class CombatView {
       // Pale underlay first: a dark ball on open water disappears at a glance,
       // and seeing an incoming volley in time is the whole point.
       g.moveTo(hx, hy).lineTo(p.pos.x, p.pos.y)
-        .stroke({ width: 5.5, color: 0xffffff, alpha: 0.42 })
+        .stroke({ width: 5.5, color: P().combat.shotHalo, alpha: 0.42 })
       g.moveTo(hx, hy).lineTo(p.pos.x, p.pos.y)
-        .stroke({ width: 3, color: 0x120d08, alpha: 0.92 })
-      g.circle(p.pos.x, p.pos.y, 2.6).fill({ color: 0x120d08, alpha: 0.95 })
+        .stroke({ width: 3, color: P().combat.shotCore, alpha: 0.92 })
+      g.circle(p.pos.x, p.pos.y, 2.6).fill({ color: P().combat.shotCore, alpha: 0.95 })
     }
 
     for (const s of splashes) {
@@ -127,13 +128,13 @@ export class CombatView {
       if (s.hit) {
         // Strike: a brief hot flash and splinters.
         g.circle(s.pos.x, s.pos.y, 6 + (1 - t) * 16)
-          .fill({ color: 0xffb347, alpha: t * 0.75 })
+          .fill({ color: P().combat.flash, alpha: t * 0.75 })
         g.circle(s.pos.x, s.pos.y, 2 + (1 - t) * 7)
-          .fill({ color: 0xfff1cf, alpha: t })
+          .fill({ color: P().combat.flashCore, alpha: t })
       } else {
         // Miss: a ring of spray where the ball fell short.
         g.circle(s.pos.x, s.pos.y, 3 + (1 - t) * 13)
-          .stroke({ width: 2, color: 0xdff2ff, alpha: t * 0.7 })
+          .stroke({ width: 2, color: P().combat.spray, alpha: t * 0.7 })
       }
     }
   }

@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js'
 import type { Squall, Weather } from '../sim/weather'
 import type { Camera } from './camera'
+import { P } from './palette'
 
 /** Stable per-streak randomness, so the rain does not reshuffle every frame. */
 function hash(n: number): number {
@@ -66,13 +67,13 @@ export class SquallView {
     const BANDS = 9
     for (let i = 0; i < BANDS; i++) {
       const at = 1 - (i / BANDS) * 0.82
-      sg.circle(s.x, s.y, s.radius * at).fill({ color: 0x0f2334, alpha: 0.055 * p })
+      sg.circle(s.x, s.y, s.radius * at).fill({ color: P().weather.squallShadow, alpha: 0.055 * p })
     }
 
     // The squall line: the rim is what the player sees first and the only
     // part that says the cell has an edge and is moving across the water.
     sg.circle(s.x, s.y, s.radius)
-      .stroke({ width: 4, color: 0xb6d6e6, alpha: 0.3 * p })
+      .stroke({ width: 4, color: P().weather.squallRim, alpha: 0.3 * p })
 
     const count = Math.round(Math.min(130, s.radius / 6))
     const len = 34
@@ -92,7 +93,7 @@ export class SquallView {
       const y = s.y + v * s.radius
       rg.moveTo(x, y).lineTo(x + len * 0.38, y + len)
     }
-    rg.stroke({ width: 1.7, color: 0xc9e4f2, alpha: 0.3 * p })
+    rg.stroke({ width: 1.7, color: P().weather.rain, alpha: 0.3 * p })
   }
 
   clear() {

@@ -2,6 +2,7 @@ import { Container, Graphics, Texture, TilingSprite } from 'pixi.js'
 import type { Camera } from './camera'
 import type { WindSample } from '../sim/wind'
 import type { Vec2 } from '../core/math'
+import { P } from './palette'
 
 /**
  * Open water, built from two procedurally generated tiling layers scrolling at
@@ -20,8 +21,8 @@ export class Water {
   constructor(width: number, height: number) {
     // Lighter water than a realistic deep-sea blue, chosen so dark shot reads
     // clearly against it. Legibility of what is about to hit you beats mood.
-    this.deep = new TilingSprite({ texture: makeWaveTexture(256, 0x2e6f94, 0x55a0c4, 420, 1.6), width, height })
-    this.swell = new TilingSprite({ texture: makeWaveTexture(512, 0x000000, 0xdcf2ff, 150, 3.2, true), width, height })
+    this.deep = new TilingSprite({ texture: makeWaveTexture(256, P().water.deep, P().water.light, 420, 1.6), width, height })
+    this.swell = new TilingSprite({ texture: makeWaveTexture(512, 0x000000, P().water.swell, 150, 3.2, true), width, height })
     this.swell.alpha = 0.42
     this.view.addChild(this.deep, this.swell, this.gusts)
   }
@@ -70,9 +71,9 @@ export class Water {
         // ruffled and glassy water rather than reading as discrete blobs.
         const r = step * 1.15
         if (delta > 0) {
-          g.circle(x, y, r).fill({ color: 0x14455f, alpha: Math.min(0.1, delta * 0.2) })
+          g.circle(x, y, r).fill({ color: P().water.gustDark, alpha: Math.min(0.1, delta * 0.2) })
         } else {
-          g.circle(x, y, r).fill({ color: 0xcbeaf7, alpha: Math.min(0.08, -delta * 0.16) })
+          g.circle(x, y, r).fill({ color: P().water.gustLight, alpha: Math.min(0.08, -delta * 0.16) })
         }
       }
     }

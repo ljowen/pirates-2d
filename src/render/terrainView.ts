@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js'
 import { Terrain, landRadius, shoalRadius, reefField, type Island, type Reef } from '../sim/terrain'
 import type { Camera } from './camera'
+import { P } from './palette'
 
 const SEGMENTS = 54
 
@@ -60,10 +61,10 @@ export class TerrainView {
     const shallow = 1 - reef.least / 0.4
 
     const bands: [number, number, number][] = [
-      [1.0, 0x78c0da, 0.3 + 0.16 * shallow],
-      [0.74, 0x9fd9e8, 0.32 + 0.2 * shallow],
-      [0.48, 0xc7ecf4, 0.28 + 0.32 * shallow],
-      [0.24, 0xe6f6fa, 0.18 + 0.42 * shallow],
+      [1.0, P().reef[0], 0.3 + 0.16 * shallow],
+      [0.74, P().reef[1], 0.32 + 0.2 * shallow],
+      [0.48, P().reef[2], 0.28 + 0.32 * shallow],
+      [0.24, P().reef[3], 0.18 + 0.42 * shallow],
     ]
     for (const [at, color, alpha] of bands) {
       g.poly(this.reefRing(reef, at)).fill({ color, alpha })
@@ -116,21 +117,21 @@ export class TerrainView {
     const shoal = (a: number) => shoalRadius(island, a)
 
     // Shoal: lighter water, the visible warning that the bottom is coming up.
-    g.poly(this.ring(island, shoal)).fill({ color: 0x79c3dd, alpha: 0.55 })
-    g.poly(this.ring(island, shoal, 0.82)).fill({ color: 0x9ad8e8, alpha: 0.5 })
+    g.poly(this.ring(island, shoal)).fill({ color: P().shoal.outer, alpha: 0.55 })
+    g.poly(this.ring(island, shoal, 0.82)).fill({ color: P().shoal.inner, alpha: 0.5 })
 
     // Surf breaking on the shore.
-    g.poly(this.ring(island, land, 1.16)).fill({ color: 0xeaf7fb, alpha: 0.55 })
-    g.poly(this.ring(island, land, 1.07)).fill({ color: 0xfdfefe, alpha: 0.75 })
+    g.poly(this.ring(island, land, 1.16)).fill({ color: P().shoal.surfOuter, alpha: 0.55 })
+    g.poly(this.ring(island, land, 1.07)).fill({ color: P().shoal.surfInner, alpha: 0.75 })
 
     // Beach, then scrub, then a little relief inland so it reads as solid.
-    g.poly(this.ring(island, land)).fill({ color: 0xe8d9a8 })
-    g.poly(this.ring(island, land, 0.86)).fill({ color: 0xbfae79 })
-    g.poly(this.ring(island, land, 0.68)).fill({ color: 0x6f8a52 })
-    g.poly(this.ring(island, land, 0.4)).fill({ color: 0x55703f })
-    g.poly(this.ring(island, land, 0.18)).fill({ color: 0x6b7d58 })
+    g.poly(this.ring(island, land)).fill({ color: P().land.beach })
+    g.poly(this.ring(island, land, 0.86)).fill({ color: P().land.sand })
+    g.poly(this.ring(island, land, 0.68)).fill({ color: P().land.scrub })
+    g.poly(this.ring(island, land, 0.4)).fill({ color: P().land.scrubDark })
+    g.poly(this.ring(island, land, 0.18)).fill({ color: P().land.inland })
 
-    g.poly(this.ring(island, land)).stroke({ width: 2, color: 0xc9b584, alpha: 0.9 })
+    g.poly(this.ring(island, land)).stroke({ width: 2, color: P().land.edge, alpha: 0.9 })
   }
 
   clear() {

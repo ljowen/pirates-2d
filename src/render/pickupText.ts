@@ -1,6 +1,7 @@
 import type { World } from '../sim/world'
 import type { FlotsamKind } from '../sim/plunder'
 import type { Camera } from './camera'
+import { P } from './palette'
 
 interface Floater {
   /** World position. It rises in *world* space, so it stays over the water. */
@@ -31,6 +32,11 @@ const MERGE_WINDOW = 0.35
  * it is text, and text is far easier in Canvas2D, which is the same reason
  * every other instrument lives here.
  */
+/** Pixi takes 0xRRGGBB; the 2D overlay wants "r,g,b" for an rgba() string. */
+function hexToRgb(c: number): string {
+  return `${(c >> 16) & 255},${(c >> 8) & 255},${c & 255}`
+}
+
 export class PickupText {
   private readonly items: Floater[] = []
 
@@ -88,9 +94,9 @@ export class PickupText {
       // A dark edge, because these land on open water, on pale shoals and on
       // green islands, and nothing readable survives all three unaided.
       ctx.lineWidth = 3
-      ctx.strokeStyle = `rgba(4,14,24,${0.65 * alpha})`
+      ctx.strokeStyle = `rgba(${P().hud.ink},${0.65 * alpha})`
       ctx.strokeText(text, screen.x, screen.y)
-      ctx.fillStyle = `rgba(240,193,75,${alpha})`
+      ctx.fillStyle = `rgba(${hexToRgb(P().coin.body)},${alpha})`
       ctx.fillText(text, screen.x, screen.y)
     }
     ctx.restore()

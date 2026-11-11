@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js'
 import { T } from '../sim/tuning'
 import type { Ship } from '../sim/ship'
+import { P } from './palette'
 
 interface Puff { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }
 
@@ -47,7 +48,7 @@ export class Wake {
     this.g.clear()
     for (const p of this.puffs) {
       const t = p.life / p.maxLife
-      this.g.circle(p.x, p.y, p.r * (1.4 - t * 0.4)).fill({ color: 0xffffff, alpha: t * t * 0.38 })
+      this.g.circle(p.x, p.y, p.r * (1.4 - t * 0.4)).fill({ color: P().wake, alpha: t * t * 0.38 })
     }
   }
 

@@ -10,6 +10,7 @@ import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
 import { SquallView } from './render/squallView'
+import { PALETTES, paletteFromLocation } from './render/palette'
 import { DraftUI } from './ui/draft'
 import { ShipSelect } from './ui/shipSelect'
 import { Hud } from './render/hud'
@@ -40,6 +41,10 @@ async function main() {
   overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5'
   host.appendChild(overlay)
   const octx = overlay.getContext('2d')!
+
+  // Chosen before anything is constructed: the water's tiling textures and
+  // every cached geometry are built from it, so it cannot change mid-run.
+  const style = paletteFromLocation(window.location.search)
 
   const world = new World()
   const camera = new Camera()
@@ -164,6 +169,14 @@ async function main() {
       if (input.consumePress('spawnEnemy')) world.spawnWave(1)
       // Weather on demand. A squall arrives every forty-odd seconds on its
       // own, which is far too slow to judge how one looks or handles.
+      // Cycle the look. A reload rather than a live swap: the water's
+      // textures and every cached outline are built from the palette, and
+      // rebuilding all of it is a lot of machinery for a comparison made once.
+      if (input.consumePress('styleNext')) {
+        const i = PALETTES.findIndex((p) => p.id === style.id)
+        const next = PALETTES[(i + 1) % PALETTES.length]
+        window.location.search = `?style=${next.id}`
+      }
       if (input.consumePress('spawnSquall')) {
         world.wind.weather.spawn(world.wind.from, world.player.pos)
       }

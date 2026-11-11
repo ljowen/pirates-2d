@@ -1,5 +1,6 @@
 import { Container, Graphics } from 'pixi.js'
 import type { Plunder } from '../sim/plunder'
+import { P } from './palette'
 
 /**
  * Floating spoils. Pieces being drawn in by the magnet get a brighter glow and
@@ -42,14 +43,14 @@ export class PlunderView {
 
     if (p.drawn) {
       g.circle(p.pos.x, p.pos.y + bob, r * 2.6)
-        .fill({ color: 0xffd98a, alpha: 0.13 * alpha })
+        .fill({ color: P().coin.glow, alpha: 0.13 * alpha })
     }
 
     g.circle(p.pos.x, p.pos.y + bob, r)
-      .fill({ color: p.drawn ? 0xffe9a8 : 0xf0c14b, alpha })
-      .stroke({ width: 1.2, color: 0x8a5a14, alpha })
+      .fill({ color: p.drawn ? P().coin.drawn : P().coin.body, alpha })
+      .stroke({ width: 1.2, color: P().coin.edge, alpha })
     g.circle(p.pos.x - r * 0.3, p.pos.y + bob - r * 0.3, r * 0.32)
-      .fill({ color: 0xfff6d8, alpha: 0.8 * alpha })
+      .fill({ color: P().coin.highlight, alpha: 0.8 * alpha })
   }
 
   clear() { this.g.clear() }

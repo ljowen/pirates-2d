@@ -3,6 +3,7 @@ import type { Ship } from '../sim/ship'
 import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
 import { T } from '../sim/tuning'
+import { P } from './palette'
 
 const LENGTH = 58
 const BEAM = 17
@@ -26,7 +27,7 @@ export class ShipView {
   private readonly baseScale: number
 
   constructor(cls: ShipClass) {
-    this.palette = cls.colors
+    this.palette = P().shipTint(cls.colors)
     this.view.addChild(this.shadow, this.heelLayer)
     this.heelLayer.addChild(this.hull, this.sails, this.colours)
     // Hull size is a class property, so a Pinnace reads as small at a glance.
@@ -37,7 +38,7 @@ export class ShipView {
   }
 
   private drawShadow() {
-    this.shadow.ellipse(0, 0, LENGTH * 0.55, BEAM * 0.95).fill({ color: 0x041420, alpha: 0.35 })
+    this.shadow.ellipse(0, 0, LENGTH * 0.55, BEAM * 0.95).fill({ color: P().ship.shadow, alpha: 0.35 })
   }
 
   private drawHull() {
@@ -96,7 +97,7 @@ export class ShipView {
       if (canvas < 0.04) {
         s.moveTo(mx - yx * halfWidth, -yy * halfWidth)
           .lineTo(mx + yx * halfWidth, yy * halfWidth)
-          .stroke({ width: 2.4, color: 0x4a3b22 })
+          .stroke({ width: 2.4, color: P().ship.spar })
         return
       }
 
@@ -117,9 +118,9 @@ export class ShipView {
         cx2, cy2,
       ])
         .fill({ color: this.palette.canvas, alpha: 0.88 * (0.45 + 0.55 * ship.sails) })
-        .stroke({ width: 1, color: 0xb9a88a })
+        .stroke({ width: 1, color: P().ship.line })
 
-      s.moveTo(ax, ay).lineTo(cx2, cy2).stroke({ width: 2.4, color: 0x4a3b22 })
+      s.moveTo(ax, ay).lineTo(cx2, cy2).stroke({ width: 2.4, color: P().ship.spar })
     })
   }
 
@@ -142,7 +143,7 @@ export class ShipView {
 
     // A fresh hit whitens the hull for an instant — the cheapest possible
     // confirmation that your shot connected.
-    this.hull.tint = ship.sinceHit < 0.12 ? 0xffd0d0 : 0xffffff
+    this.hull.tint = ship.sinceHit < 0.12 ? P().ship.hit : 0xffffff
 
     if (ship.sunk) {
       // Settle by the head, roll over, and go under.
@@ -178,13 +179,13 @@ export class ShipView {
     const mx = LENGTH * 0.18
     const flutter = Math.sin(performance.now() * 0.006) * 1.6
     // Flagstaff at the main, and a plain white flag hanging off it.
-    c.moveTo(mx, 0).lineTo(mx, -BEAM * 1.5).stroke({ width: 1.6, color: 0x4a3b22 })
+    c.moveTo(mx, 0).lineTo(mx, -BEAM * 1.5).stroke({ width: 1.6, color: P().ship.spar })
     c.poly([
       mx, -BEAM * 1.5,
       mx + BEAM * 0.95, -BEAM * 1.32 + flutter,
       mx + BEAM * 0.9, -BEAM * 0.82 + flutter,
       mx, -BEAM * 0.95,
-    ]).fill({ color: 0xfdfefe, alpha: 0.95 }).stroke({ width: 1, color: 0xb9a88a })
+    ]).fill({ color: P().ship.canvas, alpha: 0.95 }).stroke({ width: 1, color: P().ship.line })
   }
 
   /** True once the sinking animation has finished and the view can be dropped. */

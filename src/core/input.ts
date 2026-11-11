@@ -58,6 +58,7 @@ export class Input {
       case 'KeyR': return 'reset'
       case 'KeyE': return 'spawnEnemy'
       case 'KeyQ': return 'spawnSquall'
+      case 'BracketRight': return 'styleNext'
       case 'KeyM': return 'mute'
       case 'KeyC': return 'continue'
       default: return null
