@@ -43,6 +43,7 @@ export interface TuningValues {
   overcanvasPenalty: number
   windPatternScale: number
   windVeerDegrees: number
+  windVeerScale: number
   windLocalGust: number
   windPatternDrift: number
   windShadowStrength: number
@@ -160,7 +161,16 @@ export const DEFAULT_TUNING: TuningValues = {
   windSwingRate: 0.012,
   overcanvasPenalty: 0.35,
   windPatternScale: 2200,
-  windVeerDegrees: 26,
+  // Doubled from 26. The veer field is value-noise fbm, whose output sits
+  // nowhere near its nominal range: at 26 the measured spread was only 8 deg,
+  // against point-of-sail bands ~25 deg wide — so the wind shifted, and the
+  // player never saw their point of sail change. Strength varied ~15% over a
+  // screen-width while direction moved 8 deg, which reads exactly as "the
+  // wind gets stronger and weaker but never veers".
+  windVeerDegrees: 55,
+  // Direction varies on a shorter length scale than strength, so a header
+  // arrives before the lull does rather than with it.
+  windVeerScale: 1.8,
   windLocalGust: 0.38,
   windPatternDrift: 16,
   windShadowStrength: 0.7,
@@ -233,7 +243,7 @@ export const DEFAULT_TUNING: TuningValues = {
   islandCellSize: 1500,
   islandMinRadius: 90,
   islandMaxRadius: 260,
-  shoalScale: 2.2,
+  shoalScale: 4,
   shoalVariation: 0.9,
   reefDensity: 0.5,
   reefSize: 1.0,
@@ -359,6 +369,7 @@ export const TUNING_SCHEMA: TuningParam[] = [
 
   { key: 'windPatternScale', label: 'Wind patch size', min: 400, max: 8000, step: 100, group: 'Weather', help: 'How far you must sail for the local wind to change. Small values make the sea fickle.' },
   { key: 'windVeerDegrees', label: 'Local veer (deg)', min: 0, max: 90, step: 1, group: 'Weather', help: 'How far the wind swings from place to place. 0 restores a single global wind.' },
+  { key: 'windVeerScale', label: 'Veer detail', min: 0.5, max: 4, step: 0.1, group: 'Weather', help: 'How quickly the wind direction changes as you sail. Higher means a header arrives in less distance.' },
   { key: 'windLocalGust', label: 'Local gust', min: 0, max: 1, step: 0.01, group: 'Weather', help: 'How much stronger or weaker the wind runs in one patch versus another.' },
   { key: 'windPatternDrift', label: 'Weather drift', min: 0, max: 120, step: 1, group: 'Weather', help: 'How fast the pattern of patches travels downwind.' },
   { key: 'windShadowStrength', label: 'Island lee', min: 0, max: 1, step: 0.05, group: 'Weather', help: 'How much an island blankets the wind downwind of it.' },

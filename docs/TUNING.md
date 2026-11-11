@@ -290,6 +290,13 @@ the shot types' biases are renormalised at damage time, so chain's `× 2.1` into
 lands as **+82%**. The multiplier in the code and the number the player experiences are
 different quantities more often than not.
 
+**A noise field's tuning value is its ceiling, not its spread.** `windVeerDegrees` was 26
+and the wind read as varying in strength but not direction — correctly, because the
+*measured* spread of the veer was 8°, not 26°. Value-noise fbm output clusters near zero
+and gets nowhere near its nominal range. A player reported it before any number did. Any
+constant scaling fbm wants sampling across the field and quoting as a standard deviation,
+not read off the slider.
+
 **A feel change can be a balance change.** Staggering the guns was asked for as a
 presentation tweak and cut the win rate nearly in half, because it quietly made every
 broadside less accurate. Benchmark after anything that touches timing.

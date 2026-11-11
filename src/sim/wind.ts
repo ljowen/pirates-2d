@@ -92,7 +92,11 @@ export class Wind {
     const sx = (x + this.patternX) / scale
     const sy = (y + this.patternY) / scale
 
-    const veer = this.veerField.fbm(sx, sy, 2) * (T.windVeerDegrees * Math.PI) / 180
+    // Sampled on its own length scale so direction and strength do not simply
+    // change together — otherwise every lull is also a header and the wind
+    // reads as one quantity rather than two.
+    const vs = T.windVeerScale
+    const veer = this.veerField.fbm(sx * vs, sy * vs, 2) * (T.windVeerDegrees * Math.PI) / 180
     const gust = this.gustField.fbm(sx * 1.3 + 11.7, sy * 1.3 - 4.2, 2) * T.windLocalGust
 
     const squall = this.weather.sample(x, y)

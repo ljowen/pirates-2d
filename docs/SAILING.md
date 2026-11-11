@@ -164,15 +164,36 @@ top of that, a 2D noise field veers and gusts the wind locally, and the whole pa
 travels downwind so a patch of calm drifts across the map rather than sitting over one
 stretch of water forever.
 
-| | Typical range |
+| | Measured over a 24,000-unit square |
 |---|---|
-| Local veer from ambient | up to ~20° (`windVeerDegrees` caps at 26) |
-| Local strength | 0.66–1.24 at default settings |
+| Local veer from ambient | sd **17°**, 90% within ±29° (`windVeerDegrees` 55) |
+| Local strength | sd 12%, 90% within 81–121% (`windLocalGust` 0.38) |
 | Patch size | `windPatternScale`, 2200 units |
+| Veer detail | `windVeerScale` 1.8 — direction varies on a shorter scale than strength |
 
 So the best point of sail is never a fact you learn once. It changes as time passes, and
 it changes as you sail — a favourable lane is something worth going to find, and a lull
 is something worth seeing coming.
+
+#### The veer was doubled, because the wind only appeared to change strength
+
+`windVeerDegrees` was 26 and the field it scales is value-noise fbm, whose output sits
+nowhere near its nominal range: the **measured** spread was only 8°. Sailing one
+screen-width shifted the direction 8.4° while the strength moved 14.9% — and since points
+of sail are ~25° wide, an 8° shift almost never changed the one the player could actually
+read. The wind got stronger and weaker; it never veered.
+
+At 55, with the veer sampled on its own shorter length scale so a header arrives before
+the lull does, a screen-width shifts the direction **20.7°** — comparable to a band, so
+the point of sail genuinely changes under you. Holding one heading across 10,000 units:
+
+| | Angle off wind | Points of sail passed through |
+|---|---|---|
+| Before | 76–97° | Beam Reach → Close Reach → Beam Reach |
+| After | **49–104°** | Beam → Close Reach → Beam → Broad Reach → Beam → Close Hauled → Close Reach |
+
+The lesson generalises: **a noise field's tuning value is its ceiling, not its spread.**
+Any number scaling fbm output wants measuring rather than reading.
 
 ### A run opens on a beam reach
 

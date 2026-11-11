@@ -103,10 +103,17 @@ heavy hull is slowed across water she can still technically cross.
 
 ### Island shoals vary
 
-`shoalScale` 2.2 with `shoalVariation` 0.9 gives shoal rings from **1.2 to 3.2 × land
+`shoalScale` 4 with `shoalVariation` 0.9 gives shoal rings from **2.2 to 5.8 × land
 radius**, hashed per island. A steep-to rock is a poor refuge; an island standing in a
 mile of flats is a fortress a Brigantine cannot come at. Uniform shoals made every island
 the same island, which is most of why draught never felt tactical.
+
+Widened from 2.2 after play. Measured across 32 seeds a hull, the player grounds about
+half again as often — Sloop 4.9% → 7.5% of the run, Brigantine 6.7% → 9.2% — but level
+and plunder rise on **every** hull, the Sloop's by 6.6 → 9.1 levels and 28.7 → 49.7
+plunder. Worth keeping an eye on: the gain is partly the *enemy* captains losing ground
+in water they cannot cross, which is the draught system working, but it shades into
+farming if wider shoals simply strand the swarm.
 
 Because the captains' avoidance also keys off the water their own hull needs, heavy hulls
 will not follow you into shallows — so the shoals are an **escape valve, not a farming
