@@ -77,7 +77,12 @@ about all four.
 | `tuning.ts` | Every number that shapes feel, plus its UI schema |
 
 **`render/`** — `camera`, `water`, `shipView`, `wake`, `combatView`, `plunderView`,
-`terrainView`, `squallView`, `pickupText`, `hud`, `debug`. Pixi draws the world; a plain 2D canvas overlay draws every instrument,
+`terrainView`, `squallView`, `pickupText`, `hud`, `debug`, plus three files that exist to
+keep the art in one place: `palette` (every colour, by role), `hullStyle` (how a hull and
+its canvas are painted), `rig` (where every yard and sail *is*, with no opinion on how it
+looks), and `painter` (the drawing surface, as an interface). `scripts/buildSheet.ts`
+paints through that interface into SVG, which is how `docs/sprite-sheet.svg` is generated
+at build time from the same code the game runs rather than from a second copy of it. Pixi draws the world; a plain 2D canvas overlay draws every instrument,
 because text, arcs and plots are far easier in Canvas2D than in a scene graph.
 
 **`audio/`** — `audio.ts` is a procedural synthesiser; `director.ts` watches simulation

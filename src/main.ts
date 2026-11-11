@@ -38,17 +38,6 @@ async function main() {
   host.appendChild(app.canvas)
   app.ticker.stop()
 
-  // ?sheet=1 renders every hull at every sail state instead of starting a run.
-  // It uses real ShipViews driven by real Ships, so it cannot drift from what
-  // the game draws.
-  if (/[?&]sheet=1/.test(window.location.search)) {
-    const { renderSpriteSheet } = await import('./dev/spriteSheet')
-    paletteFromLocation(window.location.search)
-    hullStyleFromLocation(window.location.search)
-    await renderSpriteSheet(app, host)
-    return
-  }
-
   const overlay = document.createElement('canvas')
   overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5'
   host.appendChild(overlay)

@@ -1,4 +1,4 @@
-import type { Graphics } from 'pixi.js'
+import type { Painter } from './painter'
 import type { ShipColors } from './palette'
 
 /**
@@ -37,6 +37,8 @@ export interface SailDraw {
   health: number
   /** Half the yard's length, for scaling detail to the sail. */
   half: number
+  /** How far up the mast this yard is: 1 at the course, less above it. */
+  taper: number
 }
 
 export interface HullStyle {
@@ -44,9 +46,9 @@ export interface HullStyle {
   name: string
   blurb: string
   /** Draw the static hull, bow at +x, centred on the origin. */
-  drawHull: (g: Graphics, L: number, B: number, c: ShipColors) => void
+  drawHull: (g: Painter, L: number, B: number, c: ShipColors) => void
   /** Draw one sail from solved geometry. */
-  drawSail: (g: Graphics, s: SailDraw, c: ShipColors, spar: number) => void
+  drawSail: (g: Painter, s: SailDraw, c: ShipColors, spar: number) => void
   /** Spar weight, so a heavier style does not get spindly rigging. */
   sparWidth: number
 }

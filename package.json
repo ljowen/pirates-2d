@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build": "tsc --noEmit && npm run sheet && vite build",
+    "preview": "vite preview",
+    "sheet": "esbuild scripts/buildSheet.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/buildSheet.mjs --log-level=error \"--external:node:*\" && node node_modules/.cache/buildSheet.mjs docs/sprite-sheet.svg"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "esbuild": "^0.24.0"
   }
 }

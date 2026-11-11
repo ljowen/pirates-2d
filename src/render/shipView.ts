@@ -4,10 +4,9 @@ import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
 import { T } from '../sim/tuning'
 import { P } from './palette'
+import { solveRig, LENGTH, BEAM } from './rig'
 import { H } from './hullStyle'
 
-const LENGTH = 58
-const BEAM = 17
 
 /**
  * Programmer art, deliberately: a hull polygon with square-rigged sails that
@@ -57,83 +56,17 @@ export class ShipView {
     const s = this.sails
     s.clear()
 
-    const canvas = ship.canvas
-    const drawing = ship.polarMult
-    const localWindTo = wrapPi(Math.PI - ship.awaSigned)
-
-    const MAX_BRACE = 1.15
-    const brace = Math.max(-MAX_BRACE, Math.min(MAX_BRACE, localWindTo))
-
-    const yardA = Math.PI / 2 + brace
-    const yx = Math.cos(yardA)
-    const yy = Math.sin(yardA)
-
-    let bx = -yy
-    let by = yx
-    if (bx * Math.cos(localWindTo) + by * Math.sin(localWindTo) < 0) { bx = -bx; by = -by }
-
-    const masts = [LENGTH * 0.18, -LENGTH * 0.24]
-    const yards = ship.yardsSet
-
-    masts.forEach((mx, i) => {
-      // Shot-away canvas literally shrinks the sail, so a crippled ship looks
-      // crippled before you read any health bar.
-      const halfWidth = BEAM * (1.55 - i * 0.18) * (0.35 + 0.65 * ship.sails)
-
-      if (yards === 0) {
-        // Bare poles: the course yard stays crossed, which is what a ship
-        // under furled canvas actually looks like from above.
-        s.moveTo(mx - yx * halfWidth, -yy * halfWidth)
-          .lineTo(mx + yx * halfWidth, yy * halfWidth)
-          .stroke({ width: H().sparWidth, color: P().ship.spar })
-        return
-      }
-
-      const belly = BEAM * (0.25 + 0.95 * drawing) * canvas
-      const shiver = (1 - drawing) * Math.sin(performance.now() * 0.02 + i * 2.1) * BEAM * 0.22
-
-      // Each yard up the mast, lowest first.
-      //
-      // From directly overhead a course, a topsail and a royal sit at the
-      // same plan position and would draw exactly on top of one another, so
-      // the stack is faked: each higher yard is narrower and stepped a little
-      // toward the bow. That is the same false perspective the two masts
-      // already rely on, and it is what makes "more sail" visible as a
-      // *shape* rather than only as a number in the corner.
-      //
-      // Drawn top-down so the lower, larger sails overlap the smaller ones
-      // above them, which is the way round a mast actually occludes.
-      for (let j = yards - 1; j >= 0; j--) {
-        const taper = 1 - j * 0.23
-        const half = halfWidth * taper
-        const push = (belly + shiver) * (1 - j * 0.1)
-        const lift = mx + j * BEAM * 0.34
-
-        const ax = lift - yx * half
-        const ay = -yy * half
-        const cx2 = lift + yx * half
-        const cy2 = yy * half
-
-        // The shape is solved here, because every term in it is simulation —
-        // the brace, the belly, the shiver and the shrink. How it is *drawn*
-        // belongs to the style.
-        H().drawSail(s, {
-          points: [
-            ax, ay,
-            lift - yx * half * 0.45 + bx * push * 0.72, -yy * half * 0.45 + by * push * 0.72,
-            lift + bx * push, by * push,
-            lift + yx * half * 0.45 + bx * push * 0.72, yy * half * 0.45 + by * push * 0.72,
-            cx2, cy2,
-          ],
-          spar: [ax, ay, cx2, cy2],
-          push: [bx, by],
-          depth: push,
-          drawing,
-          health: ship.sails,
-          half,
-        }, this.palette, H().sparWidth * taper)
-      }
-    })
+    // Geometry from the shared solver; paint from the style. The build's
+    // sprite sheet runs the same `solveRig` in Node, which is what stops the
+    // sheet from being a picture of a second, drifting copy of the art.
+    const rig = solveRig(ship, performance.now())
+    for (const b of rig.bare) {
+      s.moveTo(b.spar[0], b.spar[1]).lineTo(b.spar[2], b.spar[3])
+        .stroke({ width: H().sparWidth, color: P().ship.spar })
+    }
+    for (const sail of rig.sails) {
+      H().drawSail(s, sail, this.palette, H().sparWidth * sail.taper)
+    }
   }
 
   update(ship: Ship, alpha: number, dt: number) {
@@ -204,12 +137,6 @@ export class ShipView {
   get finishedSinking() { return this.sinkTime >= 2.4 }
 }
 
-function wrapPi(a: number): number {
-  let d = a % (Math.PI * 2)
-  if (d > Math.PI) d -= Math.PI * 2
-  if (d < -Math.PI) d += Math.PI * 2
-  return d
-}
 
 function shortestDelta(a: number, b: number): number {
   let d = (b - a) % (Math.PI * 2)
