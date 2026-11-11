@@ -106,25 +106,32 @@ const LOWPOLY: HullStyle = {
  * swarm game.
  */
 const CEL: HullStyle = {
-  id: 'cel', name: 'Cel shaded', blurb: 'Heavy ink outline, flat fill, one hard shadow band.',
-  sailOutline: 2.6, sailAlpha: 1, sparWidth: 3,
+  id: 'cel', name: 'Cel shaded', blurb: 'Ink outline, flat fill, one hard shadow band.',
+  // Weights tuned at the zoom the game is *played* at, not the zoom a style is
+  // judged at. At 2.6x a 3.4-wide outline looked characterful; at the default
+  // 0.75 the whole ship is about 45px and the same line ate the fill, leaving
+  // a dark smudge with no hull colour in it. Flattering a style by inspecting
+  // it close up is an easy way to ship one that does not work.
+  sailOutline: 1.6, sailAlpha: 1, sparWidth: 2.6,
   drawHull(g, L, B, c) {
     const ink = shade(c.trim, -0.45)
-    g.poly(hullPoints(L, B)).fill({ color: shade(c.hull, 0.12) })
+    // Lifted, because the outline and the shadow both darken the read at size.
+    g.poly(hullPoints(L, B)).fill({ color: shade(c.hull, 0.2) })
 
     // A single hard shadow terminator down the starboard side. No gradient:
-    // the hard edge is the point.
+    // the hard edge is the point. Shallow enough that it still reads as one
+    // hull rather than as two tones stuck together.
     g.poly([L, 0, -L, 0, -L, B * 0.72, -L * 0.55, B, L * 0.55, B * 0.85])
-      .fill({ color: shade(c.hull, -0.3) })
+      .fill({ color: shade(c.hull, -0.16) })
 
     g.poly([
       L * 0.78, 0, L * 0.4, -B * 0.55, -L * 0.78, -B * 0.6,
       -L * 0.78, B * 0.6, L * 0.4, B * 0.55,
-    ]).fill({ color: c.deck }).stroke({ width: 2, color: ink, alignment: 0.5 })
+    ]).fill({ color: c.deck }).stroke({ width: 1.4, color: ink, alignment: 0.5 })
 
     // The outline goes on last so nothing paints over it.
-    g.poly(hullPoints(L, B)).stroke({ width: 3.4, color: ink, alignment: 0.5 })
-    g.moveTo(L, 0).lineTo(L + 13, 0).stroke({ width: 3.4, color: ink })
+    g.poly(hullPoints(L, B)).stroke({ width: 2.2, color: ink, alignment: 0.5 })
+    g.moveTo(L, 0).lineTo(L + 13, 0).stroke({ width: 2.2, color: ink })
   },
 }
 
@@ -186,9 +193,12 @@ function inside(pts: number[], x: number, y: number): boolean {
   return hit
 }
 
-export const HULL_STYLES: HullStyle[] = [VECTOR, LOWPOLY, CEL, PIXEL]
+// Cel first, because it is the shipped default: a heavy outline is the only
+// one of these treatments that is *about* silhouette, which is the hard
+// problem in a game where a dozen hulls overlap on a textured sea.
+export const HULL_STYLES: HullStyle[] = [CEL, VECTOR, LOWPOLY, PIXEL]
 
-let activeHull: HullStyle = VECTOR
+let activeHull: HullStyle = CEL
 export const H = () => activeHull
 
 export function setHullStyle(id: string): HullStyle {
@@ -198,5 +208,5 @@ export function setHullStyle(id: string): HullStyle {
 
 export function hullStyleFromLocation(search: string): HullStyle {
   const m = /[?&]hull=([a-z]+)/i.exec(search)
-  return setHullStyle(m ? m[1].toLowerCase() : 'vector')
+  return setHullStyle(m ? m[1].toLowerCase() : 'cel')
 }

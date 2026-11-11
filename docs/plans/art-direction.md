@@ -61,7 +61,39 @@ Richer, textured, closer to the 2004 Pirates! remake.
 **For:** most visually impressive ceiling.
 **Against:** by far the most asset-hungry, and the least suited to procedural generation.
 
-**Current lean: C, with the ink-line sensibility of A.** Flat vector shapes with
+## Decided: the sea stays, the hulls are cel shaded
+
+Rendered rather than argued. Because everything is procedural vector art, a palette swap
+*is* an art pass — so four looks for the water (`?style=`) and four for the hulls
+(`?hull=`) were built and the same seeded scene shot under each. `render/palette.ts` and
+`render/hullStyle.ts`; `]` and `[` cycle them in game.
+
+**The water keeps its current palette.** Of the alternatives, Ink & parchment failed on a
+problem the plan had not anticipated — sand and parchment are the same colour, so the
+islands vanished into the sea — and Admiralty chart lost the ships, which at this zoom
+have too little contrast against pale water.
+
+**The hulls are cel shaded**: flat fill, one hard shadow terminator, ink outline.
+
+Three things the renders settled that discussion would not have:
+
+- **The canvas hides the hull.** Under full sail the four hull treatments are nearly
+  indistinguishable; they only separate when furled. If the ships are to read differently,
+  **the sails are the lever**, not the hull.
+- **Pixel art confirmed the objection below rather than refuting it.** Cells drawn into
+  the hull's own geometry rotate with the ship, so they read as a noisy vector shape, not
+  as pixels. Real pixel art keeps its grid aligned to the *screen*, which needs the ship
+  rendered to a low-resolution target and sampled nearest — a renderer change, not a
+  drawing one. Still worth building if pixel art is ever seriously wanted, if only to see
+  the shimmer honestly.
+- **Judge a style at the zoom it is played at.** Cel shading was chosen from renders at
+  2.6x, where a 3.4-wide ink outline looked characterful. At the default 0.75 the whole
+  ship is about 45px and the same line ate the fill, leaving a dark smudge with no hull
+  colour in it. The shipped weights are 2.2 and a much shallower shadow. **Inspecting a
+  style close up flatters heavy line work**, which is an easy way to ship one that does
+  not work.
+
+**Original lean, kept for the reasoning: C, with the ink-line sensibility of A.** Flat vector shapes with
 engraved-feeling detail lines. It is continuous with what exists, solves rotation for
 free, suits a swarm, and keeps the period flavour.
 
