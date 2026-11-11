@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && npm run sheet && vite build",
     "preview": "vite preview",
+    "bench": "esbuild scripts/bench.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/bench.mjs --log-level=error && node node_modules/.cache/bench.mjs",
     "sheet": "esbuild scripts/buildSheet.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/buildSheet.mjs --log-level=error \"--external:node:*\" && node node_modules/.cache/buildSheet.mjs docs/sprite-sheet.svg"
   },
   "dependencies": {

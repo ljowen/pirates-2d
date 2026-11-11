@@ -22,6 +22,7 @@ import { benchmark, simulateRun, autoPilot } from './dev/testPilot'
 import { Audio } from './audio/audio'
 import { AudioDirector } from './audio/director'
 import { T } from './sim/tuning'
+import { Ledger, loadCareer, saveCareer, freshCareer } from './meta/career'
 
 async function main() {
   const host = document.getElementById('app')!
@@ -117,11 +118,23 @@ async function main() {
   const debug = new DebugOverlay(octx)
   const tuner = new Tuner(world)
   const draft = new DraftUI()
-  const shipSelect = new ShipSelect()
+  // The career is read once and written on every change to it. `?career=new`
+  // starts a clean one, which is the only way to see the opening again.
+  if (/[?&]career=new\b/.test(window.location.search)) saveCareer(freshCareer())
+  const ledger = new Ledger(loadCareer(), saveCareer)
+  const shipSelect = new ShipSelect(ledger)
+  /** False until a hull has been chosen, so the idle sea behind the first quayside is never paid. */
+  let atSea = false
 
   /** Put the captain back at the quayside to pick a hull for the next voyage. */
   const chooseShip = () => {
+    // Whatever she hauled is banked however the voyage ended — sunk, home, or
+    // abandoned at the quay. Only the bonus is reserved for finishing.
+    if (atSea) ledger.settle(world.run)
+    atSea = false
     shipSelect.show((cls) => {
+      ledger.open()
+      atSea = true
       world.reset(Math.floor(Math.random() * 0xffffff), cls)
       dropAllShipViews()
       wake.clear()
@@ -213,6 +226,14 @@ async function main() {
         draft.hide()
       }
 
+      // Bank the voyage the moment it ends, not when the player next presses
+      // a key: a tab closed on the end card must not cost the haul. Settling
+      // is idempotent, so asking every frame pays only what is newly owed —
+      // which is also what lets a voyage end twice, home and then sunk in
+      // overtime, without either ending being special.
+      const over = world.run.state === 'won' || world.run.state === 'lost'
+      if (atSea && over) ledger.settle(world.run)
+
       const frozen = paused || draft.open || shipSelect.open ||
         world.run.state === 'won' || world.run.state === 'lost'
       const timeScale = frozen ? 0 : turbo ? 4 : 1
@@ -255,7 +276,7 @@ async function main() {
       // on screen for a second and must never cover a reading.
       pickupText.update(world, dt)
       pickupText.draw(octx, camera)
-      hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready)
+      hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready, ledger)
       if (showDebug) debug.draw(world.player, playerWind, camera, fps)
     },
     120,
@@ -269,7 +290,7 @@ async function main() {
   // Prototype hook plus the measurement harness, so balance can be checked
   // from the console with a pilot that does not drift between runs.
   ;(window as unknown as Record<string, unknown>).__game = {
-    world, camera, loop, input, audio,
+    world, camera, loop, input, audio, ledger,
     // The tuning object itself, so a look can be framed and compared from the
     // console — zooming in on a hull is not something the game needs a control
     // for, but it is exactly what judging one requires.

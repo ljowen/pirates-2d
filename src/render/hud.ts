@@ -8,6 +8,7 @@ import { angleDiff, compassName, deg } from '../core/math'
 import { batteryBearing } from '../sim/combat'
 import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 import { draughtDepth } from '../sim/terrain'
+import { nextHull, payoutFor, priceOf, type Ledger } from '../meta/career'
 
 /**
  * Instruments, drawn on a plain 2D canvas over the Pixi view. Two of these are
@@ -18,7 +19,10 @@ import { draughtDepth } from '../sim/terrain'
 export class Hud {
   constructor(private readonly ctx: CanvasRenderingContext2D) {}
 
-  draw(world: World, camera: Camera, paused: boolean, turbo: boolean, silent = false) {
+  draw(
+    world: World, camera: Camera, paused: boolean, turbo: boolean, silent = false,
+    ledger: Ledger | null = null,
+  ) {
     const ctx = this.ctx
     const w = ctx.canvas.clientWidth
     const player = world.player
@@ -49,8 +53,8 @@ export class Hud {
       ctx.restore()
     }
 
-    if (world.run.state === 'won') this.endCard(world, true)
-    else if (world.run.state === 'lost') this.endCard(world, false)
+    if (world.run.state === 'won') this.endCard(world, true, ledger)
+    else if (world.run.state === 'lost') this.endCard(world, false, ledger)
     else if (paused) this.banner('PAUSED', '#ffd27f', 150)
     else if (turbo) this.banner('TURBO', '#7fe0a0', 150)
 
@@ -716,7 +720,7 @@ export class Hud {
     ctx.restore()
   }
 
-  private endCard(world: World, won: boolean) {
+  private endCard(world: World, won: boolean, ledger: Ledger | null) {
     const ctx = this.ctx
     const w = ctx.canvas.clientWidth
     const h = ctx.canvas.clientHeight
@@ -753,15 +757,44 @@ export class Hud {
       )
     }
 
+    // What the voyage paid, and what that puts within reach. The second line
+    // is the reason to press R: it names the next hull and how far off she is.
+    let y = h / 2 + 46
+    if (ledger) {
+      const pay = payoutFor(run)
+      ctx.font = 'bold 17px ui-monospace, monospace'
+      ctx.fillStyle = '#f0c14b'
+      ctx.fillText(
+        pay.bonus > 0
+          ? `+${pay.total.toLocaleString()} doubloons   (${pay.haul.toLocaleString()} plunder + ${pay.bonus} voyage)`
+          : `+${pay.total.toLocaleString()} doubloons`,
+        w / 2, y,
+      )
+      y += 24
+      const career = ledger.career
+      const next = nextHull(career)
+      ctx.font = '13px ui-monospace, monospace'
+      ctx.fillStyle = 'rgba(240,193,75,0.75)'
+      let line = `${career.doubloons.toLocaleString()} in the purse`
+      if (next) {
+        const short = priceOf(next) - career.doubloons
+        line += short <= 0
+          ? `   ·   the ${next.name} is yours for ${priceOf(next).toLocaleString()}`
+          : `   ·   ${short.toLocaleString()} short of the ${next.name}`
+      }
+      ctx.fillText(line, w / 2, y)
+      y += 34
+    }
+
     ctx.font = '13px ui-monospace, monospace'
     if (won) {
       ctx.fillStyle = '#ff9ad5'
-      ctx.fillText('C — sail on into endless waves', w / 2, h / 2 + 52)
+      ctx.fillText('C — sail on into endless waves', w / 2, y)
       ctx.fillStyle = 'rgba(207,230,245,0.5)'
-      ctx.fillText('R — new run', w / 2, h / 2 + 76)
+      ctx.fillText('R — make port', w / 2, y + 24)
     } else {
       ctx.fillStyle = 'rgba(207,230,245,0.55)'
-      ctx.fillText('R — new run', w / 2, h / 2 + 52)
+      ctx.fillText('R — make port', w / 2, y)
     }
     ctx.restore()
   }

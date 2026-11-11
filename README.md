@@ -14,7 +14,11 @@ weather and every sound are generated procedurally at runtime.
 npm install
 npm run dev     # http://localhost:5173
 npm run build   # typecheck + production build
+npm run bench   # headless balance run: scripted pilot, every hull, 16 seeds
 ```
+
+Plunder is banked as doubloons when a voyage ends and buys new hulls at the quayside. The
+career is kept in `localStorage`; add `?career=new` to the URL to start over.
 
 ## Controls
 
@@ -22,12 +26,12 @@ npm run build   # typecheck + production build
 |---|---|
 | ← / → (or LMB / RMB) | Turn |
 | ↑ / ↓ | Make / shorten sail — furled, courses, topsails, royals |
-| 1–4 | Pick a card during a level-up draft, or a hull at the start |
+| 1–4 | Pick a card during a level-up draft; buy or pick a hull at the quayside |
 | P | Pause |
 | T | Turbo (4× time) |
 | M | Mute |
 | C | Sail on into endless mode (offered when you complete a voyage) |
-| R | Reset the run |
+| R | Make port — back to the quayside, banking what you hauled |
 | E | Spawn an enemy |
 | Q | Spawn a squall to windward |
 | F1 | Debug overlay — polar plot, velocity vectors, numbers |

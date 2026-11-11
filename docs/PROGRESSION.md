@@ -41,13 +41,38 @@ the Pinnace sat at **0%**, which turned out to be half a harness problem: the te
 never used shoals, so it measured a shallow-draught hull's weaknesses without its entire
 strategy.
 
+## The yard
+
+Three of the four hulls have to be bought. Plunder hauled aboard during a voyage is
+counted a second time when it ends and banked as **doubloons** — 10 a point, plus 250 for
+completing the voyage — and the quayside where a hull is chosen is also where they are
+spent.
+
+| Hull | Price | Voyages for the scripted pilot |
+|---|---|---|
+| Sloop | — | every captain starts with her |
+| Pinnace | 400 | 1–2 |
+| Fluyt | 900 | 3–4 more |
+| Brigantine | 1,600 | 5–7 more |
+
+The haul is banked however the voyage ends — sunk, home, or abandoned with `R`. Only the
+bonus is reserved for finishing. The end card says what was paid and how far the purse is
+from the next hull, because that sentence is the reason to press `R`.
+
+**The locked hulls are sidegrades, not upgrades** (see the table above: 13–19%), so a full
+yard makes a captain better equipped to choose and no stronger. Every balance figure in
+this document therefore still holds for any save.
+
+The career lives in `src/meta/career.ts` and in `localStorage`; `?career=new` starts a
+clean one. The reasoning, and what comes after hulls, is in
+[plans/progression-meta.md](plans/progression-meta.md).
+
 ## Timed survival
 
 Timed survival. You sail against an escalating sea for eight minutes; the clock running
-out is the win condition. **Nothing persists between runs** — every run starts from a
-stock Sloop — so the difficulty curve has exactly one variable to tune against. A meta
-layer can be added on top later without rework; see
-[plans/progression-meta.md](plans/progression-meta.md).
+out is the win condition. **Nothing that persists between runs changes how strong a ship
+is** — every run starts from a stock hull — so the difficulty curve has exactly one
+variable to tune against.
 
 ## The loop
 

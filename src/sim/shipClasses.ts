@@ -71,6 +71,12 @@ export interface ShipClass {
   blurb?: string
 
   /**
+   * What she costs at the yard, in doubloons banked from earlier voyages.
+   * Absent or zero means every captain has her from the start.
+   */
+  price?: number
+
+  /**
    * How deep she draws, 0–1. Shallow hulls cross shoals a deep one cannot, so
    * drawing a Brigantine over a reef is a weapon in its own right.
    */
@@ -165,6 +171,7 @@ export const PLAYER_PINNACE: ShipClass = {
   scale: 0.74,
   colors: { hull: 0x7a6a3f, deck: 0xbda95f, trim: 0x332c17, canvas: 0xf4efd8 },
   blurb: '+50% turn rate, +20% sail handling. -22% guns, -22% timbers. Draws 0.22: crosses bars that strand everything else.',
+  price: 400,
 }
 
 /**
@@ -184,6 +191,7 @@ export const PLAYER_BRIGANTINE: ShipClass = {
   scale: 1.15,
   colors: { hull: 0x58323c, deck: 0x90616a, trim: 0x29161b, canvas: 0xf0e4e4 },
   blurb: '+10% guns, +15% timbers, +5% damage. -32% turn rate, +14% reload. Draws 1.0: no shallows to run to.',
+  price: 1600,
 }
 
 /**
@@ -203,11 +211,15 @@ export const PLAYER_FLUYT: ShipClass = {
   // every other hull and wins on upgrades rather than gunnery.
   playerMods: { pickupRadius: 2.1 },
   blurb: '+30% timbers, x2.1 plunder reach. -38% guns, -15% damage. Out-levels rather than out-shoots.',
+  price: 900,
 }
 
-/** Hulls the player may take to sea. */
+/**
+ * Hulls the player may take to sea, in the order the yard sells them: the
+ * Sloop every captain starts with, then dearest last.
+ */
 export const PLAYER_CLASSES: ShipClass[] = [
-  SLOOP, PLAYER_PINNACE, PLAYER_BRIGANTINE, PLAYER_FLUYT,
+  SLOOP, PLAYER_PINNACE, PLAYER_FLUYT, PLAYER_BRIGANTINE,
 ]
 
 /**
