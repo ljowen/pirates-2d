@@ -178,18 +178,19 @@ export function describeStats(cls: ShipClass, mods: ShipMods, polar: PolarCurve)
 
     // --- Quarterdeck ------------------------------------------------------
     // Every one of these is quoted hove to, because that is the only state in
-    // which a ship mends at all. Showing an under-way figure would be quoting
-    // a rate the player can never actually be paid.
+    // which a ship mends at all — showing an under-way figure would be quoting
+    // a rate the player can never be paid. The condition is stated once in the
+    // panel's footnote rather than suffixed onto all three labels.
     {
-      key: 'mendHull', group: 'Quarterdeck', label: 'Mend hull (hove to)', better: 'lower',
+      key: 'mendHull', group: 'Quarterdeck', label: 'Mend hull', better: 'lower',
       value: mendTime(mods.hullRepair * T.heaveToRepair), format: mending,
     },
     {
-      key: 'mendRigging', group: 'Quarterdeck', label: 'Mend rigging (hove to)', better: 'lower',
+      key: 'mendRigging', group: 'Quarterdeck', label: 'Mend rigging', better: 'lower',
       value: mendTime(mods.sailRepair * T.heaveToRepair), format: mending,
     },
     {
-      key: 'mendCrew', group: 'Quarterdeck', label: 'Mend crew (hove to)', better: 'lower',
+      key: 'mendCrew', group: 'Quarterdeck', label: 'Mend crew', better: 'lower',
       value: mendTime(mods.crewRepair * T.heaveToRepair), format: mending,
     },
     {

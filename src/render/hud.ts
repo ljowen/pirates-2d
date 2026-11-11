@@ -279,7 +279,7 @@ export class Hud {
     if (mending) {
       ctx.font = '11px ui-monospace, monospace'
       ctx.fillStyle = '#7fe0a0'
-      ctx.fillText(`⚒ hands at the pumps  ×${ship.mending.toFixed(1)}`, 12, 84)
+      ctx.fillText(`⚒ mending  ×${ship.mending.toFixed(1)}`, 12, 84)
     }
 
     for (let i = 0; i < 3; i++) {
@@ -322,7 +322,7 @@ export class Hud {
       ctx.font = 'bold 16px ui-monospace, monospace'
       ctx.textAlign = 'center'
       ctx.fillStyle = `rgba(255,122,107,${0.55 + 0.45 * Math.sin(performance.now() * 0.006)})`
-      ctx.fillText('IN IRONS — bear away to fill your sails',
+      ctx.fillText('IN IRONS — bear away',
         ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 64)
       ctx.restore()
     }
@@ -354,7 +354,7 @@ export class Hud {
       ? `rgba(255,122,107,${0.6 + 0.4 * pulse})`
       : `rgba(255,214,138,${(0.35 + 0.45 * pulse) * (0.4 + 0.6 * urgency)})`
     ctx.fillText(
-      touching ? 'AGROUND — she is on the bottom' : 'SHOAL WATER — she will touch',
+      touching ? 'AGROUND' : 'SHALLOW — about to run aground',
       ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 92,
     )
     ctx.restore()
@@ -393,7 +393,7 @@ export class Hud {
     // travelled. Telling the player where to look is the entire job here.
     const where = coming && near ? ` ${compassName(near.bearing)}` : ''
     ctx.fillText(
-      splitting ? 'CANVAS SPLITTING — take in the topsails' : `SQUALL BEARING${where}`,
+      splitting ? 'CANVAS SPLITTING — shorten sail' : `SQUALL BEARING${where}`,
       ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 116,
     )
     ctx.restore()
@@ -698,7 +698,7 @@ export class Hud {
     ctx.textBaseline = 'middle'
     ctx.font = 'bold 40px ui-monospace, monospace'
     ctx.fillStyle = won ? '#7fe0a0' : '#ff7a6b'
-    ctx.fillText(won ? 'YOU HELD THE SEA' : 'YOUR SHIP IS LOST', w / 2, h / 2 - 64)
+    ctx.fillText(won ? 'VOYAGE COMPLETE' : 'SUNK', w / 2, h / 2 - 64)
 
     const stamp = (seconds: number) =>
       `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`
@@ -724,12 +724,12 @@ export class Hud {
     ctx.font = '13px ui-monospace, monospace'
     if (won) {
       ctx.fillStyle = '#ff9ad5'
-      ctx.fillText('press C to sail on — the sea will not forgive it', w / 2, h / 2 + 52)
+      ctx.fillText('C — sail on into endless waves', w / 2, h / 2 + 52)
       ctx.fillStyle = 'rgba(207,230,245,0.5)'
-      ctx.fillText('or R to make port and start afresh', w / 2, h / 2 + 76)
+      ctx.fillText('R — new run', w / 2, h / 2 + 76)
     } else {
       ctx.fillStyle = 'rgba(207,230,245,0.55)'
-      ctx.fillText('press R to sail again', w / 2, h / 2 + 52)
+      ctx.fillText('R — new run', w / 2, h / 2 + 52)
     }
     ctx.restore()
   }

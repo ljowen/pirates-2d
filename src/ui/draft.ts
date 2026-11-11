@@ -79,7 +79,7 @@ export class DraftUI {
     const heading = document.createElement('div')
     heading.innerHTML = `
       <div style="color:#ffd98a;font-size:13px;letter-spacing:3px;text-align:center">LEVEL ${level}</div>
-      <div style="color:#cfe6f5;font-size:20px;margin:6px 0 26px;text-align:center">Choose your advantage</div>`
+      <div style="color:#cfe6f5;font-size:20px;margin:6px 0 26px;text-align:center">Choose an upgrade</div>`
     this.root.appendChild(heading)
 
     const row = document.createElement('div')
@@ -164,7 +164,7 @@ export class DraftUI {
     header.style.cssText =
       'display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:1.5px'
     const title = document.createElement('span')
-    title.textContent = `${player.cls.name.toUpperCase()} — AS SHE STANDS`
+    title.textContent = `${player.cls.name.toUpperCase()} — CURRENT`
     title.style.cssText = 'color:rgba(255,255,255,0.6)'
     this.statHeading = title
     const note = document.createElement('span')
@@ -197,7 +197,7 @@ export class DraftUI {
 
     const foot = document.createElement('div')
     foot.textContent =
-      'Quoted under full sail in a steady breeze. Broadside and weight of fire are measured against a standard hull.'
+      'Under full sail in a steady breeze; mending quoted hove to. Broadside and weight of fire vs a standard hull.'
     foot.style.cssText = 'font-size:9.5px;color:rgba(207,230,245,0.3);line-height:1.5'
     panel.appendChild(foot)
 
