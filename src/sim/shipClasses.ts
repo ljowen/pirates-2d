@@ -77,6 +77,13 @@ export interface ShipClass {
   price?: number
 
   /**
+   * A feat that has to be done before the yard will lay her down at any
+   * price. The big hulls are earned at sea first and paid for second: you
+   * build a Galleon after you have beaten one.
+   */
+  requires?: string
+
+  /**
    * How deep she draws, 0–1. Shallow hulls cross shoals a deep one cannot, so
    * drawing a Brigantine over a reef is a weapon in its own right.
    */
@@ -214,12 +221,76 @@ export const PLAYER_FLUYT: ShipClass = {
   price: 900,
 }
 
+// --- The capital hulls ------------------------------------------------------
+//
+// The four above are sidegrades, held within a few points of each other on
+// purpose. These three are not. They are the back half of the arc — the ships
+// that hunted you, sailed by you — and they are simply better, which is why
+// each is gated twice: by a feat done at sea and by a price that takes many
+// voyages to raise. They are balanced against the notoriety ladder rather
+// than against the Sloop.
+
+/**
+ * The warship that used to stand off and cut your rigging to ribbons. Fast,
+ * long-armed and handy enough to choose her range, which is the one thing no
+ * cheaper hull can do.
+ */
+export const PLAYER_FRIGATE: ShipClass = {
+  id: 'player-frigate', name: 'Frigate', tier: 3, behaviour: 'standoff',
+  turnRate: 0.95, thrust: 1.12, drag: 0.93, crewSpeed: 1.1,
+  guns: 1.17, reload: 0.94, range: 1.16, damage: 1.05,
+  hullStrength: 1.25,
+  draught: 0.8,
+  scale: 1.08,
+  colors: { hull: 0x2f4a5c, deck: 0x6f95ad, trim: 0x15232c, canvas: 0xf4f1e6 },
+  blurb: '+17% guns, +16% range, +6% speed, +25% timbers. Chooses her own range.',
+  price: 4500,
+  requires: 'cutting-out',
+}
+
+/**
+ * The treasure ship. Ten guns a side behind timbers that shrug off a Barque
+ * entirely. She cannot turn and she cannot run, and for the first time that
+ * is somebody else's problem.
+ */
+export const PLAYER_GALLEON: ShipClass = {
+  id: 'player-galleon', name: 'Galleon', tier: 4, behaviour: 'brawler',
+  turnRate: 0.64, thrust: 0.93, drag: 1.08, crewSpeed: 0.88,
+  guns: 1.67, reload: 1.16, range: 1.1, damage: 1.2,
+  hullStrength: 1.95,
+  draught: 1.0,
+  scale: 1.3,
+  colors: { hull: 0x6b2f2a, deck: 0xb0705a, trim: 0x2c1210, canvas: 0xf6edd6 },
+  blurb: '+67% guns, +20% damage, +95% timbers. -36% turn rate. Draws 1.0. Nothing small can hurt her.',
+  price: 8000,
+  requires: 'treasure-fleet',
+}
+
+/**
+ * The ship that was sent to kill you. Twelve guns a side. By the time a
+ * captain can lay her keel there is very little left afloat to run from,
+ * which is the point of her.
+ */
+export const PLAYER_MAN_OF_WAR: ShipClass = {
+  id: 'player-man-of-war', name: "Man-o'-War", tier: 5, behaviour: 'brawler',
+  turnRate: 0.6, thrust: 1.0, drag: 1.04, crewSpeed: 0.95,
+  guns: 2.0, reload: 1.08, range: 1.18, damage: 1.25,
+  hullStrength: 2.5,
+  draught: 1.0,
+  scale: 1.45,
+  colors: { hull: 0x23232b, deck: 0x8c7a4a, trim: 0x0e0e12, canvas: 0xf2ecd8 },
+  blurb: 'x2 guns, +25% damage, +18% range, x2.5 timbers. -40% turn rate. Draws 1.0. The hunter, hunting.',
+  price: 16000,
+  requires: 'turnabout',
+}
+
 /**
  * Hulls the player may take to sea, in the order the yard sells them: the
  * Sloop every captain starts with, then dearest last.
  */
 export const PLAYER_CLASSES: ShipClass[] = [
   SLOOP, PLAYER_PINNACE, PLAYER_FLUYT, PLAYER_BRIGANTINE,
+  PLAYER_FRIGATE, PLAYER_GALLEON, PLAYER_MAN_OF_WAR,
 ]
 
 /**
@@ -299,7 +370,29 @@ export const GALLEON: ShipClass = {
   colors: { hull: 0x5a4330, deck: 0x9c7b4e, trim: 0x2b1f13, canvas: 0xf6edd6 },
 }
 
+/**
+ * A ship of the line, sent for one captain in particular.
+ *
+ * She is not a fight. Against a stock hull she is four times the broadside
+ * behind two and a half times the timbers, and the only answers are the ones
+ * the sailing model already provides: she is a little slower than a Sloop
+ * under royals, she turns like a continent, and she draws so much water that
+ * any bar will stop her. So for the first dozen voyages she is a reason to
+ * know where the shoals are — and much later, refitted and in a capital hull,
+ * she is the richest prize on the sea. Same ship, same numbers; the arc is
+ * entirely in what the player has become.
+ */
+export const MAN_OF_WAR: ShipClass = {
+  id: 'man-of-war', name: "Man-o'-War", tier: 5, behaviour: 'brawler',
+  turnRate: 0.52, thrust: 0.86, drag: 1.1, crewSpeed: 0.9,
+  guns: 1.84, reload: 1.2, range: 1.0, damage: 1.3,
+  hullStrength: 2.6,
+  draught: 1.0,
+  scale: 1.5,
+  colors: { hull: 0x23232b, deck: 0x8c7a4a, trim: 0x0e0e12, canvas: 0xf2ecd8 },
+}
+
 /** Enemy hulls in ascending difficulty. */
 export const ENEMY_CLASSES: ShipClass[] = [
-  PINNACE, ROYAL_SLOOP, FLUYT, BARQUE, FRIGATE, BRIGANTINE, GALLEON,
+  PINNACE, ROYAL_SLOOP, FLUYT, BARQUE, FRIGATE, BRIGANTINE, GALLEON, MAN_OF_WAR,
 ]

@@ -42,6 +42,12 @@ export interface Upgrade {
    * opposing kinds silently cancelled out and wasted picks.
    */
   exclusive?: string
+  /**
+   * A feat that has to be done before this card can be dealt. Content
+   * unlocks: they widen what a run can become without making any run
+   * stronger at the start, so they cost the curve nothing.
+   */
+  requires?: string
   apply: (m: ShipMods) => void
 }
 
@@ -148,6 +154,47 @@ export const UPGRADES: Upgrade[] = [
     maxStacks: 3, weight: 0.9,
     apply: (m) => { m.pickupRadius *= 1.55 },
   },
+
+  // --- Earned ---------------------------------------------------------------
+  // Gated behind feats. Each one does something no stock card does — the rule
+  // Careened Hull was deleted for breaking — so earning one changes which
+  // builds exist rather than how big the numbers get.
+  {
+    id: 'carronades', name: 'Carronades', group: 'Gunnery', requires: 'well-found',
+    text: '+28% damage, -12% range.',
+    maxStacks: 3, weight: 0.85,
+    apply: (m) => { m.damage *= 1.28; m.range *= 0.88 },
+  },
+  {
+    id: 'storm-canvas', name: 'Storm Canvas', group: 'Sailing', requires: 'slipped-the-noose',
+    text: '-50% rigging lost in a squall. +8% sail handling.',
+    maxStacks: 2, weight: 0.8,
+    apply: (m) => { m.blowout *= 0.5; m.crewSpeed *= 1.08 },
+  },
+  {
+    id: 'iron-knees', name: 'Iron Knees', group: 'Quarterdeck', requires: 'scourge',
+    text: '-10% damage taken.',
+    maxStacks: 4, weight: 0.9,
+    apply: (m) => { m.armour *= 1.111 },
+  },
+  {
+    id: 'prize-crews', name: 'Prize Crews', group: 'Quarterdeck', requires: 'struck-colours',
+    text: '+30% plunder from a ship taken whole.',
+    maxStacks: 3, weight: 0.8,
+    apply: (m) => { m.prize *= 1.3 },
+  },
+  {
+    id: 'letters-of-marque', name: 'Letters of Marque', group: 'Quarterdeck', requires: 'home-and-dry',
+    text: '+12% plunder from every wreck and prize.',
+    maxStacks: 3, weight: 0.85,
+    apply: (m) => { m.plunder *= 1.12 },
+  },
+  {
+    id: 'boarding-axes', name: 'Boarding Axes', group: 'Quarterdeck', requires: 'wanted',
+    text: '+45% boarding range: a beaten ship strikes sooner.',
+    maxStacks: 2, weight: 0.75,
+    apply: (m) => { m.boarding *= 1.45 },
+  },
 ]
 
 export const UPGRADES_BY_ID = new Map(UPGRADES.map((u) => [u.id, u]))
@@ -177,6 +224,8 @@ export function isCommitting(upgrade: Upgrade, taken: Map<string, number>): bool
  */
 export const STARTING_UPGRADES: string[] = []
 
+const NO_CARDS: ReadonlySet<string> = new Set()
+
 /**
  * Draw a draft hand, excluding anything already maxed. Weighted, without
  * replacement, so a hand never offers the same card twice.
@@ -185,6 +234,7 @@ export function drawDraft(
   taken: Map<string, number>,
   count: number,
   rand: () => number,
+  earned: ReadonlySet<string> = NO_CARDS,
 ): Upgrade[] {
   // Whichever member of an exclusive family was taken first owns it.
   const committed = new Map<string, string>()
@@ -195,6 +245,7 @@ export function drawDraft(
   }
 
   const pool = UPGRADES.filter((u) => {
+    if (u.requires && !earned.has(u.id)) return false
     if ((taken.get(u.id) ?? 0) >= u.maxStacks) return false
     if (u.exclusive) {
       const chosen = committed.get(u.exclusive)

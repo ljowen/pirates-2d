@@ -91,9 +91,17 @@ state and decides what to play. See [AUDIO.md](AUDIO.md).
 **`dev/`** — `testPilot.ts`, a scripted captain and benchmark harness. Versioned rather
 than kept as a console snippet because every balance figure in these docs came out of it,
 and a pilot that drifts between measurements makes the numbers incomparable.
+`scripts/bench.ts` runs it headless under Node (`npm run bench`).
+
+**`meta/`** — what outlives a run. `career.ts` holds the save, the payout and the ledger;
+`feats.ts` the things done at sea that open things ashore. It sits *around* the
+simulation and never inside it: a career is boiled down to a `Voyage` (`sim/voyage.ts` —
+refit ranks, notoriety, earned cards) before a run starts, and read again only when it
+ends. A run is a function of `(seed, hull, voyage)`, which is what lets the harness
+measure any career it is handed.
 
 **`ui/`** — `tuner.ts` (live parameter panel), `draft.ts` (level-up cards and the stat
-preview under them) and `shipSelect.ts` (the quayside). All DOM overlays rather than
+preview under them) and `port.ts` (shipyard, refits and the captain's log). All DOM overlays rather than
 canvas, because they want hover states, scrolling and readable body text.
 
 ## Key seams

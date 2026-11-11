@@ -17,8 +17,19 @@ npm run build   # typecheck + production build
 npm run bench   # headless balance run: scripted pilot, every hull, 16 seeds
 ```
 
-Plunder is banked as doubloons when a voyage ends and buys new hulls at the quayside. The
-career is kept in `localStorage`; add `?career=new` to the URL to start over.
+## The career
+
+You start in a Sloop, and a minute into your first voyage a Man-o'-War comes for you.
+Run. Anything marked **☠ RUN** is not a fight yet.
+
+Plunder is banked as doubloons when a voyage ends — sunk or not — and spent in port on
+hulls and permanent refits. Things done at sea (take a prize, beat a Galleon, outlast the
+hunter) open new cards and the bigger hulls. Complete a voyage and the notoriety ladder
+opens: ten rungs of a harder sea that pays more. Eventually the Man-o'-War is the one
+running.
+
+The career is kept in `localStorage`; add `?career=new` to the URL to start over.
+`npm run bench` measures the whole arc, from a first voyage to the top of the ladder.
 
 ## Controls
 
@@ -26,7 +37,10 @@ career is kept in `localStorage`; add `?career=new` to the URL to start over.
 |---|---|
 | ← / → (or LMB / RMB) | Turn |
 | ↑ / ↓ | Make / shorten sail — furled, courses, topsails, royals |
-| 1–4 | Pick a card during a level-up draft; buy or pick a hull at the quayside |
+| 1–9 | Pick a card during a level-up draft; buy or pick a hull or a refit in port |
+| 0 | Redraw a draft hand, if you have bought a redraw |
+| Tab | Change page in port — shipyard, refits, captain's log |
+| , / . | Lower / raise notoriety in port, once the ladder is open |
 | P | Pause |
 | T | Turbo (4× time) |
 | M | Mute |

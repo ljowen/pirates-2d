@@ -1,12 +1,13 @@
 import { Ship, STOCK_MODS, SAIL_FURLED, SAIL_FULL, type Faction } from './ship'
 import {
-  SLOOP, ENEMY_CLASSES, BARQUE, BRIGANTINE, FLUYT, FRIGATE, GALLEON, ROYAL_SLOOP,
+  SLOOP, ENEMY_CLASSES, BARQUE, BRIGANTINE, FLUYT, FRIGATE, GALLEON, MAN_OF_WAR, ROYAL_SLOOP,
   type ShipClass,
 } from './shipClasses'
 import { Director } from './director'
 import { Run } from './run'
 import { dropPlunder, stepPlunder, type Pickup, type Plunder } from './plunder'
 import { UPGRADES_BY_ID } from './upgrades'
+import { applyRefits, difficultyFor, STOCK_VOYAGE, type Difficulty, type Voyage } from './voyage'
 import { draughtDepth, Terrain } from './terrain'
 import { makeRng } from '../core/rng'
 import { angleDiff, wrapAngle, type Vec2 } from '../core/math'
@@ -32,6 +33,9 @@ const EMPTY_PICKUPS: Pickup[] = []
  * renderer's sinking animation, or the hull vanishes mid-plunge.
  */
 const WRECK_LINGER = 3.2
+
+/** Plunder credited for outlasting the Man-o'-War: about three early levels. */
+const SLIPPED_PLUNDER = 9
 
 export class World {
   readonly polar = new PolarCurve()
@@ -75,6 +79,9 @@ export class World {
 
   /** The hull the captain took to sea. Chosen before the run begins. */
   playerClass: ShipClass = SLOOP
+  /** What the captain carried in from earlier voyages. Fixed for the run. */
+  voyage: Voyage = STOCK_VOYAGE
+  private difficulty: Difficulty = difficultyFor(0)
 
   constructor() {
     this.placePlayerClearOfLand()
@@ -151,8 +158,17 @@ export class World {
    */
   get threats() {
     return this.ships.filter(
-      (s) => s.faction === 'enemy' && !s.sunk && !s.struck && s.cls.behaviour !== 'trader',
+      (s) => s.faction === 'enemy' && !s.sunk && !s.struck &&
+        s.cls.behaviour !== 'trader' && !s.isHunter,
     )
+  }
+
+  /** The Man-o'-War still on the chase, if there is one. */
+  get hunter(): Ship | null {
+    for (const s of this.ships) {
+      if (s.isHunter && !s.sunk && !s.struck && !s.breakingOff) return s
+    }
+    return null
   }
 
   spawn(faction: Faction, cls: ShipClass, x: number, y: number, heading: number): Ship {
@@ -164,17 +180,35 @@ export class World {
     ship.heading = heading
     ship.prevHeading = heading
     if (faction === 'player') {
-      // A baseline crew works at the pumps and the canvas. Without this,
-      // attrition over a long run is one-way and the back half is unplayable.
-      ship.mods.hullRepair = T.playerHullRepair
-      ship.mods.sailRepair = T.playerSailRepair
-      ship.mods.crewRepair = T.playerCrewRepair
-      // A hull's own signature, such as a Fluyt's roomy hold.
-      if (cls.playerMods) Object.assign(ship.mods, cls.playerMods)
+      ship.mods = this.playerBaseMods(cls)
+    } else {
+      // Notoriety is felt here and in the director, and nowhere else: the
+      // hulls are the same hulls, harder to sink and heavier of shot.
+      ship.mods.armour = this.difficulty.enemyArmour
+      ship.mods.damage = this.difficulty.enemyDamage
     }
     this.ships.push(ship)
     if (faction === 'enemy') this.captains.set(ship.id, new CaptainAI())
     return ship
+  }
+
+  /**
+   * The player's modifiers before any card: stock, then the baseline crew at
+   * the pumps, then the hull's own signature, then whatever was refitted
+   * ashore. One function, because the refit bench rebuilds from here too and
+   * two copies of this list had already begun to drift.
+   */
+  private playerBaseMods(cls: ShipClass) {
+    const mods = { ...STOCK_MODS }
+    // A baseline crew works at the pumps and the canvas. Without this,
+    // attrition over a long run is one-way and the back half is unplayable.
+    mods.hullRepair = T.playerHullRepair
+    mods.sailRepair = T.playerSailRepair
+    mods.crewRepair = T.playerCrewRepair
+    // A hull's own signature, such as a Fluyt's roomy hold.
+    if (cls.playerMods) Object.assign(mods, cls.playerMods)
+    applyRefits(mods, this.voyage)
+    return mods
   }
 
   /**
@@ -207,11 +241,7 @@ export class World {
    */
   rebuildPlayerMods() {
     const player = this.player
-    player.mods = { ...STOCK_MODS }
-    player.mods.hullRepair = T.playerHullRepair
-    player.mods.sailRepair = T.playerSailRepair
-    player.mods.crewRepair = T.playerCrewRepair
-    if (player.cls.playerMods) Object.assign(player.mods, player.cls.playerMods)
+    player.mods = this.playerBaseMods(player.cls)
     for (const [id, stacks] of this.run.taken) {
       const upgrade = UPGRADES_BY_ID.get(id)
       if (!upgrade) continue
@@ -279,6 +309,9 @@ export class World {
   private plunderValue(cls: ShipClass): number {
     // A Fluyt is the prize: little threat, but her hold is worth running a
     // chase for, which is the whole reason she is in the game.
+    // The hunter is the richest thing afloat, and for most of a career that
+    // is academic.
+    if (cls === MAN_OF_WAR) return 70
     if (cls === FLUYT) return 26
     if (cls === GALLEON) return 30
     if (cls === BRIGANTINE) return 14
@@ -293,7 +326,7 @@ export class World {
   }
 
   /** Put a new hull on the horizon, clear of anyone already there. */
-  private spawnAtRange(cls: ShipClass, isBoss = false) {
+  private spawnAtRange(cls: ShipClass, isBoss = false, isHunter = false) {
     const p = this.player
     let a = 0
     let r = 0
@@ -303,7 +336,11 @@ export class World {
     // is simply the last position, which is at worst a brief grounding.
     for (let attempt = 0; attempt < 12; attempt++) {
       a = this.rand() * Math.PI * 2
-      r = T.spawnRadius * (0.92 + this.rand() * 0.22)
+      // A hunter is raised further out. She is announced as she appears, and
+      // the announcement has to be worth something: at the ordinary radius a
+      // captain caught on the wrong tack had her alongside before the sails
+      // were up.
+      r = T.spawnRadius * (0.92 + this.rand() * 0.22) * (isHunter ? 1.35 : 1)
       x = p.pos.x + Math.cos(a) * r
       y = p.pos.y + Math.sin(a) * r
       if (this.terrain.probe({ x, y }).depth > Math.max(0.9, draughtDepth(cls.draught) * 1.5)) break
@@ -312,6 +349,8 @@ export class World {
     ship.sailOrder = SAIL_FULL
     ship.canvas = 1
     ship.isBoss = isBoss
+    ship.isHunter = isHunter
+    ship.huntLeft = this.difficulty.hunterSeconds
   }
 
   step(dt: number) {
@@ -322,14 +361,12 @@ export class World {
     // --- Run clock and spawning --------------------------------------------
     const live = this.run.tick(dt, this.player)
     if (live) {
-      const wasBossWave = this.director.announcementTime
       const spawns = this.director.update(
         dt, this.run.progress, this.run.wave,
         this.threats.length, this.bossesAlive, () => this.rand(),
       )
-      // A wave that came with an announcement is a boss wave.
-      const isBossWave = this.director.announcementTime > wasBossWave
-      for (const cls of spawns) this.spawnAtRange(cls, isBossWave)
+      for (const cls of spawns.hulls) this.spawnAtRange(cls, spawns.boss, spawns.hunter)
+      this.hunt(dt)
     }
 
     const player = this.player
@@ -370,12 +407,13 @@ export class World {
     // --- Spoils --------------------------------------------------------------
     for (const ship of sunkThisStep) {
       if (ship.faction !== 'enemy') continue
-      this.run.shipsSunk++
+      this.run.tally(ship.cls, false)
+      if (ship.isHunter) this.run.huntersBeaten++
       // Everything she carries goes to the bottom with her, so a wreck is
       // worth markedly less than a prize taken afloat.
       dropPlunder(
         this.plunder, ship.pos,
-        this.plunderValue(ship.cls) * T.sinkShare, () => this.rand(),
+        this.plunderValue(ship.cls) * T.sinkShare * player.mods.plunder, () => this.rand(),
       )
     }
     this.strikings()
@@ -413,7 +451,7 @@ export class World {
     const escapeRange = T.spawnRadius * 1.6
     for (let i = this.ships.length - 1; i > 0; i--) {
       const ship = this.ships[i]
-      if (ship.sunk || ship.cls.behaviour !== 'trader') continue
+      if (ship.sunk || (ship.cls.behaviour !== 'trader' && !ship.breakingOff)) continue
       const away = Math.hypot(ship.pos.x - this.player.pos.x, ship.pos.y - this.player.pos.y)
       if (away < escapeRange) continue
       this.captains.delete(ship.id)
@@ -434,6 +472,36 @@ export class World {
       if (ship.sinceSunk < WRECK_LINGER) continue
       this.captains.delete(ship.id)
       this.ships.splice(i, 1)
+    }
+  }
+
+  /**
+   * Run the chase down.
+   *
+   * A hunter is on a clock rather than a leash. She does not lose interest
+   * because the player got far enough away — that would make running in a
+   * straight line the whole answer — she loses it because she has been out
+   * for as long as her orders allow, and where the player is when that
+   * happens is the player's business. Time spent stuck on a bar counts
+   * double: putting her aground is the intended answer, and it should feel
+   * like one.
+   */
+  private hunt(dt: number) {
+    for (const ship of this.ships) {
+      if (!ship.isHunter || ship.sunk || ship.struck || ship.breakingOff) continue
+      ship.huntLeft -= dt * (ship.aground ? 2 : 1)
+      if (ship.huntLeft > 0) continue
+      ship.breakingOff = true
+      if (this.player.sunk) continue
+      this.run.huntersSlipped++
+      // Running is not free: a minute spent with the wind on the quarter is a
+      // minute of wrecks not made, and measured, a captain who slipped her
+      // cleanly still arrived at the Brigantine two levels short and died to
+      // that instead. So getting away pays about what the chase cost. It is
+      // the only plunder in the game that is not fished out of the water,
+      // and the reason is that there is nobody left to sink.
+      this.run.collect(SLIPPED_PLUNDER)
+      this.director.announce("The Man-o'-War hauls her wind. You have slipped her.", 5)
     }
   }
 
@@ -463,14 +531,15 @@ export class World {
       const beaten = ship.sails <= T.strikeSails || ship.crew <= T.strikeCrew
       if (!beaten) continue
       const range = Math.hypot(ship.pos.x - player.pos.x, ship.pos.y - player.pos.y)
-      if (range > T.boardingRange) continue
+      if (range > T.boardingRange * player.mods.boarding) continue
 
       ship.struck = true
       ship.sinceStruck = 0
       // Her sails come down as she gives up, which is the whole visual tell.
       ship.sailOrder = SAIL_FURLED
       ship.aiSteer = 0
-      this.run.shipsTaken++
+      this.run.tally(ship.cls, true)
+      if (ship.isHunter && !ship.breakingOff) this.run.huntersBeaten++
 
       // The manual is blunt that capturing pays far better than sinking, since
       // a wreck takes her cargo down with her — and equally blunt that every
@@ -486,7 +555,8 @@ export class World {
       // hundred seconds of run, and dropped its plunder below taking no shot
       // card at all. Whatever separates the two doctrines has to live
       // somewhere other than the value of the prize.
-      const prize = this.plunderValue(ship.cls) * T.prizeValue * (0.45 + 0.55 * ship.hull)
+      const prize = this.plunderValue(ship.cls) * T.prizeValue * (0.45 + 0.55 * ship.hull) *
+        player.mods.plunder * player.mods.prize
       dropPlunder(this.plunder, ship.pos, prize, () => this.rand())
     }
   }
@@ -595,8 +665,14 @@ export class World {
     }
   }
 
-  reset(seed = 0xc0ffee, playerClass: ShipClass = this.playerClass) {
+  reset(
+    seed = 0xc0ffee,
+    playerClass: ShipClass = this.playerClass,
+    voyage: Voyage = this.voyage,
+  ) {
     this.playerClass = playerClass
+    this.voyage = voyage
+    this.difficulty = difficultyFor(voyage.notoriety)
     this.ships.length = 0
     this.captains.clear()
     this.projectiles = []
@@ -616,8 +692,8 @@ export class World {
     this.terrain.reseed(seed ^ 0x5eed)
     this.wind.reseed(seed ^ 0x1234567)
     this.wind.reset()
-    this.run = new Run(() => this.rand())
-    this.director.reset()
+    this.run = new Run(() => this.rand(), voyage)
+    this.director.reset(voyage.notoriety)
     this.placePlayerClearOfLand()
     this.run.grantStarting(this.player)
   }

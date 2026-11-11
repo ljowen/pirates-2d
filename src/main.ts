@@ -13,7 +13,7 @@ import { SquallView } from './render/squallView'
 import { PALETTES, paletteFromLocation } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
-import { ShipSelect } from './ui/shipSelect'
+import { PortUI } from './ui/port'
 import { Hud } from './render/hud'
 import { PickupText } from './render/pickupText'
 import { DebugOverlay } from './render/debug'
@@ -22,7 +22,7 @@ import { benchmark, simulateRun, autoPilot } from './dev/testPilot'
 import { Audio } from './audio/audio'
 import { AudioDirector } from './audio/director'
 import { T } from './sim/tuning'
-import { Ledger, loadCareer, saveCareer, freshCareer } from './meta/career'
+import { Ledger, loadCareer, saveCareer, freshCareer, voyageOf } from './meta/career'
 
 async function main() {
   const host = document.getElementById('app')!
@@ -122,7 +122,7 @@ async function main() {
   // starts a clean one, which is the only way to see the opening again.
   if (/[?&]career=new\b/.test(window.location.search)) saveCareer(freshCareer())
   const ledger = new Ledger(loadCareer(), saveCareer)
-  const shipSelect = new ShipSelect(ledger)
+  const port = new PortUI(ledger)
   /** False until a hull has been chosen, so the idle sea behind the first quayside is never paid. */
   let atSea = false
 
@@ -132,10 +132,12 @@ async function main() {
     // abandoned at the quay. Only the bonus is reserved for finishing.
     if (atSea) ledger.settle(world.run)
     atSea = false
-    shipSelect.show((cls) => {
-      ledger.open()
+    port.show((cls) => {
+      ledger.open(cls)
       atSea = true
-      world.reset(Math.floor(Math.random() * 0xffffff), cls)
+      // The career is boiled down to a voyage here and not looked at again
+      // until the run is over.
+      world.reset(Math.floor(Math.random() * 0xffffff), cls, voyageOf(ledger.career))
       dropAllShipViews()
       wake.clear()
       combat.clear()
@@ -205,7 +207,7 @@ async function main() {
       if (input.consumePress('continue')) world.run.continueEndless()
       // R returns to the quayside rather than restarting the same hull, so
       // trying a different ship never means reloading the page.
-      if (input.consumePress('reset') && !shipSelect.open) {
+      if (input.consumePress('reset') && !port.open) {
         draft.hide()
         chooseShip()
       }
@@ -220,6 +222,10 @@ async function main() {
           draft.show(
             world.run.draft, world.run.level, world.run.taken, world.player,
             (upgrade) => { world.run.choose(upgrade, world.player) },
+            world.run.rerolls,
+            // Close and let the next frame reopen on the new hand, the same
+            // way a chained level-up does.
+            () => { if (world.run.reroll()) draft.hide() },
           )
         }
       } else if (draft.open) {
@@ -234,7 +240,7 @@ async function main() {
       const over = world.run.state === 'won' || world.run.state === 'lost'
       if (atSea && over) ledger.settle(world.run)
 
-      const frozen = paused || draft.open || shipSelect.open ||
+      const frozen = paused || draft.open || port.open ||
         world.run.state === 'won' || world.run.state === 'lost'
       const timeScale = frozen ? 0 : turbo ? 4 : 1
       loop.timeScale = timeScale
@@ -301,6 +307,7 @@ async function main() {
     viewCount: () => shipViews.size,
     benchmark: (seeds?: number) => { loop.stop(); return benchmark(world, seeds) },
     simulateRun: (seed: number) => { loop.stop(); return simulateRun(world, seed) },
+    port,
     autoPilot,
   }
 }

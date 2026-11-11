@@ -2,9 +2,10 @@
 
 What makes someone start a second run.
 
-**State:** the first layer is in. Plunder is banked as doubloons when a voyage ends and
-spent at the quayside on hulls — see [The yard](../PROGRESSION.md#the-yard). Everything
-below the deep dive is the older plan, kept for its reasoning and re-ordered against it.
+**State:** built. Hulls, refits, earned cards, feats, a notoriety ladder and the
+Man-o'-War — see [Between voyages](../PROGRESSION.md#between-voyages) for what exists and
+[goal-roguelite.md](goal-roguelite.md) for the goal it is measured against and what is
+left. Everything below the deep dive is the older plan, kept for its reasoning.
 
 ## Deep dive: what the game has, and what it is missing
 
@@ -81,7 +82,8 @@ could ship without re-tuning anything.
 It also means the yard alone does not deliver the arc. Three purchases, about ten voyages
 for the scripted pilot and fewer for a person, and it is spent. The remaining work — the
 part that turns this from an unlock list into a progression — is jobs 2 and 3 above:
-permanent refits, new cards, and a difficulty ladder to keep the sea ahead of them.
+permanent refits, new cards, and a difficulty ladder to keep the sea ahead of them. That
+is [goal-roguelite.md](goal-roguelite.md).
 
 ### Decisions taken in the first layer, and why
 
@@ -134,7 +136,7 @@ seam means no physics changes at all.
 **Caveat:** the Brigantine's stats are currently tuned as an *enemy boss*. A player
 version would need separate tuning — do not simply reuse it.
 
-## 2. Unlocks — **hulls done**
+## 2. Unlocks — **done**, see [goal-roguelite.md](goal-roguelite.md)
 
 Classic roguelite shape: bank plunder across runs, spend it on permanent unlocks.
 

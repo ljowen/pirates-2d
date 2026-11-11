@@ -39,7 +39,7 @@ export class CaptainAI {
     // Shorten sail for the knife fight; crack on when there is ground to make.
     // A runner never shortens sail — her whole plan is speed.
     const station = this.station(self)
-    self.sailOrder = self.cls.behaviour === 'trader' || dist > station * 1.25
+    self.sailOrder = self.cls.behaviour === 'trader' || self.breakingOff || dist > station * 1.25
       ? SAIL_FULL : SAIL_FIGHTING
     // ...but no captain carries a full suit into a squall. Without this the
     // weather would simply mow the fleet down, since enemies never repair:
@@ -139,7 +139,8 @@ export class CaptainAI {
   private desiredHeading(self: Ship, bearing: number, dist: number, wind: WindSample): number {
     // A trader never fights. She puts the wind on her quarter — her fastest
     // point of sail — and runs for it.
-    if (self.cls.behaviour === 'trader') {
+    // ...and a hunter who has given up the chase leaves the same way.
+    if (self.cls.behaviour === 'trader' || self.breakingOff) {
       return wrapAngle(wind.to + (angleDiff(bearing, wind.to) > 0 ? -0.5 : 0.5))
     }
 

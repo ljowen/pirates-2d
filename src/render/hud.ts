@@ -8,7 +8,9 @@ import { angleDiff, compassName, deg } from '../core/math'
 import { batteryBearing } from '../sim/combat'
 import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 import { draughtDepth } from '../sim/terrain'
-import { nextHull, payoutFor, priceOf, type Ledger } from '../meta/career'
+import { outmatches } from '../sim/stats'
+import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
+import { notorietyName } from '../sim/voyage'
 
 /**
  * Instruments, drawn on a plain 2D canvas over the Pixi view. Two of these are
@@ -144,8 +146,19 @@ export class Hud {
         ctx.font = '10px ui-monospace, monospace'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'alphabetic'
-        ctx.fillStyle = TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)'
-        ctx.fillText(e.cls.name, s.x, s.y - 56)
+        // ...and say which ones are not fights. A new captain cannot tell a
+        // Galleon from a Barque by weight of shot until one has sunk them;
+        // the warning goes away by itself as the build outgrows the ship,
+        // which is the whole progression of the game drawn on the water.
+        const run = outmatches(e, player)
+        ctx.fillStyle = run ? '#ff5a4a' : TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)'
+        if (run) ctx.font = 'bold 12px ui-monospace, monospace'
+        ctx.fillText(run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56)
+        if (e.isHunter && !e.breakingOff) {
+          ctx.font = '9px ui-monospace, monospace'
+          ctx.fillStyle = 'rgba(255,190,110,0.9)'
+          ctx.fillText(`hunting · ${Math.ceil(e.huntLeft)}s`, s.x, s.y - 68)
+        }
 
         // All three pools, in the same order and colours as your own
         // condition panel. Rigging and crew are now things you shoot *for*
@@ -176,7 +189,11 @@ export class Hud {
         ctx.save()
         ctx.translate(x, y)
         ctx.rotate(a)
-        ctx.fillStyle = 'rgba(255,122,107,0.8)'
+        // A ship to run from gets a bigger, hotter arrow: knowing where she
+        // is matters most exactly when she is not on screen yet.
+        const run = outmatches(e, player)
+        if (run) ctx.scale(1.7, 1.7)
+        ctx.fillStyle = run ? '#ff3b2f' : 'rgba(255,122,107,0.8)'
         ctx.beginPath()
         ctx.moveTo(12, 0)
         ctx.lineTo(-6, -7)
@@ -757,32 +774,55 @@ export class Hud {
       )
     }
 
-    // What the voyage paid, and what that puts within reach. The second line
-    // is the reason to press R: it names the next hull and how far off she is.
+    // What the voyage paid, what it opened, and what that puts within reach.
+    // The last line is the reason to press R: it names the next thing and
+    // how far off it is.
     let y = h / 2 + 46
     if (ledger) {
       const pay = payoutFor(run)
+      const parts = [`${pay.haul.toLocaleString()} plunder`]
+      if (pay.bonus > 0) parts.push(`${pay.bonus.toLocaleString()} voyage`)
+      if (pay.bounty > 0) parts.push(`${pay.bounty.toLocaleString()} Man-o'-War`)
+      const feats = ledger.news.reduce((sum, f) => sum + f.bounty, 0)
+      if (feats > 0) parts.push(`${feats.toLocaleString()} feats`)
       ctx.font = 'bold 17px ui-monospace, monospace'
       ctx.fillStyle = '#f0c14b'
       ctx.fillText(
-        pay.bonus > 0
-          ? `+${pay.total.toLocaleString()} doubloons   (${pay.haul.toLocaleString()} plunder + ${pay.bonus} voyage)`
-          : `+${pay.total.toLocaleString()} doubloons`,
+        `+${ledger.earned.toLocaleString()} doubloons` +
+          (parts.length > 1 ? `   (${parts.join(' + ')})` : ''),
         w / 2, y,
       )
-      y += 24
-      const career = ledger.career
-      const next = nextHull(career)
+      y += 26
+
       ctx.font = '13px ui-monospace, monospace'
+      ctx.fillStyle = '#7fe0a0'
+      for (const feat of ledger.news) {
+        ctx.fillText(
+          feat.opens === 'a bounty' ? `✓ ${feat.name}` : `✓ ${feat.name} — opens ${feat.opens}`,
+          w / 2, y,
+        )
+        y += 20
+      }
+      if (ledger.rung > 0) {
+        ctx.fillStyle = '#ff9a8a'
+        ctx.fillText(
+          `Notoriety ${ledger.rung} · ${notorietyName(ledger.rung)} is open — a harder sea that pays more`,
+          w / 2, y,
+        )
+        y += 20
+      }
+
+      const career = ledger.career
+      const next = nextPurchase(career)
       ctx.fillStyle = 'rgba(240,193,75,0.75)'
       let line = `${career.doubloons.toLocaleString()} in the purse`
       if (next) {
-        const short = priceOf(next) - career.doubloons
+        const short = next.price - career.doubloons
         line += short <= 0
-          ? `   ·   the ${next.name} is yours for ${priceOf(next).toLocaleString()}`
-          : `   ·   ${short.toLocaleString()} short of the ${next.name}`
+          ? `   ·   enough for ${next.name}`
+          : `   ·   ${short.toLocaleString()} short of ${next.name}`
       }
-      ctx.fillText(line, w / 2, y)
+      ctx.fillText(line, w / 2, y + 2)
       y += 34
     }
 
@@ -819,6 +859,8 @@ const TIER_COLORS: Record<number, string> = {
   1: 'rgba(170,220,255,0.85)',
   2: 'rgba(255,214,138,0.9)',
   3: 'rgba(255,138,122,0.95)',
+  4: 'rgba(255,110,150,0.95)',
+  5: 'rgba(255,90,74,1)',
 }
 
 function normalize(a: number): number {

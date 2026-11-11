@@ -12,10 +12,13 @@
 | — Endless mode | **Done** |
 | — Land: islands, shoals, draught, grounding, cover | **Done** |
 | — Weather: squalls | **Done** |
+| — Career: port, refits, feats, notoriety, the hunter | **Done**, measured, unplayed |
 
 The game is playable end to end. The systems are in place and measured. What it does not
-yet have is a finished difficulty curve, any visual identity beyond programmer art, or
-anything to come back for after a run ends.
+yet have is a finished difficulty curve or any visual identity beyond programmer art. It
+now has something to come back for after a run ends — see
+[plans/goal-roguelite.md](plans/goal-roguelite.md) — though that layer has been measured
+by the harness and not yet played by a person.
 
 ## Recommended ordering
 
@@ -49,11 +52,13 @@ different directions. The actual art should wait until the entity roster stops c
 weather cell with a negative gain, and the cell machinery exists), night and weather
 states, sea state, and eventually authored coastlines.
 
-### 5. Meta progression — [plans/progression-meta.md](plans/progression-meta.md)
+### 5. Meta progression — [plans/goal-roguelite.md](plans/goal-roguelite.md)
 
-Player hull selection, ports, persistent captain, voyage structure. This is what makes
-people come back after a run ends, but it should wait until a single run is genuinely
-good — a retention layer on an unsatisfying loop just extends the disappointment.
+**Built:** a career of hulls, permanent refits, earned cards, feats and a notoriety ladder,
+with a Man-o'-War to run from at the start and to hunt at the end. What remains is listed
+at the foot of the goal document, and the first item is the one that matters: play it.
+The older, wider plan — ports as places, a crew roster, voyages with objectives — is still
+in [plans/progression-meta.md](plans/progression-meta.md).
 
 ## The decision that keeps resurfacing
 

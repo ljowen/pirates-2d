@@ -1,8 +1,10 @@
 import { T } from './tuning'
 import {
-  PINNACE, ROYAL_SLOOP, FLUYT, BARQUE, FRIGATE, BRIGANTINE, GALLEON, type ShipClass,
+  PINNACE, ROYAL_SLOOP, FLUYT, BARQUE, FRIGATE, BRIGANTINE, GALLEON, MAN_OF_WAR,
+  type ShipClass,
 } from './shipClasses'
 import { clamp, lerp } from '../core/math'
+import { difficultyFor, type Difficulty } from './voyage'
 
 export interface BossWave { at: number; hulls: ShipClass[]; label: string }
 
@@ -24,6 +26,25 @@ export const BOSS_WAVES: BossWave[] = [
 ]
 
 /**
+ * When the Man-o'-War comes, as a share of the voyage. The first visit lands
+ * between the Brigantine and the Frigate waves, when a stock hull has four or
+ * five cards and no business fighting her; the second, which only the upper
+ * rungs of notoriety send, lands before the Galleon.
+ */
+export const HUNTER_VISITS = [0.12, 0.72]
+
+/** What the director wants put on the water this step. */
+export interface Spawns {
+  hulls: ShipClass[]
+  /** They came with an announcement, and the sea should thin around them. */
+  boss: boolean
+  /** She is a hunter: not part of the pressure, and she will not stay. */
+  hunter: boolean
+}
+
+const NOTHING: Spawns = { hulls: [], boss: false, hunter: false }
+
+/**
  * Decides what the sea throws at you and when. Everything is expressed against
  * run progress rather than absolute seconds, so changing the run length in the
  * tuner rescales the whole curve instead of breaking it.
@@ -31,7 +52,9 @@ export const BOSS_WAVES: BossWave[] = [
 export class Director {
   private cooldown = 2
   private firedBosses = new Set<number>()
+  private firedHunts = 0
   private lastEndlessWave = 0
+  private difficulty: Difficulty = difficultyFor(0)
   /** Set when a boss wave lands, drained by the HUD for its announcement. */
   announcement: string | null = null
   announcementTime = 0
@@ -49,7 +72,10 @@ export class Director {
    * appear throughout at a low rate — they are a reward rather than pressure,
    * and finding one should feel like luck.
    */
-  private weights(progress: number, wave: number): [ShipClass, number][] {
+  private weights(clock: number, wave: number): [ShipClass, number][] {
+    // Notoriety reads the mix from further into the voyage than the clock
+    // says, so the heavy hulls arrive early without the table being rewritten.
+    const progress = clock + this.difficulty.mixAdvance
     // Past the voyage proper the mix keeps sliding toward heavy hulls, so the
     // sea does not merely get busier — it gets meaner.
     const heavy = Math.min(wave * 0.18, 0.75)
@@ -57,7 +83,7 @@ export class Director {
       progress < start ? 0 : clamp((progress - start) * rate, 0, cap)
 
     return [
-      [PINNACE, Math.max(0.05, lerp(1, 0.2, progress) - heavy)],
+      [PINNACE, Math.max(0.05, lerp(1, 0.2, Math.min(progress, 1)) - heavy)],
       [ROYAL_SLOOP, from(0.12, 1.4, 0.45)],
       [FLUYT, progress < 0.08 ? 0 : 0.12],
       [BARQUE, from(0.22, 1.2, 0.5) + heavy * 0.4],
@@ -68,13 +94,14 @@ export class Director {
   }
 
   interval(progress: number, wave = 0) {
-    const base = lerp(T.spawnIntervalStart, T.spawnIntervalEnd, progress)
+    const base = lerp(T.spawnIntervalStart, T.spawnIntervalEnd, progress) *
+      this.difficulty.intervalScale
     if (wave <= 0) return base
     return Math.max(T.endlessMinInterval, base / (1 + wave * T.endlessRamp))
   }
 
   cap(progress: number, wave = 0) {
-    const base = lerp(T.enemyCapStart, T.enemyCapEnd, progress)
+    const base = lerp(T.enemyCapStart, T.enemyCapEnd, progress) + this.difficulty.capBonus
     return Math.round(base + Math.max(0, wave) * T.endlessCapGrowth)
   }
 
@@ -106,8 +133,20 @@ export class Director {
     aliveEnemies: number,
     bossesAlive: number,
     rand: () => number,
-  ): ShipClass[] {
+  ): Spawns {
     this.announcementTime = Math.max(0, this.announcementTime - dt)
+
+    // --- The hunter -----------------------------------------------------------
+    // Checked first and independent of everything else: she is not a wave and
+    // does not wait for the sea to be quiet. Never in endless, which has its
+    // own escalation and no clock to place her against.
+    if (wave === 0 && this.firedHunts < this.difficulty.hunterVisits &&
+        progress >= HUNTER_VISITS[this.firedHunts]) {
+      this.firedHunts++
+      this.announcement = "A Man-o'-War has your scent — run for the shoals"
+      this.announcementTime = 6
+      return { hulls: [MAN_OF_WAR], boss: false, hunter: true }
+    }
 
     // --- Endless waves ------------------------------------------------------
     if (wave > 0 && wave !== this.lastEndlessWave) {
@@ -117,7 +156,7 @@ export class Director {
         : `Wave ${wave} — the sea closes in`
       this.announcementTime = 4
       this.cooldown = Math.max(this.cooldown, T.bossLull * 0.5)
-      return this.endlessSquadron(wave)
+      return { hulls: this.endlessSquadron(wave), boss: true, hunter: false }
     }
 
     // --- Boss waves ---------------------------------------------------------
@@ -130,34 +169,46 @@ export class Director {
       // Hold the routine spawns back for a moment so the boss is a duel rather
       // than the last straw on top of a crowd already shooting at you.
       this.cooldown = Math.max(this.cooldown, T.bossLull)
-      return [...wave.hulls]
+      // Notoriety adds company rather than a second flagship, for the reason
+      // given at the top of this file: escorts scale, fair fights do not.
+      const escort = i === 0 ? BARQUE : FRIGATE
+      const extra = Array.from({ length: this.difficulty.bossEscorts }, () => escort)
+      return { hulls: [...wave.hulls, ...extra], boss: true, hunter: false }
     }
 
     // --- Routine pressure ---------------------------------------------------
     // While a boss is afloat the sea stays clear. A Brigantine is a fair duel
     // on its own terms; fought with four other hulls still arriving it is just
     // a wall, and the fight that was tuned and signed off never happens.
-    if (bossesAlive > 0) return []
+    if (bossesAlive > 0) return NOTHING
 
     this.cooldown -= dt
-    if (this.cooldown > 0) return []
+    if (this.cooldown > 0) return NOTHING
     this.cooldown = this.interval(progress, wave) * (0.75 + rand() * 0.5)
 
-    if (aliveEnemies >= this.cap(progress, wave)) return []
+    if (aliveEnemies >= this.cap(progress, wave)) return NOTHING
 
     const table = this.weights(progress, wave).filter(([, w]) => w > 0)
     const total = table.reduce((sum, [, w]) => sum + w, 0)
     let roll = rand() * total
     for (const [cls, w] of table) {
       roll -= w
-      if (roll <= 0) return [cls]
+      if (roll <= 0) return { hulls: [cls], boss: false, hunter: false }
     }
-    return [PINNACE]
+    return { hulls: [PINNACE], boss: false, hunter: false }
   }
 
-  reset() {
+  /** Say something on the HUD's banner. Used for events the world decides. */
+  announce(text: string, seconds = 4) {
+    this.announcement = text
+    this.announcementTime = seconds
+  }
+
+  reset(notoriety = 0) {
+    this.difficulty = difficultyFor(notoriety)
     this.cooldown = 2
     this.firedBosses.clear()
+    this.firedHunts = 0
     this.lastEndlessWave = 0
     this.announcement = null
     this.announcementTime = 0

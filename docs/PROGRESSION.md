@@ -41,38 +41,64 @@ the Pinnace sat at **0%**, which turned out to be half a harness problem: the te
 never used shoals, so it measured a shallow-draught hull's weaknesses without its entire
 strategy.
 
-## The yard
+## Between voyages
 
-Three of the four hulls have to be bought. Plunder hauled aboard during a voyage is
-counted a second time when it ends and banked as **doubloons** — 10 a point, plus 250 for
-completing the voyage — and the quayside where a hull is chosen is also where they are
-spent.
+A voyage is one run; a **career** is what is left when it ends. Plunder hauled aboard is
+counted a second time at the end and banked as **doubloons**, and things done at sea are
+recorded as **feats**. Doubloons buy; feats permit. Both are spent in port, which is the
+screen every voyage starts and ends on.
 
-| Hull | Price | Voyages for the scripted pilot |
+| | What | How it is had |
 |---|---|---|
-| Sloop | — | every captain starts with her |
-| Pinnace | 400 | 1–2 |
-| Fluyt | 900 | 3–4 more |
-| Brigantine | 1,600 | 5–7 more |
+| **Hulls** | Sloop (free), Pinnace 400, Fluyt 900, Brigantine 1,600 — sidegrades. Frigate 4,500, Galleon 8,000, Man-o'-War 16,000 — not. | Doubloons; the capital hulls also need the feat of beating one |
+| **Refits** | Ten permanent improvements, 40 ranks, carried on every hull | Doubloons, ×1.7 a rank |
+| **Earned cards** | Six cards added to the draft pool | Feats |
+| **Notoriety** | Ten rungs of a harder sea that pays 30% more each | Complete a voyage on the top open rung |
 
-The haul is banked however the voyage ends — sunk, home, or abandoned with `R`. Only the
-bonus is reserved for finishing. The end card says what was paid and how far the purse is
-from the next hull, because that sentence is the reason to press `R`.
+**What a voyage pays:** 10 doubloons a point of plunder, 250 for completing it, 120 for
+outlasting the Man-o'-War or 800 for beating her — all multiplied by notoriety — plus a
+one-off bounty for each feat. The haul is banked however the voyage ends: sunk, home, or
+abandoned with `R`. Only the bonus is reserved for finishing.
 
-**The locked hulls are sidegrades, not upgrades** (see the table above: 13–19%), so a full
-yard makes a captain better equipped to choose and no stronger. Every balance figure in
-this document therefore still holds for any save.
+The career lives in `src/meta/` and in `localStorage` (`?career=new` starts a clean one).
+It never reaches into a run: it is boiled down to a `Voyage` at the quayside and the run is
+a function of `(seed, hull, voyage)`, which is what keeps the harness honest — see
+[plans/goal-roguelite.md](plans/goal-roguelite.md) for the design, the reasoning, and the
+arc as measured.
 
-The career lives in `src/meta/career.ts` and in `localStorage`; `?career=new` starts a
-clean one. The reasoning, and what comes after hulls, is in
-[plans/progression-meta.md](plans/progression-meta.md).
+**Every balance figure below this line was measured on a fresh career at notoriety 0, and
+before the Man-o'-War existed.** She costs the scripted pilot about a minute of median
+survival on a first voyage (318s → 241s for the Sloop); the goal document carries the
+current numbers.
+
+## The Man-o'-War
+
+A minute into every voyage (12% of the clock) a ship of the line is sent for the player in
+particular. She is not counted against the enemy cap and the sea does not thin for her the
+way it does for a boss: she is an extra, on a clock. After `55 + 8 × notoriety` seconds —
+time spent aground counting double — she breaks off and stands away downwind like a
+trader, and the player is credited 9 plunder for having outlasted her.
+
+| | Man-o'-War | Stock Sloop |
+|---|---|---|
+| Guns a side | 11 | 6 |
+| Damage | ×1.3 | ×1 |
+| Timbers | 2.6 | 1.0 |
+| Speed under royals | about 88% | 100% |
+| Turn rate | 0.52 | 1.0 |
+| Draught | 1.0 | 0.55 |
+
+**Outmatched ships are labelled.** `powerOf` in `sim/stats.ts` is weight of fire × timbers;
+anything above 1.6× the player's is drawn with **☠ RUN** over it and a larger arrow at the
+screen edge. For a stock Sloop that is the Galleon and the Man-o'-War and nothing else.
+Every card and refit moves the line, so the warnings stop appearing as a build comes
+together — within a run, and across a career.
 
 ## Timed survival
 
 Timed survival. You sail against an escalating sea for eight minutes; the clock running
-out is the win condition. **Nothing that persists between runs changes how strong a ship
-is** — every run starts from a stock hull — so the difficulty curve has exactly one
-variable to tune against.
+out is the win condition. What a captain carries in from earlier voyages is fixed at the
+quayside, so within a run the difficulty curve still has exactly one variable.
 
 ## The loop
 
@@ -271,6 +297,16 @@ families can use the same mechanism later.
 | Ship's Carpenter | +0.006 hull/s repair | 3 |
 | Sailmaker | +0.012 rigging/s repair | 3 |
 | Grappling Hooks | +55% pickup radius | 3 |
+
+**Earned** — not in the pool until the feat is done.
+| Card | Effect | Max | Feat |
+|---|---|---|---|
+| Carronades | +28% damage, −12% range | 3 | Reach level 10 in one voyage |
+| Storm Canvas | −50% rigging lost in a squall, +8% sail handling | 2 | Outlast the Man-o'-War |
+| Iron Knees | −10% damage taken | 4 | Beat 60 ships across a career |
+| Prize Crews | +30% plunder from a ship taken whole | 3 | Take a prize |
+| Letters of Marque | +12% plunder from every wreck and prize | 3 | Complete a voyage |
+| Boarding Axes | +45% boarding range | 2 | Complete a voyage at notoriety 2 |
 
 ### What the cards do, in knots
 

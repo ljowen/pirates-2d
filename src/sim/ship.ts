@@ -87,8 +87,21 @@ export interface ShipMods {
   shotSails: number
   shotCrew: number
 
+  /**
+   * Incoming damage is divided by this, on top of the hull's own strength.
+   * The one defensive stat that is not a repair rate: it changes how long she
+   * can stay in a fight rather than how long she must stay out of one.
+   */
+  armour: number
+
   // Utility
   pickupRadius: number
+  /** Multiplies what every wreck and prize drops for this ship. */
+  plunder: number
+  /** Multiplies what a ship taken whole is worth, on top of `plunder`. */
+  prize: number
+  /** Multiplies the range at which a beaten ship strikes to her. */
+  boarding: number
   /** Fraction of hull, rigging and crew restored per second. */
   hullRepair: number
   sailRepair: number
@@ -98,8 +111,9 @@ export interface ShipMods {
 export const STOCK_MODS: ShipMods = {
   turnRate: 1, thrust: 1, drag: 1, crewSpeed: 1, blowout: 1,
   damage: 1, reload: 1, range: 1, spread: 1, extraGuns: 0,
-  shotHull: 1, shotSails: 1, shotCrew: 1,
-  pickupRadius: 1, hullRepair: 0, sailRepair: 0, crewRepair: 0,
+  shotHull: 1, shotSails: 1, shotCrew: 1, armour: 1,
+  pickupRadius: 1, plunder: 1, prize: 1, boarding: 1,
+  hullRepair: 0, sailRepair: 0, crewRepair: 0,
 }
 
 export type PointOfSail =
@@ -116,6 +130,16 @@ export class Ship {
   cls: ShipClass = SLOOP
   /** Part of a boss wave. The sea holds its breath while one of these is afloat. */
   isBoss = false
+  /**
+   * Sent for the player in particular. She is not part of the sea's ordinary
+   * pressure and is not counted against it; she arrives, chases for a while,
+   * and gives it up.
+   */
+  isHunter = false
+  /** Seconds of chase she has left before she breaks off. */
+  huntLeft = 0
+  /** She has given up the chase and is standing away. Never comes back. */
+  breakingOff = false
 
   get name() { return this.cls.name }
 
@@ -463,7 +487,7 @@ export class Ship {
 
   /** Returns true if this hit sank her. A weak hull soaks up far less. */
   applyDamage(hull: number, sails: number, crew: number): boolean {
-    const toughness = this.cls.hullStrength
+    const toughness = this.cls.hullStrength * this.mods.armour
     this.hull = clamp(this.hull - hull / toughness, 0, 1)
     this.sails = clamp(this.sails - sails / toughness, 0, 1)
     this.crew = clamp(this.crew - crew / toughness, 0, 1)

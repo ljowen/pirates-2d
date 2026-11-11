@@ -4,6 +4,9 @@ import { draughtDepth, landRadius } from '../sim/terrain'
 import { angleDiff, clamp, wrapAngle } from '../core/math'
 import { T } from '../sim/tuning'
 import type { Upgrade } from '../sim/upgrades'
+import { outmatches } from '../sim/stats'
+import type { ShipClass } from '../sim/shipClasses'
+import type { Voyage } from '../sim/voyage'
 
 /**
  * A scripted captain, used to measure balance without a human at the helm.
@@ -21,6 +24,8 @@ const DRAFT_PRIORITY: Record<string, number> = {
   'ships-carpenter': 8, 'sailmaker': 7, 'trained-gunners': 6, 'long-nines': 6,
   'rakish-lines': 5, 'round-shot': 5, 'taller-masts': 4,
   'veteran-topmen': 4, 'chain-shot': 3, 'grape-shot': 3, 'loot-hooks': 2,
+  'carronades': 9, 'iron-knees': 9, 'letters-of-marque': 6, 'storm-canvas': 3,
+  'prize-crews': 3, 'boarding-axes': 2,
 }
 
 export function pickCard(hand: Upgrade[]): Upgrade {
@@ -86,8 +91,29 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
   const wantsToMend = T.heaveToRepair > 0 && p.hull < (mending ? 0.92 : 0.7)
   const roomToMend = nearest > (mending ? 430 : 620)
 
+  // The Man-o'-War, while she is something to run from. Once the build has
+  // outgrown her she is just the nearest enemy and the richest one.
+  const hunter = world.hunter
+  const hunterDist = hunter
+    ? Math.hypot(hunter.pos.x - p.pos.x, hunter.pos.y - p.pos.y) : Infinity
+  const hunted = hunter !== null && hunterDist < 1500 && outmatches(hunter, p)
+
   let want: number
-  if (p.hull < 0.38 && target && drawsLessThan(p, target)) {
+  if (hunted && hunter) {
+    // Run. Straight away from her under everything that will draw: she is
+    // slower than any hull the player starts in, and a captain who knows only
+    // that much survives her. The fifth time the same lesson has come round —
+    // the proxy has to be able to do what the player can do, or it reports
+    // the hunter as a death sentence when she is a sprint.
+    //
+    // Deliberately *not* toward the shoals, though that is the better play.
+    // The pilot's shoal-seeking is an emergency measure that circles in the
+    // ring, and tried here it put a Sloop on the bank under a ship of the
+    // line's broadside in half its runs. Crossing a bar the hunter cannot is
+    // a judgement about one's own draught that the harness does not have.
+    want = Math.atan2(p.pos.y - hunter.pos.y, p.pos.x - hunter.pos.x)
+    p.sailOrder = SAIL_FULL
+  } else if (p.hull < 0.38 && target && drawsLessThan(p, target)) {
     // Hurt, and drawing less water than the ship chasing us: make for the
     // shallows, where she cannot follow. Without this the harness could not
     // play a shallow-draught hull's entire strategy, and reported the Pinnace
@@ -272,13 +298,17 @@ export interface RunResult {
   plunder: number
   /** Share of the run spent with the keel on the bottom. Should be near zero. */
   agroundPercent: number
+  /** Times the Man-o'-War was outlasted, and times she was beaten. */
+  huntersSlipped: number
+  huntersBeaten: number
 }
 
 /** Play one run start to finish with no renderer attached. */
 export function simulateRun(
   world: World, seed: number, maxSeconds = 500, weatherSense: WeatherSense = 'reads',
+  cls?: ShipClass, voyage?: Voyage,
 ): RunResult {
-  world.reset(seed)
+  world.reset(seed, cls, voyage)
   world.player.sailOrder = SAIL_FIGHTING
   const dt = 1 / 60
   let steps = 0
@@ -306,6 +336,8 @@ export function simulateRun(
     shipsTaken: world.run.shipsTaken,
     plunder: +world.run.totalPlunder.toFixed(1),
     agroundPercent: +(100 * aground / Math.max(1, steps)).toFixed(2),
+    huntersSlipped: world.run.huntersSlipped,
+    huntersBeaten: world.run.huntersBeaten,
   }
 }
 

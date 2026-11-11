@@ -30,6 +30,7 @@ export class DraftUI {
   private readonly root: HTMLDivElement
   private onPick: ((u: Upgrade) => void) | null = null
   private current: Upgrade[] = []
+  private onReroll: (() => void) | null = null
 
   /** The hull being refitted, kept so a preview can be recomputed on hover. */
   private ship: Ship | null = null
@@ -51,6 +52,11 @@ export class DraftUI {
 
     window.addEventListener('keydown', (e) => {
       if (!this.onPick) return
+      if (e.code === 'Digit0' && this.onReroll) {
+        e.preventDefault()
+        this.onReroll()
+        return
+      }
       const index = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].indexOf(e.code)
       if (index >= 0 && this.current[index]) {
         e.preventDefault()
@@ -67,9 +73,12 @@ export class DraftUI {
     taken: Map<string, number>,
     player: Ship,
     onPick: (u: Upgrade) => void,
+    rerolls = 0,
+    onReroll: (() => void) | null = null,
   ) {
     this.current = upgrades
     this.onPick = onPick
+    this.onReroll = rerolls > 0 ? onReroll : null
     this.ship = player
     this.base = describeStats(player.cls, player.mods, player.polar)
     this.rows.clear()
@@ -86,6 +95,21 @@ export class DraftUI {
     row.style.cssText = 'display:flex;gap:18px;flex-wrap:wrap;justify-content:center;padding:0 20px'
     upgrades.forEach((u, i) => row.appendChild(this.card(u, i, taken)))
     this.root.appendChild(row)
+
+    // A redraw is a second look at the same pool, bought ashore and spent
+    // here. Shown only when there is one to spend, so a captain who has not
+    // bought the Quartermaster never sees a button that does nothing.
+    if (this.onReroll) {
+      const again = document.createElement('button')
+      again.dataset.reroll = String(rerolls)
+      again.textContent = `Redraw this hand  ·  ${rerolls} left  ·  0`
+      again.style.cssText = `
+        margin-top: 16px; font: inherit; font-size: 12px; cursor: pointer;
+        padding: 7px 16px; border-radius: 6px; color: #f0c14b;
+        border: 1px solid rgba(240,193,75,0.5); background: rgba(240,193,75,0.08);`
+      again.onclick = () => this.onReroll?.()
+      this.root.appendChild(again)
+    }
 
     this.root.appendChild(this.statPanel(player))
 
@@ -294,6 +318,7 @@ export class DraftUI {
 
   hide() {
     this.onPick = null
+    this.onReroll = null
     this.current = []
     this.ship = null
     this.rows.clear()

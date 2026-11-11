@@ -35,6 +35,36 @@ export interface Stat {
   format: (v: number) => string
 }
 
+// --- Who should be running from whom ----------------------------------------
+
+/**
+ * One number for how much ship this is: weight of fire times how much she
+ * takes to sink. Crude on purpose — it ignores range, handling and draught,
+ * all of which decide real fights — because its job is not to predict an
+ * outcome but to answer the question a new captain cannot yet answer by eye:
+ * *is that one a fight, or a mistake?*
+ */
+export function powerOf(cls: ShipClass, mods: ShipMods): number {
+  const guns = Math.max(1, Math.round(T.gunsPerBroadside * cls.guns) + mods.extraGuns)
+  const fire = (guns * cls.damage * mods.damage) / (cls.reload * mods.reload)
+  return fire * cls.hullStrength * mods.armour
+}
+
+/** How many times your power a ship must have before the HUD says to run. */
+export const OUTMATCHED = 1.6
+
+/**
+ * True when `other` is far enough beyond `self` that trading broadsides is
+ * simply losing slowly. A stock Sloop is outmatched by a Galleon and by the
+ * Man-o'-War and by nothing else; every card and refit moves the line, and
+ * watching the warnings stop appearing is the arc of the game made visible.
+ */
+export function outmatches(
+  other: { cls: ShipClass; mods: ShipMods }, self: { cls: ShipClass; mods: ShipMods },
+): boolean {
+  return powerOf(other.cls, other.mods) > OUTMATCHED * powerOf(self.cls, self.mods)
+}
+
 // --- Formatting -----------------------------------------------------------
 
 // Speeds run into the hundreds in world units, which is what the HUD already
@@ -196,6 +226,25 @@ export function describeStats(cls: ShipClass, mods: ShipMods, polar: PolarCurve)
     {
       key: 'plunderReach', group: 'Quarterdeck', label: 'Plunder reach', better: 'higher',
       value: T.plunderMagnetRadius * mods.pickupRadius, format: whole,
+    },
+    // The rows the earned cards and the refits move. Without them a card like
+    // Iron Knees previews as changing nothing at all, which is the one thing
+    // the panel exists to prevent.
+    {
+      key: 'damageTaken', group: 'Quarterdeck', label: 'Damage taken', better: 'lower',
+      value: 1 / mods.armour, format: percent,
+    },
+    {
+      key: 'plunderWorth', group: 'Quarterdeck', label: 'Wreck worth', better: 'higher',
+      value: mods.plunder, format: percent,
+    },
+    {
+      key: 'prizeWorth', group: 'Quarterdeck', label: 'Prize worth', better: 'higher',
+      value: mods.plunder * mods.prize, format: percent,
+    },
+    {
+      key: 'boardingRange', group: 'Quarterdeck', label: 'Boarding range', better: 'higher',
+      value: T.boardingRange * mods.boarding, format: whole,
     },
   ]
 }
