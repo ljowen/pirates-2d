@@ -243,7 +243,7 @@ export const DEFAULT_TUNING: TuningValues = {
   islandCellSize: 1500,
   islandMinRadius: 90,
   islandMaxRadius: 260,
-  shoalScale: 4,
+  shoalScale: 3.1,
   shoalVariation: 0.9,
   reefDensity: 0.5,
   reefSize: 1.0,

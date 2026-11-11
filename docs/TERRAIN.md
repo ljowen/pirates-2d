@@ -103,16 +103,30 @@ heavy hull is slowed across water she can still technically cross.
 
 ### Island shoals vary
 
-`shoalScale` 4 with `shoalVariation` 0.9 gives shoal rings from **2.2 to 5.8 × land
+`shoalScale` 3.1 with `shoalVariation` 0.9 gives shoal rings from **1.7 to 4.5 × land
 radius**, hashed per island. A steep-to rock is a poor refuge; an island standing in a
 mile of flats is a fortress a Brigantine cannot come at. Uniform shoals made every island
 the same island, which is most of why draught never felt tactical.
 
-Widened from 2.2 after play. Measured across 32 seeds a hull, the player grounds about
-half again as often — Sloop 4.9% → 7.5% of the run, Brigantine 6.7% → 9.2% — but level
-and plunder rise on **every** hull, the Sloop's by 6.6 → 9.1 levels and 28.7 → 49.7
-plunder. Worth keeping an eye on: the gain is partly the *enemy* captains losing ground
-in water they cannot cross, which is the draught system working, but it shades into
+Widened from 2.2 after play, then pulled back from 4. Averaged over four hulls, 32 seeds
+each:
+
+| `shoalScale` | Rings | Level | Plunder | Aground |
+|---|---|---|---|---|
+| 2.2 | 1.2–3.2 × | 6.10 | 25.5 | 4.7% |
+| **3.1** | **1.7–4.5 ×** | **6.84** | **31.1** | **7.4%** |
+| 4.0 | 2.2–5.8 × | 7.34 | 35.1 | 6.7% |
+
+Level and plunder climb steadily with shoal size and 3.1 lands between, which is what it
+was picked for. **The grounding column does not behave**: 3.1 measures worse than 4,
+driven by the Sloop (9.5% against 7.5%) and the Fluyt (7.9% against 5.3%) while the other
+two hulls sit in order. Plausibly medium shoals are the worst of both — wide enough to
+catch you, not wide enough to read as somewhere to stay out of — but two hulls out of four
+is not enough to claim that, and it may be seed noise. Worth a closer look before anyone
+tunes against the aground figure.
+
+Worth keeping an eye on separately: the plunder gain is partly the *enemy* captains losing
+ground in water they cannot cross, which is the draught system working, but it shades into
 farming if wider shoals simply strand the swarm.
 
 Because the captains' avoidance also keys off the water their own hull needs, heavy hulls
