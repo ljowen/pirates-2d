@@ -9,7 +9,7 @@ import { dropPlunder, stepPlunder, type Pickup, type Plunder } from './plunder'
 import { UPGRADES_BY_ID } from './upgrades'
 import { draughtDepth, Terrain } from './terrain'
 import { makeRng } from '../core/rng'
-import { angleDiff, type Vec2 } from '../core/math'
+import { angleDiff, wrapAngle, type Vec2 } from '../core/math'
 import { T } from './tuning'
 import { Wind, type WindSample } from './wind'
 import { PolarCurve } from './polar'
@@ -111,6 +111,32 @@ export class World {
 
     ship.pos = { ...best.pos }
     ship.prevPos = { ...ship.pos }
+
+    // Lay her on a beam reach, not head to wind.
+    //
+    // She used to open on a fixed easterly heading, which against the mean
+    // wind is close-hauled at best and *in irons* whenever the local veer
+    // happened to run the wrong way. That is the one point of sail from which
+    // nothing the player does works: the first thing they learn is that the
+    // controls appear to be broken. A beam reach is 0.96 of best speed on the
+    // polar and the easiest heading to steer from, so she is already sailing
+    // before anyone has to understand why.
+    //
+    // Taken from the wind *where she actually is*, since the field veers by
+    // place — a heading computed from the mean would land in irons again on
+    // exactly the seeds this is meant to fix.
+    const wind = this.windAt(ship.pos)
+    const port = wrapAngle(wind.from + Math.PI / 2)
+    const starboard = wrapAngle(wind.from - Math.PI / 2)
+    // Both tacks are equally fast, so take the one with more water ahead of
+    // her. Clear courses were checked at the position; this checks the bow.
+    const waterAhead = (h: number) =>
+      this.terrain.probe({
+        x: ship.pos.x + Math.cos(h) * 420,
+        y: ship.pos.y + Math.sin(h) * 420,
+      }).depth
+    ship.heading = waterAhead(starboard) > waterAhead(port) ? starboard : port
+    ship.prevHeading = ship.heading
   }
 
   get player() { return this.ships[0] }

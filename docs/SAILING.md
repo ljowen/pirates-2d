@@ -174,6 +174,24 @@ So the best point of sail is never a fact you learn once. It changes as time pas
 it changes as you sail — a favourable lane is something worth going to find, and a lull
 is something worth seeing coming.
 
+### A run opens on a beam reach
+
+The player used to start on a fixed easterly heading regardless of the wind. Measured
+across 800 openings (four hulls, 200 seeds): **50.5% close reach, 39.0% close hauled, and
+10.5% in irons** — never better than 79° off the wind.
+
+One run in ten therefore began on *the one point of sail from which nothing the player
+does works*. The first thing they learn is that the controls appear to be broken.
+
+She is now laid on a beam reach taken from the wind **where she actually is**, since the
+field veers by place and a heading computed from the mean would land in irons again on
+exactly the seeds this is meant to fix. 800 openings: **100% beam reach, 81–99° off the
+wind**, which is 0.96 of best speed on the polar. Both tacks are equally quick, so the one
+with more water ahead of her bow wins.
+
+The curve does not move — 5% win and a 310s median either way. This buys the first ten
+seconds of a run, not the difficulty.
+
 ### Reading the water
 
 Local wind would be invisible until you had already sailed into it, so the sea shows it:
