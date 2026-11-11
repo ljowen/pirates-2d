@@ -59,6 +59,7 @@ export class Input {
       case 'KeyE': return 'spawnEnemy'
       case 'KeyQ': return 'spawnSquall'
       case 'BracketRight': return 'styleNext'
+      case 'BracketLeft': return 'hullNext'
       case 'KeyM': return 'mute'
       case 'KeyC': return 'continue'
       default: return null

@@ -11,6 +11,7 @@ import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
 import { SquallView } from './render/squallView'
 import { PALETTES, paletteFromLocation } from './render/palette'
+import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
 import { ShipSelect } from './ui/shipSelect'
 import { Hud } from './render/hud'
@@ -45,6 +46,7 @@ async function main() {
   // Chosen before anything is constructed: the water's tiling textures and
   // every cached geometry are built from it, so it cannot change mid-run.
   const style = paletteFromLocation(window.location.search)
+  const hullStyle = hullStyleFromLocation(window.location.search)
 
   const world = new World()
   const camera = new Camera()
@@ -175,7 +177,12 @@ async function main() {
       if (input.consumePress('styleNext')) {
         const i = PALETTES.findIndex((p) => p.id === style.id)
         const next = PALETTES[(i + 1) % PALETTES.length]
-        window.location.search = `?style=${next.id}`
+        window.location.search = `?style=${next.id}&hull=${hullStyle.id}`
+      }
+      if (input.consumePress('hullNext')) {
+        const i = HULL_STYLES.findIndex((h) => h.id === hullStyle.id)
+        const next = HULL_STYLES[(i + 1) % HULL_STYLES.length]
+        window.location.search = `?style=${style.id}&hull=${next.id}`
       }
       if (input.consumePress('spawnSquall')) {
         world.wind.weather.spawn(world.wind.from, world.player.pos)
@@ -263,6 +270,10 @@ async function main() {
   // from the console with a pilot that does not drift between runs.
   ;(window as unknown as Record<string, unknown>).__game = {
     world, camera, loop, input, audio,
+    // The tuning object itself, so a look can be framed and compared from the
+    // console — zooming in on a hull is not something the game needs a control
+    // for, but it is exactly what judging one requires.
+    T, style, hullStyle,
     // Exposed so the "ship views must never outlive their hull" invariant can
     // be asserted rather than eyeballed — a ghost that re-sinks forever is
     // exactly the kind of bug that hides in a busy frame.

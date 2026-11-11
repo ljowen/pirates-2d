@@ -4,6 +4,7 @@ import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
 import { T } from '../sim/tuning'
 import { P } from './palette'
+import { H } from './hullStyle'
 
 const LENGTH = 58
 const BEAM = 17
@@ -41,25 +42,9 @@ export class ShipView {
     this.shadow.ellipse(0, 0, LENGTH * 0.55, BEAM * 0.95).fill({ color: P().ship.shadow, alpha: 0.35 })
   }
 
+  /** The shape is the class's; how it is drawn belongs to the hull style. */
   private drawHull() {
-    const h = this.hull
-    const L = LENGTH / 2
-    const B = BEAM / 2
-    const p = this.palette
-
-    h.poly([
-      L, 0, L * 0.55, -B * 0.85, -L * 0.55, -B,
-      -L, -B * 0.72, -L, B * 0.72, -L * 0.55, B, L * 0.55, B * 0.85,
-    ]).fill({ color: p.hull }).stroke({ width: 1.5, color: p.trim, alignment: 0.5 })
-
-    h.poly([
-      L * 0.78, 0, L * 0.4, -B * 0.55, -L * 0.78, -B * 0.6,
-      -L * 0.78, B * 0.6, L * 0.4, B * 0.55,
-    ]).fill({ color: p.deck })
-
-    h.moveTo(L * 0.5, -B * 0.82).lineTo(-L * 0.8, -B * 0.88).stroke({ width: 2, color: p.trim })
-    h.moveTo(L * 0.5, B * 0.82).lineTo(-L * 0.8, B * 0.88).stroke({ width: 2, color: p.trim })
-    h.moveTo(L, 0).lineTo(L + 13, 0).stroke({ width: 2.5, color: p.trim })
+    H().drawHull(this.hull, LENGTH / 2, BEAM / 2, this.palette)
   }
 
   /**
@@ -97,7 +82,7 @@ export class ShipView {
       if (canvas < 0.04) {
         s.moveTo(mx - yx * halfWidth, -yy * halfWidth)
           .lineTo(mx + yx * halfWidth, yy * halfWidth)
-          .stroke({ width: 2.4, color: P().ship.spar })
+          .stroke({ width: H().sparWidth, color: P().ship.spar })
         return
       }
 
@@ -117,10 +102,12 @@ export class ShipView {
         mx + yx * halfWidth * 0.45 + bx * push * 0.72, yy * halfWidth * 0.45 + by * push * 0.72,
         cx2, cy2,
       ])
-        .fill({ color: this.palette.canvas, alpha: 0.88 * (0.45 + 0.55 * ship.sails) })
-        .stroke({ width: 1, color: P().ship.line })
+        .fill({ color: this.palette.canvas, alpha: H().sailAlpha * (0.45 + 0.55 * ship.sails) })
+      if (H().sailOutline > 0) {
+        s.stroke({ width: H().sailOutline, color: P().ship.line })
+      }
 
-      s.moveTo(ax, ay).lineTo(cx2, cy2).stroke({ width: 2.4, color: P().ship.spar })
+      s.moveTo(ax, ay).lineTo(cx2, cy2).stroke({ width: H().sparWidth, color: P().ship.spar })
     })
   }
 
