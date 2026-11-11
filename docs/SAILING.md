@@ -74,19 +74,43 @@ Together these mean being caught in irons is frightening but always recoverable:
 drift slowly backwards, the rudder still has a little authority (`steerageFloor`), and
 bearing away fills the sails again.
 
-## Sail states
+## The sail plan
 
-Discrete, as in *Pirates! Gold* — Up/Down step between them rather than ramping a
-continuous throttle. The crew takes a couple of seconds to work the canvas.
+Discrete states, Up/Down stepping between them rather than ramping a continuous
+throttle. The crew takes a couple of seconds to work the canvas.
 
-| State | Canvas |
-|---|---|
-| Furled | 0.00 |
-| Battle Sails | 0.55 |
-| Full Sails | 1.00 |
+They are a **sail plan**, set from the deck upward the way a square rigger actually makes
+sail, and each order is one more yard crossed on the mast:
+
+| Order | Canvas | Yards a mast |
+|---|---|---|
+| Furled | 0.00 | 0 — bare poles |
+| Courses | 0.32 | 1 |
+| Topsails | 0.55 | 2 |
+| Royals | 1.00 | 3 |
+
+**The ship shows which.** The sprite carries one sail per yard, each higher one narrower
+and stepped a little toward the bow — from directly overhead a course and a topsail sit
+at the same plan position and would draw exactly on top of each other, so the stack is
+false perspective, the same trick the two masts already rely on. The HUD draws the mast
+itself: a filled yard is carrying canvas, an outlined one has been ordered and the hands
+are still getting it on her. Yards are derived from the canvas actually aloft rather than
+from the order, so sail appears one yard at a time as the crew works.
+
+This replaced a three-position throttle whose middle setting had to be explained. It also
+fixed something the [sprite sheet](../README.md) made obvious: with one sail per mast,
+**eleven hulls shared one silhouette**, separated only by scale and tint.
+
+**Balance did not move, by construction.** Topsails is the old Battle Sails at exactly
+0.55 and Royals the old Full Sails at exactly 1.00, so every figure measured to date
+still holds — confirmed at 7% win, 6.84 average level and 31.1 plunder across four hulls
+and 128 runs, identical to three decimal places before and after. Courses is a genuinely
+new option rather than a re-cut of the old ones. The AI and the test pilot address orders
+by name (`SAIL_FIGHTING`, `SAIL_FULL`) rather than by index, which is what made adding a
+state a safe change instead of a hunt for every bare 1 and 2.
 
 Less canvas means a slower ship but a **much tighter turning circle** — 83 vs 186 units
-of radius, roughly 1.4 ship lengths against 3.2. Battle sails barely help you tack
+of radius, roughly 1.4 ship lengths against 3.2. Topsails barely help you tack
 (3.4s vs 4.0s); they earn their place in a knife fight, where staying inside an enemy's
 guns matters more than speed.
 

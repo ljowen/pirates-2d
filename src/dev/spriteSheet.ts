@@ -31,10 +31,10 @@ export async function renderSpriteSheet(app: Application, host: HTMLElement) {
   ]
 
   // Ships are drawn at about 58 x 17 and a sheet is for *looking* at them.
-  const ZOOM = 1.55
-  const CELL_W = 168
+  const ZOOM = 1.32
+  const CELL_W = 144
   const CELL_H = 84
-  const LEFT = 132
+  const LEFT = 118
   const TOP = 54
   // Two column groups, so the whole roster fits one screen and the sheet can
   // be read without scrolling — a comparison you have to scroll is one you

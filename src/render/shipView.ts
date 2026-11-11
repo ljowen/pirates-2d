@@ -73,13 +73,16 @@ export class ShipView {
     if (bx * Math.cos(localWindTo) + by * Math.sin(localWindTo) < 0) { bx = -bx; by = -by }
 
     const masts = [LENGTH * 0.18, -LENGTH * 0.24]
+    const yards = ship.yardsSet
 
     masts.forEach((mx, i) => {
       // Shot-away canvas literally shrinks the sail, so a crippled ship looks
       // crippled before you read any health bar.
       const halfWidth = BEAM * (1.55 - i * 0.18) * (0.35 + 0.65 * ship.sails)
 
-      if (canvas < 0.04) {
+      if (yards === 0) {
+        // Bare poles: the course yard stays crossed, which is what a ship
+        // under furled canvas actually looks like from above.
         s.moveTo(mx - yx * halfWidth, -yy * halfWidth)
           .lineTo(mx + yx * halfWidth, yy * halfWidth)
           .stroke({ width: H().sparWidth, color: P().ship.spar })
@@ -88,31 +91,48 @@ export class ShipView {
 
       const belly = BEAM * (0.25 + 0.95 * drawing) * canvas
       const shiver = (1 - drawing) * Math.sin(performance.now() * 0.02 + i * 2.1) * BEAM * 0.22
-      const push = belly + shiver
 
-      const ax = mx - yx * halfWidth
-      const ay = -yy * halfWidth
-      const cx2 = mx + yx * halfWidth
-      const cy2 = yy * halfWidth
+      // Each yard up the mast, lowest first.
+      //
+      // From directly overhead a course, a topsail and a royal sit at the
+      // same plan position and would draw exactly on top of one another, so
+      // the stack is faked: each higher yard is narrower and stepped a little
+      // toward the bow. That is the same false perspective the two masts
+      // already rely on, and it is what makes "more sail" visible as a
+      // *shape* rather than only as a number in the corner.
+      //
+      // Drawn top-down so the lower, larger sails overlap the smaller ones
+      // above them, which is the way round a mast actually occludes.
+      for (let j = yards - 1; j >= 0; j--) {
+        const taper = 1 - j * 0.23
+        const half = halfWidth * taper
+        const push = (belly + shiver) * (1 - j * 0.1)
+        const lift = mx + j * BEAM * 0.34
 
-      // The shape is solved here, because every term in it is simulation —
-      // the brace, the belly, the shiver and the shrink. How it is *drawn*
-      // belongs to the style.
-      H().drawSail(s, {
-        points: [
-          ax, ay,
-          mx - yx * halfWidth * 0.45 + bx * push * 0.72, -yy * halfWidth * 0.45 + by * push * 0.72,
-          mx + bx * push, by * push,
-          mx + yx * halfWidth * 0.45 + bx * push * 0.72, yy * halfWidth * 0.45 + by * push * 0.72,
-          cx2, cy2,
-        ],
-        spar: [ax, ay, cx2, cy2],
-        push: [bx, by],
-        depth: push,
-        drawing,
-        health: ship.sails,
-        half: halfWidth,
-      }, this.palette, H().sparWidth)
+        const ax = lift - yx * half
+        const ay = -yy * half
+        const cx2 = lift + yx * half
+        const cy2 = yy * half
+
+        // The shape is solved here, because every term in it is simulation —
+        // the brace, the belly, the shiver and the shrink. How it is *drawn*
+        // belongs to the style.
+        H().drawSail(s, {
+          points: [
+            ax, ay,
+            lift - yx * half * 0.45 + bx * push * 0.72, -yy * half * 0.45 + by * push * 0.72,
+            lift + bx * push, by * push,
+            lift + yx * half * 0.45 + bx * push * 0.72, yy * half * 0.45 + by * push * 0.72,
+            cx2, cy2,
+          ],
+          spar: [ax, ay, cx2, cy2],
+          push: [bx, by],
+          depth: push,
+          drawing,
+          health: ship.sails,
+          half,
+        }, this.palette, H().sparWidth * taper)
+      }
     })
   }
 

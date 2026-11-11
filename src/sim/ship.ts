@@ -5,17 +5,45 @@ import type { WindSample } from './wind'
 import { angleDiff, clamp, damp, smoothstep, type Vec2 } from '../core/math'
 
 /**
- * Discrete sail states, as in Pirates! Gold — Up/Down step between them rather
- * than ramping a continuous throttle. Battle sails are the interesting one:
- * slower, but a far tighter turning circle.
+ * Discrete sail states — Up/Down steps between them rather than ramping a
+ * continuous throttle.
+ *
+ * They are a **sail plan**, set from the deck upward the way a square rigger
+ * actually makes sail: courses first (the lowest and biggest), then topsails,
+ * then the small kites at the top. That gives the control a shape the player
+ * can see — each order is one more yard crossed on the mast — instead of an
+ * abstract three-position throttle whose middle setting had to be explained.
+ *
+ * `yards` is how many sails each mast carries at this order, which is the
+ * whole reason the silhouette changes. Keeping it here rather than in the
+ * renderer means the picture cannot disagree with the physics.
  */
-export interface SailState { name: string; canvas: number }
+export interface SailState { name: string; short: string; canvas: number; yards: number }
 
+/**
+ * Canvas values are chosen so the two orders that existed before keep their
+ * exact numbers: Topsails is the old Battle Sails at 0.55, and Royals is the
+ * old Full Sails at 1.0. Every balance figure measured to date therefore
+ * still holds, and Courses is a genuinely new option rather than a re-cut of
+ * the old ones.
+ */
 export const SAIL_STATES: SailState[] = [
-  { name: 'Furled', canvas: 0.0 },
-  { name: 'Battle Sails', canvas: 0.55 },
-  { name: 'Full Sails', canvas: 1.0 },
+  { name: 'Furled', short: 'FURL', canvas: 0.0, yards: 0 },
+  { name: 'Courses', short: 'CRSE', canvas: 0.32, yards: 1 },
+  { name: 'Topsails', short: 'TOPS', canvas: 0.55, yards: 2 },
+  { name: 'Royals', short: 'ROYL', canvas: 1.0, yards: 3 },
 ]
+
+/**
+ * Named orders, so nothing has to know that "fighting canvas" happens to be
+ * index 2. Adding a state used to mean hunting for every bare 1 and 2 in the
+ * AI, the test pilot and the physics.
+ */
+export const SAIL_FURLED = 0
+export const SAIL_COURSES = 1
+/** Topsails: the traditional fighting rig, and the handiest for a knife fight. */
+export const SAIL_FIGHTING = 2
+export const SAIL_FULL = 3
 
 /**
  * Everything an upgrade is allowed to touch. All multiplicative and 1.0 on a
@@ -96,9 +124,9 @@ export class Ship {
   heading = 0
 
   /** Index into SAIL_STATES — what the captain ordered. */
-  sailOrder = 1
+  sailOrder = SAIL_FIGHTING
   /** Actual canvas aloft, which chases the order as the crew works. */
-  canvas = SAIL_STATES[1].canvas
+  canvas = SAIL_STATES[SAIL_FIGHTING].canvas
 
   /** Actual rudder deflection, which chases the player's input. */
   rudder = 0
@@ -184,6 +212,25 @@ export class Ship {
   get sailName() { return SAIL_STATES[this.sailOrder].name }
 
   /**
+   * How many yards are actually carrying canvas right now.
+   *
+   * Derived from the canvas aloft rather than from the order given, so the
+   * sails appear one yard at a time as the crew works rather than snapping
+   * into place the instant the key is pressed. The crew's time on the yards
+   * is already a cost everywhere else; this is what it looks like.
+   */
+  get yardsSet(): number {
+    let n = 0
+    for (const st of SAIL_STATES) {
+      // Halfway to a state is enough to show its yard: the sail is being set,
+      // and a yard that appears only once the canvas is fully home would mean
+      // the whole transition shows nothing.
+      if (st.canvas > 0 && this.canvas >= st.canvas * 0.55) n = st.yards
+    }
+    return n
+  }
+
+  /**
    * How far the canvas is off her, 0 to 1. Zero at battle sails or more — the
    * fighting states — rising to one when she is lying under bare poles.
    *
@@ -191,7 +238,7 @@ export class Ship {
    * so the crew's time on the yards is part of the cost of heaving to.
    */
   get hoveTo(): number {
-    const fighting = SAIL_STATES[1].canvas
+    const fighting = SAIL_STATES[SAIL_FIGHTING].canvas
     return clamp(1 - this.canvas / fighting, 0, 1)
   }
 
@@ -298,7 +345,7 @@ export class Ship {
     // matches what is drawn — a cell fading out looks faint and now is.
     this.blowout =
       smoothstep(T.blowoutAt, 1, wind.squall) *
-      smoothstep(SAIL_STATES[1].canvas, 1, this.canvas)
+      smoothstep(SAIL_STATES[SAIL_FIGHTING].canvas, 1, this.canvas)
     if (this.blowout > 0 && T.blowoutRate > 0) {
       // `blowout` stays a 0-1 reading of how hard it is blowing on her; the
       // rig's own vulnerability is a multiplier on the damage, so the HUD and
@@ -438,8 +485,8 @@ export class Ship {
     this.rudder = 0
     this.heel = 0
     this.prevHeel = 0
-    this.sailOrder = 1
-    this.canvas = SAIL_STATES[1].canvas
+    this.sailOrder = SAIL_FIGHTING
+    this.canvas = SAIL_STATES[SAIL_FIGHTING].canvas
     this.hull = this.sails = this.crew = 1
     this.blowout = 0
     this.sunk = false

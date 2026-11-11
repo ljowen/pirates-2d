@@ -1,5 +1,6 @@
 import { T } from './tuning'
 import type { Ship } from './ship'
+import { SAIL_FIGHTING, SAIL_FULL } from './ship'
 import type { WindSample } from './wind'
 import { angleDiff, clamp, wrapAngle, type Vec2 } from '../core/math'
 import { draughtDepth, landRadius, type Island, type Terrain } from './terrain'
@@ -38,12 +39,13 @@ export class CaptainAI {
     // Shorten sail for the knife fight; crack on when there is ground to make.
     // A runner never shortens sail — her whole plan is speed.
     const station = this.station(self)
-    self.sailOrder = self.cls.behaviour === 'trader' || dist > station * 1.25 ? 2 : 1
+    self.sailOrder = self.cls.behaviour === 'trader' || dist > station * 1.25
+      ? SAIL_FULL : SAIL_FIGHTING
     // ...but no captain carries a full suit into a squall. Without this the
     // weather would simply mow the fleet down, since enemies never repair:
     // every chase would end in a shredded rig and the squall would read as a
     // free weapon rather than as a hazard both sides have to sail through.
-    if (self.blowout > 0.1 && self.sailOrder > 1) self.sailOrder = 1
+    if (self.blowout > 0.1 && self.sailOrder > SAIL_FIGHTING) self.sailOrder = SAIL_FIGHTING
   }
 
   /**

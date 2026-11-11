@@ -1,4 +1,5 @@
 import type { World } from '../sim/world'
+import { SAIL_FURLED, SAIL_FIGHTING, SAIL_FULL } from '../sim/ship'
 import { draughtDepth, landRadius } from '../sim/terrain'
 import { angleDiff, clamp, wrapAngle } from '../core/math'
 import { T } from '../sim/tuning'
@@ -81,7 +82,7 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
 
   // Already stopped? Then hold on longer and accept a closer enemy, so the
   // decision has somewhere to settle. See the heave-to branch below.
-  const mending = p.sailOrder === 0
+  const mending = p.sailOrder === SAIL_FURLED
   const wantsToMend = T.heaveToRepair > 0 && p.hull < (mending ? 0.92 : 0.7)
   const roomToMend = nearest > (mending ? 430 : 620)
 
@@ -92,7 +93,7 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
     // play a shallow-draught hull's entire strategy, and reported the Pinnace
     // as unplayable when it had simply never tried the thing it is for.
     want = towardShallows(world) ?? wind.to
-    p.sailOrder = 2
+    p.sailOrder = SAIL_FULL
   } else if (wantsToMend && roomToMend) {
     // Hurt, with sea room: take the way off her and let the hands work.
     //
@@ -104,14 +105,14 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
     // that does it 3.6% of the time reports the economy as unsurvivable when
     // it is merely demanding.
     want = wind.to
-    p.sailOrder = 0
+    p.sailOrder = SAIL_FURLED
   } else if (p.hull < 0.55 && target && nearest < 900) {
     // Hurt and crowded, so there is no room to stop: run downwind and make
     // some. This is the half a player does without thinking and the pilot
     // never did — it waited for sea room to appear instead of going and
     // getting it, which with no passive repair means waiting to die.
     want = wind.to
-    p.sailOrder = 2
+    p.sailOrder = SAIL_FULL
   } else if (runner && runnerDist < 1300 && p.hull > 0.45) {
     // Run down a trader. The range has to be wide: she spawns at 1400 and is
     // already running, so a threshold that waits for her to come close waits
@@ -125,24 +126,24 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
     const bearing = Math.atan2(runner.pos.y - p.pos.y, runner.pos.x - p.pos.x)
     // Close until the guns bear, then hold her off the beam and shoot.
     want = runnerDist > 300 ? bearing : bearing + Math.PI / 2
-    p.sailOrder = 2
+    p.sailOrder = SAIL_FULL
   } else if (prize && prizeDist < 900 && p.hull > 0.35) {
     // Lay her aboard. She cannot run and she cannot shoot back.
     want = Math.atan2(prize.pos.y - p.pos.y, prize.pos.x - p.pos.x)
-    p.sailOrder = prizeDist > T.boardingRange * 1.5 ? 2 : 1
+    p.sailOrder = prizeDist > T.boardingRange * 1.5 ? SAIL_FULL : SAIL_FIGHTING
   } else if (loot && lootDist < 320) {
     want = Math.atan2(loot.pos.y - p.pos.y, loot.pos.x - p.pos.x)
-    p.sailOrder = nearest > 520 ? 2 : 1
+    p.sailOrder = nearest > 520 ? SAIL_FULL : SAIL_FIGHTING
   } else if (target) {
     const bearing = Math.atan2(target.pos.y - p.pos.y, target.pos.x - p.pos.x)
     const port = bearing + Math.PI / 2
     const stbd = bearing - Math.PI / 2
     want = Math.abs(angleDiff(port, p.heading)) < Math.abs(angleDiff(stbd, p.heading))
       ? port : stbd
-    p.sailOrder = nearest > 520 ? 2 : 1
+    p.sailOrder = nearest > 520 ? SAIL_FULL : SAIL_FIGHTING
   } else {
     want = p.heading
-    p.sailOrder = 2
+    p.sailOrder = SAIL_FULL
   }
 
   // Take in the topsails before it comes on to blow.
@@ -154,11 +155,11 @@ export function autoPilot(world: World, weatherSense: WeatherSense = 'reads') {
   // to ask for, so the pilot is given the same sight — the fourth time this
   // exact lesson has come round, after land avoidance, heaving to and
   // chasing a trader.
-  if (weatherSense !== 'never' && p.sailOrder > 1) {
+  if (weatherSense !== 'never' && p.sailOrder > SAIL_FIGHTING) {
     const squall = world.wind.weather.nearest(p.pos.x, p.pos.y)
     const closing = weatherSense === 'reads' && squall !== null &&
       squall.power > 0.15 && squall.distance < T.squallSpeed * 6
-    if (closing || wind.squall > T.blowoutAt) p.sailOrder = 1
+    if (closing || wind.squall > T.blowoutAt) p.sailOrder = SAIL_FIGHTING
   }
 
   // Wind constraint first, then land — in that order. Clamping for the no-go
@@ -278,7 +279,7 @@ export function simulateRun(
   world: World, seed: number, maxSeconds = 500, weatherSense: WeatherSense = 'reads',
 ): RunResult {
   world.reset(seed)
-  world.player.sailOrder = 1
+  world.player.sailOrder = SAIL_FIGHTING
   const dt = 1 / 60
   let steps = 0
   let aground = 0

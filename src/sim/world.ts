@@ -1,4 +1,4 @@
-import { Ship, STOCK_MODS, type Faction } from './ship'
+import { Ship, STOCK_MODS, SAIL_FURLED, SAIL_FULL, type Faction } from './ship'
 import {
   SLOOP, ENEMY_CLASSES, BARQUE, BRIGANTINE, FLUYT, FRIGATE, GALLEON, ROYAL_SLOOP,
   type ShipClass,
@@ -192,7 +192,7 @@ export class World {
         this.player.pos.y + Math.sin(a) * radius,
         a + Math.PI,
       )
-      ship.sailOrder = 2
+      ship.sailOrder = SAIL_FULL
       ship.canvas = 1
     }
   }
@@ -309,7 +309,7 @@ export class World {
       if (this.terrain.probe({ x, y }).depth > Math.max(0.9, draughtDepth(cls.draught) * 1.5)) break
     }
     const ship = this.spawn('enemy', cls, x, y, a + Math.PI)
-    ship.sailOrder = 2
+    ship.sailOrder = SAIL_FULL
     ship.canvas = 1
     ship.isBoss = isBoss
   }
@@ -468,7 +468,7 @@ export class World {
       ship.struck = true
       ship.sinceStruck = 0
       // Her sails come down as she gives up, which is the whole visual tell.
-      ship.sailOrder = 0
+      ship.sailOrder = SAIL_FURLED
       ship.aiSteer = 0
       this.run.shipsTaken++
 

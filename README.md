@@ -21,7 +21,7 @@ npm run build   # typecheck + production build
 | Input | Action |
 |---|---|
 | ← / → (or LMB / RMB) | Turn |
-| ↑ / ↓ | Raise / lower sails |
+| ↑ / ↓ | Make / shorten sail — furled, courses, topsails, royals |
 | 1–4 | Pick a card during a level-up draft, or a hull at the start |
 | P | Pause |
 | T | Turbo (4× time) |

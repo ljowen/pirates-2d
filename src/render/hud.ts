@@ -1,4 +1,5 @@
 import type { Ship } from '../sim/ship'
+import { SAIL_STATES } from '../sim/ship'
 import type { WindSample } from '../sim/wind'
 import type { World } from '../sim/world'
 import type { Camera } from './camera'
@@ -282,14 +283,45 @@ export class Hud {
       ctx.fillText(`⚒ mending  ×${ship.mending.toFixed(1)}`, 12, 84)
     }
 
+    // The sail plan, drawn as the mast it is: yards crossed from the deck up,
+    // widest at the bottom. A filled yard is carrying canvas; an outlined one
+    // has been ordered and the hands are still getting it on her.
+    //
+    // This replaced three identical bars, which could say *how much* sail was
+    // set but never *which* — and the whole point of ordering courses rather
+    // than topsails is which.
+    const set = ship.yardsSet
+    const MAST_X = 142
+    const FOOT = 74
+    const STEP = 13
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+    ctx.lineWidth = 1.6
+    ctx.beginPath()
+    ctx.moveTo(MAST_X, FOOT)
+    ctx.lineTo(MAST_X, FOOT - STEP * 3 - 6)
+    ctx.stroke()
+
     for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = i <= ship.sailOrder ? '#ffd98a' : 'rgba(255,255,255,0.18)'
-      ctx.fillRect(12 + i * 32, 54, 26, 7)
+      const half = 17 - i * 3.6
+      const y = FOOT - i * STEP - 7
+      const ordered = i < SAIL_STATES[ship.sailOrder].yards
+      if (i < set) {
+        ctx.fillStyle = '#ffd98a'
+        ctx.fillRect(MAST_X - half, y, half * 2, 5)
+      } else if (ordered) {
+        ctx.strokeStyle = 'rgba(255,217,138,0.55)'
+        ctx.lineWidth = 1
+        ctx.strokeRect(MAST_X - half + 0.5, y + 0.5, half * 2 - 1, 4)
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.14)'
+        ctx.fillRect(MAST_X - half, y + 1.5, half * 2, 2)
+      }
     }
+
     ctx.fillStyle = 'rgba(255,255,255,0.28)'
-    ctx.fillRect(12, 66, 162, 4)
+    ctx.fillRect(12, 66, 104, 4)
     ctx.fillStyle = '#9fe8ff'
-    ctx.fillRect(12, 66, 162 * ship.canvas, 4)
+    ctx.fillRect(12, 66, 104 * ship.canvas, 4)
     ctx.restore()
   }
 
