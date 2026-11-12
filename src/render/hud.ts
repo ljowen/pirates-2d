@@ -704,7 +704,7 @@ export class Hud {
       ['M', 'sound on or off'], ['P', 'carry on'], ['R', 'give up the voyage and make port'],
     ]
     const top = 150
-    const height = 74 + rows.length * 30
+    const height = 86 + rows.length * 30
     ctx.save()
     ctx.fillStyle = ui().overlay
     ctx.fillRect(0, 0, w, ctx.canvas.clientHeight)
