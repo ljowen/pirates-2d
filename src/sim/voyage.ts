@@ -166,6 +166,13 @@ export interface Difficulty {
    * Galleon in place of a Pinnace is more danger for much the same plunder.
    */
   heavy: number
+  /**
+   * Multiplies the plunder each level costs. A busier, heavier sea drops more
+   * plunder, and without this the player's build outgrew every rung: at
+   * notoriety 5 a run reached level 20 where notoriety 0 reaches 9. Doubloons
+   * are counted from the haul, not from levels, so the pay is untouched.
+   */
+  levelCost: number
   /** Extra escorts with each boss wave. */
   bossEscorts: number
   /** How long the Man-o'-War keeps the chase up, in seconds. */
@@ -183,6 +190,7 @@ export function difficultyFor(notoriety: number): Difficulty {
     intervalScale: 1 / (1 + 0.07 * n),
     mixAdvance: 0.08 * n,
     heavy: 0.06 * n,
+    levelCost: 1 + 0.3 * n,
     bossEscorts: Math.floor((n + 1) / 3),
     hunterSeconds: 55 + 8 * n,
     hunterVisits: n >= 4 ? 2 : 1,

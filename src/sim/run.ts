@@ -1,7 +1,7 @@
 import { T } from './tuning'
 import { drawDraft, STARTING_UPGRADES, UPGRADES_BY_ID, type Upgrade } from './upgrades'
 import type { Ship } from './ship'
-import { rankOf, STOCK_VOYAGE, type Voyage } from './voyage'
+import { difficultyFor, rankOf, STOCK_VOYAGE, type Voyage } from './voyage'
 
 export type RunState = 'sailing' | 'drafting' | 'won' | 'lost'
 
@@ -34,6 +34,8 @@ export class Run {
   level = 1
   plunder = 0
   plunderNeeded = plunderForLevel(1)
+  /** Notoriety's multiplier on what a level costs. */
+  private levelCost = 1
   totalPlunder = 0
   shipsSunk = 0
   /** Ships that struck their colours and were taken rather than sunk. */
@@ -59,6 +61,8 @@ export class Run {
     private readonly rand: () => number,
     readonly voyage: Voyage = STOCK_VOYAGE,
   ) {
+    this.levelCost = difficultyFor(voyage.notoriety).levelCost
+    this.plunderNeeded = plunderForLevel(1) * this.levelCost
     this.rerolls = rankOf(voyage, 'quartermaster')
     this.owed = rankOf(voyage, 'old-hands')
   }
@@ -155,7 +159,7 @@ export class Run {
 
   private gainLevel() {
     this.level++
-    this.plunderNeeded = plunderForLevel(this.level)
+    this.plunderNeeded = plunderForLevel(this.level) * this.levelCost
     const hand = this.deal()
     if (hand.length === 0) {
       // Every line is maxed, so levels are cosmetic from here. They should
