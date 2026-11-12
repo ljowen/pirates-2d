@@ -39,11 +39,26 @@ land; anything left open at the end is the honest remainder.
 - [x] Sailing orders: hints on the first voyages, each shown until learned
 - [x] Charts page in port: pick a map, see its chart, earn the next one
 - [x] Personal bests per map, called out on the end card
-- [ ] A kinder first few voyages
-- [ ] Charm: ship names, a flag at the masthead, gulls, screen shake, end-card epitaphs
-- [ ] Touch controls
-- [ ] Cull the map drawing
-- [ ] Player-facing README
+- [x] A kinder first few voyages
+- [x] Charm: ship names, a flag at the masthead, gulls, screen shake, end-card epitaphs
+- [x] Touch controls
+- [x] Cull the map drawing
+- [x] Player-facing README
+
+## Still open
+
+Found while working through the list, and not fixed:
+
+- **Not played by a person.** Everything here was checked in a headless browser and against
+  the scripted pilot. The hints' wording and timing, the feel of the shake, the difficulty of
+  the eased voyages and every sound need a human.
+- **Phones.** Touch buttons exist, but the instrument panels are sized for a laptop and will
+  crowd a phone held sideways.
+- **Lumpy coasts.** Big islands are visibly made of overlapping rounds.
+- **Frame rate is unmeasured.** The map is culled now, but nothing has been profiled on a
+  slow machine.
+- **The pilot has not learned the new maps.** Bench figures on fixed maps understate what a
+  person can do.
 
 ## Not attempted
 

@@ -18,6 +18,7 @@ import { GullView } from './render/gullView'
 import { P, PALETTES, paletteFromLocation, setPalette } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
+import { TouchControls } from './ui/touch'
 import { LEVELS_BY_ID } from './sim/levels'
 import { PortUI } from './ui/port'
 import type { ShipClass } from './sim/shipClasses'
@@ -207,6 +208,7 @@ async function main() {
   })
 
   tuner.launcherVisible = DEV
+  const touch = new TouchControls(input, app.canvas)
 
   let showDebug = false
   let lastFired = 0
@@ -363,6 +365,7 @@ async function main() {
       const menu = port.open || draft.open
       hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready, ledger, menu)
       tuner.legendVisible = !menu
+      touch.visible = !menu
       if (showDebug) debug.draw(world.player, playerWind, camera, fps)
     },
     120,

@@ -14,6 +14,7 @@ export class Input {
   private readonly pressed = new Set<string>()
   private mouseLeft = false
   private mouseRight = false
+  private touched = false
   private wheel = 0
 
   constructor(target: HTMLElement) {
@@ -33,7 +34,11 @@ export class Input {
       if (k) this.down.delete(k)
     })
 
+    // A finger also arrives as a pretend mouse, which would steer to port on
+    // every tap. Once the screen has been touched, the mouse buttons are out.
+    window.addEventListener('touchstart', () => { this.touched = true }, { passive: true })
     target.addEventListener('mousedown', (e) => {
+      if (this.touched) return
       if (e.button === 0) this.mouseLeft = true
       if (e.button === 2) this.mouseRight = true
     })
@@ -96,6 +101,17 @@ export class Input {
     this.wheel = 0
     return Math.exp(keys * 1.4 * dt - wheel * 0.0015)
   }
+
+  /** Hold or release an action from something other than a key: an on-screen button. */
+  hold(action: string, on: boolean) {
+    if (on) { this.down.add(action); this.pressed.add(action) } else this.down.delete(action)
+  }
+
+  /** One press of an action, from an on-screen button. */
+  tap(action: string) { this.pressed.add(action) }
+
+  /** Nudge the zoom as a turn of the wheel would. Positive zooms in. */
+  zoomStep(steps: number) { this.wheel -= steps * 160 }
 
   held(action: string) { return this.down.has(action) }
 

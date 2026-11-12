@@ -14,69 +14,131 @@ const SEGMENTS = 54
  */
 export class TerrainView {
   readonly view = new Container()
-  private readonly g = new Graphics()
+  private g = new Graphics()
   private lastKey = ''
 
   /**
-   * Three more views of the same drawing, for a map that wraps. The screen
-   * can straddle an edge in both directions at once, so up to four repeats
-   * of the map are in sight; they share one set of shapes and differ only in
-   * where they are put.
+   * A fixed map is cut into pieces that are each drawn once and then only
+   * shown when they are on screen: every bar, and every group of islands
+   * whose shallows touch. A group is painted layer by layer as one, so
+   * overlapping islands still merge; separate groups never overlap, so it
+   * does not matter which is painted first.
+   *
+   * There are four copies of every piece, one for each repeat of the map the
+   * screen can straddle at once. The copies share their shapes and differ
+   * only in where they are put.
    */
-  private readonly repeats: Graphics[] = []
+  private readonly tiles: Container[] = []
+  private pieces: { x: number; y: number; r: number; views: Graphics[] }[] = []
 
   constructor() {
     this.view.addChild(this.g)
-    for (let i = 0; i < 3; i++) {
-      const copy = new Graphics(this.g.context)
-      copy.visible = false
-      this.repeats.push(copy)
-      this.view.addChild(copy)
+    for (let i = 0; i < 4; i++) {
+      const tile = new Container()
+      this.tiles.push(tile)
+      this.view.addChild(tile)
     }
   }
 
-  /** Put the map's repeats under the camera: the tile it is over and the three nearest. */
-  private place(size: number, camera: Camera) {
-    if (size <= 0) {
-      this.g.position.set(0, 0)
-      for (const copy of this.repeats) copy.visible = false
-      return
+  /** Throw away the pieces of the last map and cut up this one. */
+  private rebuild(map: { islands: Island[]; reefs: Reef[] }) {
+    for (const piece of this.pieces) {
+      const context = piece.views[0].context
+      for (const view of piece.views) view.destroy()
+      context.destroy()
     }
+    this.pieces = []
+    const main = this.g
+
+    const add = (x: number, y: number, r: number, paint: () => void) => {
+      const first = new Graphics()
+      this.g = first
+      paint()
+      const views = [first, new Graphics(first.context), new Graphics(first.context), new Graphics(first.context)]
+      views.forEach((view, i) => this.tiles[i].addChild(view))
+      this.pieces.push({ x, y, r, views })
+    }
+
+    // Bars first, so a fringing reef lies under the island it runs up to.
+    for (const reef of map.reefs) {
+      add(reef.x, reef.y, Math.max(reef.length, reef.width) * 1.45, () => this.drawReef(reef))
+    }
+
+    // Islands whose shallows touch are one piece. Found by spreading out
+    // from each island not yet claimed.
+    const reach = (i: Island) => i.shoalRadius * 1.12
+    const claimed = new Set<Island>()
+    for (const start of map.islands) {
+      if (claimed.has(start)) continue
+      const group: Island[] = [start]
+      claimed.add(start)
+      for (let n = 0; n < group.length; n++) {
+        for (const other of map.islands) {
+          if (claimed.has(other)) continue
+          if (Math.hypot(other.x - group[n].x, other.y - group[n].y) < reach(other) + reach(group[n])) {
+            claimed.add(other)
+            group.push(other)
+          }
+        }
+      }
+      const x = group.reduce((sum, i) => sum + i.x, 0) / group.length
+      const y = group.reduce((sum, i) => sum + i.y, 0) / group.length
+      const r = Math.max(...group.map((i) => Math.hypot(i.x - x, i.y - y) + reach(i)))
+      add(x, y, r, () => this.drawIslands(group))
+    }
+    this.g = main
+  }
+
+  /** Put the map's repeats under the camera and show only the pieces in sight. */
+  private place(size: number, camera: Camera) {
+    const fixed = size > 0
+    this.g.visible = !fixed
+    for (const tile of this.tiles) tile.visible = fixed
+    if (!fixed) return
+
     const tx = Math.round(camera.pos.x / size)
     const ty = Math.round(camera.pos.y / size)
     const sx = camera.pos.x >= tx * size ? 1 : -1
     const sy = camera.pos.y >= ty * size ? 1 : -1
-    this.g.position.set(tx * size, ty * size)
-    const others: [number, number][] = [[tx + sx, ty], [tx, ty + sy], [tx + sx, ty + sy]]
-    others.forEach(([x, y], i) => {
-      this.repeats[i].visible = true
-      this.repeats[i].position.set(x * size, y * size)
+    const at: [number, number][] = [[tx, ty], [tx + sx, ty], [tx, ty + sy], [tx + sx, ty + sy]]
+    const halfW = camera.viewW / camera.zoom / 2 + 60
+    const halfH = camera.viewH / camera.zoom / 2 + 60
+    at.forEach(([x, y], i) => {
+      this.tiles[i].position.set(x * size, y * size)
+      // The camera, as this repeat of the map sees it.
+      const cx = camera.pos.x - x * size
+      const cy = camera.pos.y - y * size
+      for (const piece of this.pieces) {
+        piece.views[i].visible =
+          Math.abs(piece.x - cx) < halfW + piece.r && Math.abs(piece.y - cy) < halfH + piece.r
+      }
     })
   }
 
   update(terrain: Terrain, camera: Camera) {
-    this.place(terrain.size, camera)
-    let visible: Island[]
-    let reefs: Reef[]
-    let key: string
     const map = terrain.map
     if (map) {
-      // A fixed map is drawn once, whole, and left alone until it changes.
-      key = `map${terrain.version}`
-      if (key === this.lastKey) return
-      visible = map.islands
-      reefs = map.reefs
-    } else {
-      // Generous margin so islands are built before they scroll into view.
-      const reach = Math.max(camera.viewW, camera.viewH) / camera.zoom
-      visible = terrain.near(camera.pos, reach)
-      reefs = terrain.reefsNear(camera.pos, reach)
-      key = [
-        ...visible.map((i) => `${i.x.toFixed(0)},${i.y.toFixed(0)}`),
-        ...reefs.map((r) => `r${r.x.toFixed(0)},${r.y.toFixed(0)}`),
-      ].join('|')
-      if (key === this.lastKey) return
+      // A fixed map is cut up and drawn once, and left alone until it changes.
+      const key = `map${terrain.version}`
+      if (key !== this.lastKey) {
+        this.lastKey = key
+        this.g.clear()
+        this.rebuild(map)
+      }
+      this.place(terrain.size, camera)
+      return
     }
+    this.place(0, camera)
+
+    // Generous margin so islands are built before they scroll into view.
+    const reach = Math.max(camera.viewW, camera.viewH) / camera.zoom
+    const visible = terrain.near(camera.pos, reach)
+    const reefs = terrain.reefsNear(camera.pos, reach)
+    const key = [
+      ...visible.map((i) => `${i.x.toFixed(0)},${i.y.toFixed(0)}`),
+      ...reefs.map((r) => `r${r.x.toFixed(0)},${r.y.toFixed(0)}`),
+    ].join('|')
+    if (key === this.lastKey) return
     this.lastKey = key
 
     this.g.clear()
