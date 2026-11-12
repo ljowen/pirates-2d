@@ -36,7 +36,7 @@ The career is kept in `localStorage`; add `?career=new` to the URL to start over
 | Input | Action |
 |---|---|
 | ← / → (or LMB / RMB) | Turn |
-| ↑ / ↓ | Make / shorten sail — furled, courses, topsails, royals |
+| ↑ / ↓ | Make / shorten sail — furled, courses (fighting), topsails (full) |
 | 1–9 | Pick a card during a level-up draft; buy or pick a hull or a refit in port |
 | 0 | Redraw a draft hand, if you have bought a redraw |
 | Tab | Change page in port — shipyard, refits, captain's log |

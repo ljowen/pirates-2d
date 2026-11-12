@@ -81,15 +81,20 @@ throttle. The crew takes a couple of seconds to work the canvas.
 
 They are a **sail plan**, set from the deck upward the way a square rigger actually makes
 sail, and each order is one more yard crossed on the mast (fore-and-aft rigs map the same
-orders onto a reefed main, the full main and jib, then the gaff topsail and flying jib —
+orders onto a reefed main and one jib, then the full main, gaff topsail and flying jib —
 see *Every class has her own rig* below):
 
-| Order | Canvas | Yards a mast |
-|---|---|---|
-| Furled | 0.00 | 0 — bare poles |
-| Courses | 0.32 | 1 |
-| Topsails | 0.55 | 2 |
-| Royals | 1.00 | 3 |
+| Order | Canvas | Yards a mast | |
+|---|---|---|---|
+| Furled | 0.00 | 0 — bare poles | The only way to mend |
+| Courses | 0.55 | 1 | Fighting canvas (`SAIL_FIGHTING`) |
+| Topsails | 1.00 | 2 | Everything she has (`SAIL_FULL`) |
+
+**There were four, and Royals were cut.** A third yard on every mast cluttered every
+silhouette, and four speeds was one more than any decision in the game asks for. The two
+canvas values every balance figure was measured at — 0.55 and 1.00 — were kept exactly, so
+what went was the old in-between Courses at 0.32, and the names moved down a yard. The AI
+and the test pilot only ever ordered fighting or full canvas, so no measurement moved.
 
 **The ship shows which.** The sprite carries one sail per yard, each higher one narrower
 and stepped a little toward the bow — from directly overhead a course and a topsail sit
@@ -108,16 +113,16 @@ This replaced a three-position throttle whose middle setting had to be explained
 fixed something the [sprite sheet](../README.md) made obvious: with one sail per mast,
 **eleven hulls shared one silhouette**, separated only by scale and tint.
 
-**Balance did not move, by construction.** Topsails is the old Battle Sails at exactly
-0.55 and Royals the old Full Sails at exactly 1.00, so every figure measured to date
+**Balance did not move, by construction**, when the four orders first replaced the old
+three-position control: the fighting order is the old Battle Sails at exactly 0.55 and full
+sail the old Full Sails at exactly 1.00, so every figure measured to date
 still holds — confirmed at 7% win, 6.84 average level and 31.1 plunder across four hulls
-and 128 runs, identical to three decimal places before and after. Courses is a genuinely
-new option rather than a re-cut of the old ones. The AI and the test pilot address orders
+and 128 runs, identical to three decimal places before and after. The AI and the test pilot address orders
 by name (`SAIL_FIGHTING`, `SAIL_FULL`) rather than by index, which is what made adding a
 state a safe change instead of a hunt for every bare 1 and 2.
 
 Less canvas means a slower ship but a **much tighter turning circle** — 83 vs 186 units
-of radius, roughly 1.4 ship lengths against 3.2. Topsails barely help you tack
+of radius, roughly 1.4 ship lengths against 3.2. Fighting canvas barely helps you tack
 (3.4s vs 4.0s); they earn their place in a knife fight, where staying inside an enemy's
 guns matters more than speed.
 
@@ -126,7 +131,7 @@ Full sail in heavy air costs you speed rather than gaining it (`overcanvasPenalt
 ### Furled is not just "stopped" — it is the *only* way to mend
 
 Take the canvas off her and the hands come off the yards and go to the pumps. **Under way
-she mends nothing at all**, and neither does she under Courses: `mending` is
+she mends nothing at all**, not even under Courses: `mending` is
 `heaveToRepair` (×6) once she is fully furled and nothing otherwise, and the guns are
 served at 60% of their usual rate while it happens.
 
@@ -141,7 +146,8 @@ one of its kind: you have to make the sea room first, and then spend the time. T
 honest — you are stopped, visible, slow to answer the helm and slow to answer a broadside
 — so heaving to inside somebody's gun range is simply dying more comfortably.
 
-`hoveTo` is all or nothing. It used to ramp up from Topsails, so a ship under Courses —
+`hoveTo` is all or nothing. It used to ramp up from fighting canvas down, so a ship under
+the old reduced Courses —
 still making way, still able to run — mended at about 40% of the full rate, and reefing
 became a cheap half-measure that blurred the one decision the mechanic exists to ask. Now
 the order has to be Furled *and* the canvas actually in (under 2% aloft). The crew's time

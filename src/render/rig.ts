@@ -127,11 +127,11 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
 
   // --- Headsails ------------------------------------------------------------
   // Set first, because they are the lowest thing forward and the foremast's
-  // canvas overhangs them. One jib from topsails up, the flying jib with
-  // royals. A stay has no yard to brace round, so it lies fore and aft and
+  // canvas overhangs them. One jib under fighting canvas, the flying jib as
+  // well under full sail. A stay has no yard to brace round, so it lies fore and aft and
   // only the canvas moves.
   const tip = L + 13
-  const jibs = Math.min(look.jibs, Math.max(0, yards - 1))
+  const jibs = Math.min(look.jibs, yards)
   for (let j = 0; j < jibs; j++) {
     const from = tip - j * 2
     const to = L * (0.42 + j * 0.3)
@@ -150,7 +150,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
       squareMast(mast, mx, i)
       continue
     }
-    foreAndAft(mast.kind, mast.size, mx, shiver, mast.kind === 'gaff' && yards >= 3)
+    foreAndAft(mast.kind, mast.size, mx, shiver, mast.kind === 'gaff' && yards >= 2)
   }
   out.sails = below.concat(above)
   return out
@@ -182,8 +182,8 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
       return
     }
 
-    // Courses is a reefed main; anything more is the whole sail.
-    const reef = yards === 1 ? 0.75 : 1
+    // Fighting canvas is a reefed main; full sail is the whole of it.
+    const reef = yards === 1 ? 0.82 : 1
     const l = length * reef * (0.4 + 0.6 * health)
     // Slack as the boom crosses: the canvas only fills once it is out.
     const push = (BEAM * (0.3 + 1.1 * drawing) * canvas + shiver * 0.6) * side
@@ -217,7 +217,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
       foreAndAft('gaff', mast.spanker, mx, shiver, false)
     }
 
-    const set = Math.min(yards, mast.tiers ?? 3)
+    const set = Math.min(yards, mast.tiers ?? 2)
     if (set === 0) {
       // Bare poles: the course yard stays crossed, which is what a ship under
       // furled canvas actually looks like from above.
@@ -231,9 +231,9 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     const shiver = (1 - drawing) * Math.sin(time * 0.02 + i * 2.1) * BEAM * 0.22
 
     // Each yard up the mast, *lowest first*, so the topsail is painted over
-    // the course and the royal over the topsail.
+    // the course.
     //
-    // From directly overhead a course, a topsail and a royal hang from yards
+    // From directly overhead a course and a topsail hang from yards
     // on the same mast, so they share one line: each higher yard is laid on
     // the course's yard, narrower, with a shallower belly, and the course's
     // canvas shows round it. They used to be stepped toward the bow as false

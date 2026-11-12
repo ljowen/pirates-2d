@@ -184,7 +184,7 @@ const LOOK_SLOOP: ShipLook = {
 const LOOK_BRIGANTINE: ShipLook = {
   hull: { length: 1.05, beam: 1, bow: 0.55, stern: 0.7, ports: 4 },
   masts: [
-    { at: 0.38, kind: 'square', size: 1.4, tiers: 3 },
+    { at: 0.38, kind: 'square', size: 1.4, tiers: 2 },
     { at: -0.2, kind: 'gaff', size: 0.62 },
   ],
   jibs: 1,
@@ -194,7 +194,7 @@ const LOOK_BRIGANTINE: ShipLook = {
 const LOOK_BRIG: ShipLook = {
   hull: { length: 0.95, beam: 0.9, bow: 0.45, stern: 0.65, ports: 4 },
   masts: [
-    { at: 0.36, kind: 'square', size: 1.35, tiers: 3 },
+    { at: 0.36, kind: 'square', size: 1.35, tiers: 2 },
     { at: -0.3, kind: 'square', size: 1.2, tiers: 2, spanker: 0.42 },
   ],
   jibs: 1,
@@ -230,8 +230,8 @@ const LOOK_FLUYT: ShipLook = {
 const LOOK_FRIGATE: ShipLook = {
   hull: { length: 1.18, beam: 0.92, bow: 0.4, stern: 0.68, ports: 7 },
   masts: [
-    { at: 0.46, kind: 'square', size: 1.3, tiers: 3 },
-    { at: 0.02, kind: 'square', size: 1.45, tiers: 3 },
+    { at: 0.46, kind: 'square', size: 1.3, tiers: 2 },
+    { at: 0.02, kind: 'square', size: 1.45, tiers: 2 },
     { at: -0.48, kind: 'square', size: 1.05, tiers: 2, spanker: 0.38 },
   ],
   jibs: 2,
@@ -246,7 +246,7 @@ const LOOK_GALLEON: ShipLook = {
   hull: { length: 1.08, beam: 1.25, bow: 0.58, stern: 0.82, castle: 'both', ports: 6 },
   masts: [
     { at: 0.5, kind: 'square', size: 1.35, tiers: 2 },
-    { at: 0.06, kind: 'square', size: 1.55, tiers: 3 },
+    { at: 0.06, kind: 'square', size: 1.55, tiers: 2 },
     { at: -0.4, kind: 'lateen', size: 0.4 },
     { at: -0.72, kind: 'lateen', size: 0.3 },
   ],
@@ -257,9 +257,9 @@ const LOOK_GALLEON: ShipLook = {
 const LOOK_MAN_OF_WAR: ShipLook = {
   hull: { length: 1.2, beam: 1.15, bow: 0.5, stern: 0.78, castle: 'stern', ports: 8, decks: 2 },
   masts: [
-    { at: 0.46, kind: 'square', size: 1.45, tiers: 3 },
-    { at: 0.02, kind: 'square', size: 1.6, tiers: 3 },
-    { at: -0.46, kind: 'square', size: 1.2, tiers: 3, spanker: 0.4 },
+    { at: 0.46, kind: 'square', size: 1.45, tiers: 2 },
+    { at: 0.02, kind: 'square', size: 1.6, tiers: 2 },
+    { at: -0.46, kind: 'square', size: 1.2, tiers: 2, spanker: 0.4 },
   ],
   jibs: 2,
 }
@@ -561,7 +561,7 @@ export const GALLEON: ShipClass = {
  * She is not a fight. Against a stock hull she is four times the broadside
  * behind two and a half times the timbers, and the only answers are the ones
  * the sailing model already provides: she is a little slower than a Sloop
- * under royals, she turns like a continent, and she draws so much water that
+ * under full sail, she turns like a continent, and she draws so much water that
  * any bar will stop her. So for the first dozen voyages she is a reason to
  * know where the shoals are — and much later, refitted and in a capital hull,
  * she is the richest prize on the sea. Same ship, same numbers; the arc is

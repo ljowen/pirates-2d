@@ -84,7 +84,7 @@ trader, and the player is credited 9 plunder for having outlasted her.
 | Guns a side | 11 | 6 |
 | Damage | ×1.3 | ×1 |
 | Timbers | 2.6 | 1.0 |
-| Speed under royals | about 88% | 100% |
+| Speed under full sail | about 88% | 100% |
 | Turn rate | 0.52 | 1.0 |
 | Draught | 1.0 | 0.55 |
 

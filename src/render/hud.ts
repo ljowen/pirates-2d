@@ -1,5 +1,5 @@
 import type { Ship } from '../sim/ship'
-import { SAIL_STATES } from '../sim/ship'
+import { MAX_YARDS, SAIL_STATES } from '../sim/ship'
 import type { WindSample } from '../sim/wind'
 import type { World } from '../sim/world'
 import type { Camera } from './camera'
@@ -319,11 +319,11 @@ export class Hud {
     ctx.lineWidth = 1.6
     ctx.beginPath()
     ctx.moveTo(MAST_X, FOOT)
-    ctx.lineTo(MAST_X, FOOT - STEP * 3 - 6)
+    ctx.lineTo(MAST_X, FOOT - STEP * MAX_YARDS - 6)
     ctx.stroke()
 
-    for (let i = 0; i < 3; i++) {
-      const half = 17 - i * 3.6
+    for (let i = 0; i < MAX_YARDS; i++) {
+      const half = 17 - i * 4.5
       const y = FOOT - i * STEP - 7
       const ordered = i < SAIL_STATES[ship.sailOrder].yards
       if (i < set) {

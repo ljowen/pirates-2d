@@ -21,29 +21,34 @@ import { angleDiff, clamp, damp, smoothstep, type Vec2 } from '../core/math'
 export interface SailState { name: string; short: string; canvas: number; yards: number }
 
 /**
- * Canvas values are chosen so the two orders that existed before keep their
- * exact numbers: Topsails is the old Battle Sails at 0.55, and Royals is the
- * old Full Sails at 1.0. Every balance figure measured to date therefore
- * still holds, and Courses is a genuinely new option rather than a re-cut of
- * the old ones.
+ * Three orders: bare poles, fighting canvas, and everything she has.
+ *
+ * There were four for a while — Courses at 0.32 under a Topsails at 0.55 and
+ * Royals at 1.0. Royals were dropped: a third yard on every mast cluttered
+ * every silhouette, and four speeds was one more than any decision in the
+ * game needed. The two canvas values that every balance figure was measured
+ * at are kept exactly — fighting at 0.55, full at 1.0 — so it is the old
+ * in-between Courses speed that went, and the names moved down a yard.
  */
 export const SAIL_STATES: SailState[] = [
   { name: 'Furled', short: 'FURL', canvas: 0.0, yards: 0 },
-  { name: 'Courses', short: 'CRSE', canvas: 0.32, yards: 1 },
-  { name: 'Topsails', short: 'TOPS', canvas: 0.55, yards: 2 },
-  { name: 'Royals', short: 'ROYL', canvas: 1.0, yards: 3 },
+  { name: 'Courses', short: 'CRSE', canvas: 0.55, yards: 1 },
+  { name: 'Topsails', short: 'TOPS', canvas: 1.0, yards: 2 },
 ]
 
+/** The most yards any order crosses — the height of the HUD's mast. */
+export const MAX_YARDS = SAIL_STATES[SAIL_STATES.length - 1].yards
+
 /**
- * Named orders, so nothing has to know that "fighting canvas" happens to be
- * index 2. Adding a state used to mean hunting for every bare 1 and 2 in the
- * AI, the test pilot and the physics.
+ * Named orders, so nothing has to know which index "fighting canvas" happens
+ * to be. Adding or removing a state used to mean hunting for every bare 1 and
+ * 2 in the AI, the test pilot and the physics; removing Royals touched none.
  */
 export const SAIL_FURLED = 0
-export const SAIL_COURSES = 1
-/** Topsails: the traditional fighting rig, and the handiest for a knife fight. */
-export const SAIL_FIGHTING = 2
-export const SAIL_FULL = 3
+/** Courses: fighting canvas, and the handiest for a knife fight. */
+export const SAIL_FIGHTING = 1
+/** Topsails: everything she has. */
+export const SAIL_FULL = 2
 
 /** Canvas still aloft below which she counts as furled. Canvas eases toward its order and never quite reaches zero. */
 const FURLED_CANVAS = 0.02
