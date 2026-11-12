@@ -158,6 +158,92 @@ class Chart {
     this.claim(cx, cy, lobes * 330 + 500)
   }
 
+  /**
+   * A coast: a long shore of big rounds from one point to another, with
+   * headlands thrown out to one side. Run from edge to edge of a wrapping map
+   * it has no ends, and two of them facing each other make a strait.
+   * `seaward` is +1 or -1: which side of the line the headlands reach to.
+   */
+  coast(x0: number, y0: number, x1: number, y1: number, seaward: number) {
+    const rng = this.rng
+    const dx = x1 - x0
+    const dy = y1 - y0
+    const len = Math.hypot(dx, dy)
+    const ux = dx / len
+    const uy = dy / len
+    const nx = -uy * seaward
+    const ny = ux * seaward
+    let at = 0
+    while (at <= len) {
+      const r = 290 + rng() * 150
+      // The shore wanders a little either side of the line.
+      const off = (rng() - 0.5) * 260
+      const x = x0 + ux * at + nx * off
+      const y = y0 + uy * at + ny * off
+      this.island(x, y, r, 1.3 + rng() * 0.25)
+      if (rng() < 0.4) {
+        const reach = r * (1 + rng() * 0.45)
+        const lean = (rng() - 0.5) * 0.9
+        const hx = nx * Math.cos(lean) - ny * Math.sin(lean)
+        const hy = nx * Math.sin(lean) + ny * Math.cos(lean)
+        this.island(x + hx * reach, y + hy * reach, 110 + rng() * 110, 1.5)
+      }
+      at += r * 0.9
+    }
+    // Claimed as a row of circles, so the scatter keeps off the whole shore.
+    for (let d = 0; d <= len; d += 600) this.claim(x0 + ux * d, y0 + uy * d, 950)
+  }
+
+  /**
+   * A bank: a wide flat with a few tiny cays standing on it and bars of
+   * every depth lying across it. No two hulls see the same bank. To a deep
+   * hull it is one solid obstacle; to a shallow one it is full of ways through.
+   */
+  bank(cx: number, cy: number, R: number) {
+    const rng = this.rng
+    const cays = 2 + Math.floor(rng() * 3)
+    for (let i = 0; i < cays; i++) {
+      const a = rng() * Math.PI * 2
+      const d = rng() * R * 0.55
+      // Small land, very wide flats.
+      this.island(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 42 + rng() * 36, 4.5 + rng() * 2.5)
+    }
+    const bars = Math.round(R / 95)
+    for (let i = 0; i < bars; i++) {
+      const a = rng() * Math.PI * 2
+      const d = Math.sqrt(rng()) * R
+      const length = 200 + rng() * 300
+      this.reef(cx + Math.cos(a) * d, cy + Math.sin(a) * d, length, length * (0.2 + rng() * 0.22),
+        rng() * Math.PI, 0.04 + rng() * 0.26)
+    }
+    this.claim(cx, cy, R + 350)
+  }
+
+  /**
+   * Skerries: a scatter of small steep rocks with almost no shallows round
+   * them. They stop shot and give no warning, so it is a place to break a
+   * pursuer's line of fire and a bad place to be careless.
+   */
+  skerries(cx: number, cy: number, R: number, count: number) {
+    const rng = this.rng
+    const placed: [number, number, number][] = []
+    for (let i = 0; i < count; i++) {
+      for (let tries = 0; tries < 20; tries++) {
+        const a = rng() * Math.PI * 2
+        const d = Math.sqrt(rng()) * R
+        const x = cx + Math.cos(a) * d
+        const y = cy + Math.sin(a) * d
+        const r = 34 + rng() * rng() * 70
+        // Room for a ship between any two of them.
+        if (placed.some(([px, py, pr]) => Math.hypot(x - px, y - py) < r + pr + 190)) continue
+        placed.push([x, y, r])
+        this.island(x, y, r, 1.2 + rng() * 0.15)
+        break
+      }
+    }
+    this.claim(cx, cy, R + 300)
+  }
+
   /** Lone islets and sandbars in whatever sea the places have left open. */
   scatter(size: number, islets: number, bars: number) {
     const rng = this.rng
@@ -205,11 +291,76 @@ function windwardCays(): TerrainMap {
   return c.map
 }
 
+/**
+ * Two coasts running the whole width of the map with a channel between them.
+ * Because the map wraps, neither coast has an end: the only ways from the
+ * strait to the open sea beyond are the gaps left in each shore.
+ */
+function theNarrows(): TerrainMap {
+  const c = new Chart(makeRng(0x4a22))
+  // North shore, in two lengths with a gap between them, headlands reaching south.
+  c.coast(-5000, -1350, -900, -1150, 1)
+  c.coast(700, -1250, 5000, -1450, 1)
+  // South shore, its gap well along from the northern one.
+  c.coast(-5000, 1500, 1500, 1250, -1)
+  c.coast(3000, 1350, 5000, 1500, -1)
+  // Rocks in the channel itself.
+  c.skerries(-2600, 100, 420, 4)
+  c.skerries(2300, 50, 380, 3)
+  // The open sea round the back, reached through the gaps.
+  c.atoll(-1800, 3900, 700)
+  c.chain(1200, -4200, 4300, -3300, 350, 6)
+  c.scatter(9400, 3, 8)
+  return c.map
+}
+
+/** Almost no land and a great deal of shallow water: the small hull's map. */
+function pinnaceBanks(): TerrainMap {
+  const c = new Chart(makeRng(0x0b4e))
+  c.bank(-2700, -2500, 1300)
+  c.bank(2600, -1600, 1500)
+  c.bank(-900, 2400, 1600)
+  c.bank(3600, 3300, 1000)
+  c.atoll(-3900, 900, 560)
+  c.chain(200, -4300, 1500, -500, 300, 5)
+  c.scatter(9400, 4, 14)
+  return c.map
+}
+
+/** Rock everywhere and nowhere to anchor: fields of skerries round two hooked islands. */
+function theTeeth(): TerrainMap {
+  const c = new Chart(makeRng(0x7ee7))
+  c.crescent(-2400, -2300, 620, Math.PI * 0.2, 1.6)
+  c.crescent(2700, 2500, 500, Math.PI * 1.15, 1.5)
+  c.skerries(1900, -2600, 1700, 16)
+  c.skerries(-2500, 2300, 1800, 18)
+  c.skerries(100, 100, 1100, 9)
+  c.skerries(-4300, -200, 700, 5)
+  c.chain(3300, -400, 4700, 900, 200, 4)
+  c.scatter(9400, 5, 6)
+  return c.map
+}
+
 export const LEVELS: Level[] = [
   {
     id: 'windward-cays', name: 'Windward Cays', size: 10000,
     blurb: 'Two chains, two atolls, a harbour and a big island.',
     map: windwardCays(),
+  },
+  {
+    id: 'the-narrows', name: 'The Narrows', size: 10000,
+    blurb: 'A strait between two long shores, with gaps through to the open sea behind.',
+    map: theNarrows(),
+  },
+  {
+    id: 'pinnace-banks', name: 'Pinnace Banks', size: 10000,
+    blurb: 'Hardly any land and a great deal of shallow water. Kind to small hulls.',
+    map: pinnaceBanks(),
+  },
+  {
+    id: 'the-teeth', name: 'The Teeth', size: 10000,
+    blurb: 'Fields of steep rocks round two hooked islands. Cover everywhere, warning nowhere.',
+    map: theTeeth(),
   },
   {
     id: 'endless', name: 'Open Sea', size: 0,
