@@ -49,7 +49,6 @@ The career is kept in `localStorage`; add `?career=new` to the URL to start over
 | Q | Spawn a squall to windward |
 | ] | Cycle the sea palette (`?style=`) |
 | [ | Cycle the hull style (`?hull=`) |
-| U (or \\) | Cycle the UI theme — captain's log, cabin, chart, modern (`?ui=`) |
 | F1 | Debug overlay — polar plot, velocity vectors, numbers |
 | ` | Live tuning panel (or click **⚙ Tune**, bottom right). The **Career** tab unlocks hulls, refits, feats and notoriety and puts you to sea in any hull in one click |
 

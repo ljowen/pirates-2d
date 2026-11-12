@@ -155,30 +155,20 @@ all want visual identity. Starting earlier means drawing things twice.
 The exception is **collecting references and writing the style guide**, which can happen
 any time and should.
 
-## UI theme
+## UI: Captain's log
 
-The instruments and menus are a third switchable axis beside the sea palette and the hull
-style: `?ui=` or `\` in game, defined in `src/ui/theme.ts`.
+The instruments and menus have one look, defined in `src/ui/theme.ts`: ink on paper, cel
+shaded to match the ships — flat fill, one hard shade band, heavy ink outline, hard offset
+shadow, no blur or gradients. Fonts are bundled through `@fontsource`, not fetched from a
+CDN.
 
-| Theme | Look |
-|---|---|
-| `log` (default) | Ink on paper. Pirata One titles, Old Standard TT for everything read |
-| `cabin` | Dark wood trimmed in brass, cream lettering. Pirata One, Alegreya |
-| `chart` | Navy ink on chart paper, ruled borders. Cinzel, EB Garamond |
-| `modern` | The original dark glass and monospace, kept as the control |
+Three other looks were built alongside it to compare — the original dark glass and
+monospace, a wood-and-brass cabin, and an Admiralty chart in navy ink — and removed once
+this one was chosen, along with the key that switched between them.
 
-The three period themes are cel shaded to match the ships: flat fill, one hard shade band,
-heavy ink outline, hard offset shadow, no blur or gradients. Text that sits over the sea
-(announcements, warnings, the wind label) gets a small plaque, since dark ink does not read
-on water. The HUD's original colours are remapped by hue per theme, keeping their alpha, so
-its 55% labels and 14% tracks keep their hierarchy as dark ink on paper. Fonts are bundled
-through `@fontsource`, not fetched from a CDN.
+### The rules
 
-Not themed: the tuning panel itself (developer chrome), gun arcs and pickup colours.
-
-### Captain's log: the rules
-
-The default theme, after a critique pass. These are what keep it one thing:
+What keeps it one thing:
 
 - **Two faces, two jobs.** Blackletter (Pirata One) only for titles with room: the end
   card, announcements, "In port", "Choose an upgrade". Never in capitals, which in
@@ -200,8 +190,10 @@ The default theme, after a critique pass. These are what keep it one thing:
   and ochre for meaning. The compass's speed ramp runs red-ochre-green in those inks rather
   than neon.
 - **Paper is pale, so ink is dark.** Faint inks the HUD was built with (55% labels) are lifted
-  on paper (`C()` raises any alpha over 0.3), since dark-on-light tolerates far less
-  transparency than light-on-dark.
+  (`C()` raises any alpha over 0.3), since dark-on-light tolerates far less transparency
+  than light-on-dark.
+- **Nothing under 14px.** `F()` and `Fh()` floor every size at `MIN_FONT`; the HUD's column is
+  laid out for it.
 - **The sea is lettered like a chart.** Text drawn on the water with no panel behind it
   (enemy names) is pale type in a dark ink halo.
 - **Menus are pages.** Port and the draft sit on a near-opaque backdrop, and banners and the

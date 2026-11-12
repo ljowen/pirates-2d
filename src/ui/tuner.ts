@@ -8,7 +8,7 @@ import { freshCareer, owns, priceOf, type Ledger } from '../meta/career'
 import { FEATS } from '../meta/feats'
 import { P } from '../render/palette'
 import { H } from '../render/hullStyle'
-import { C, bodyFamily, cardCss, isCel, ui } from './theme'
+import { C, bodyFamily, cardCss, ui } from './theme'
 
 const STORAGE_KEY = 'pirates2d.tuning.v2'
 const TAB_KEY = 'pirates2d.tuning.tab'
@@ -112,32 +112,23 @@ export class Tuner {
     // The three look switches name what they switch and what is showing,
     // since a key labelled only "style" says nothing about which style.
     const look = (key: string, what: string, name: string) =>
-      `${key} ${what}: <span style="color:${isCel() ? ui().panel.ink : 'rgba(207,230,245,0.95)'};font-weight:bold">${name}</span>`
+      `${key} ${what}: <span style="color:${ui().panel.ink};font-weight:bold">${name}</span>`
     // Each key stays on one line with its action, so a wrap never strands one.
     legend.innerHTML = [
       '&larr;&rarr; steer', '&uarr;&darr; sails', 'E spawn enemy', 'Q squall',
-      look(']', 'sea', P().name), look('[', 'hull', H().name), look('U', 'ui', ui().name),
+      look(']', 'sea', P().name), look('[', 'hull', H().name),
       'P pause', 'T turbo', 'M mute', 'R port', 'F1 debug',
     ].map((item) => `<span style="white-space:nowrap">${item}</span>`).join(' &middot; ')
     const toggle = document.createElement('button')
     toggle.innerHTML = '&#9881; Tune <span style="opacity:0.55">(`)</span>'
-    // The strip along the bottom is on screen the whole time, so in a period
-    // theme it is a paper label like every other panel rather than a lone
-    // piece of dark glass in monospace.
-    const cel = isCel()
-    toggle.style.cssText = cel
-      ? `${cardCss()} color: ${ui().panel.ink}; padding: 5px 11px; cursor: pointer;
-         font: 14px ${bodyFamily()}; white-space: nowrap;`
-      : `background: rgba(6,18,30,0.92); color: #9fe8ff;
-         border: 1px solid rgba(159,232,255,0.4); border-radius: 4px;
-         padding: 6px 11px; cursor: pointer; font: inherit; white-space: nowrap;`
+    // The strip along the bottom is on screen the whole time, so it is a
+    // paper label like every other panel.
+    toggle.style.cssText = `${cardCss()} color: ${ui().panel.ink}; padding: 5px 11px; cursor: pointer;
+      font: 14px ${bodyFamily()}; white-space: nowrap;`
     toggle.onclick = () => this.toggle()
-    // Backed, because over a pale sea (the ink palette) bare text vanished.
-    legend.style.cssText = cel
-      ? `${cardCss()} color: ${C('rgba(255,255,255,0.75)')}; padding: 4px 10px; font: 14px ${bodyFamily()};`
-      : 'background:rgba(6,18,30,0.72);padding:4px 9px;border-radius:4px'
-    // At 14px the legend outgrows a narrow window: let it wrap, right-aligned.
-    legend.style.cssText += ';text-align:right;line-height:1.5'
+    // At 14px the legend outgrows a narrow window, so it wraps, right-aligned.
+    legend.style.cssText = `${cardCss()} color: ${C('rgba(255,255,255,0.75)')}; padding: 4px 10px;
+      font: 14px ${bodyFamily()}; text-align: right; line-height: 1.5;`
     this.launcher.append(legend, toggle)
     document.body.appendChild(this.launcher)
 

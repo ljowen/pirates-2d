@@ -170,14 +170,12 @@ export class Hud {
         // the warning goes away by itself as the build outgrows the ship,
         // which is the whole progression of the game drawn on the water.
         const run = !e.yielding && outmatches(e, player)
-        // On the water, not on a panel: modern keeps its tier tints; the
-        // period themes letter the sea as a chart does, light type in a
-        // dark ink halo, so every label is legible over any water.
-        const cel = ui().id !== 'modern'
-        if (cel) ctx.font = F(11)
+        // On the water, not on a panel: lettered as a chart letters the sea,
+        // light type in a dark ink halo, legible over any water.
+        ctx.font = F(11)
         if (run) ctx.font = F(12, true)
         seaLabel(ctx, run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56,
-          run ? '#ff5a4a' : cel ? ui().menu.text : TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)')
+          run ? '#ff5a4a' : ui().menu.text)
         if (e.isHunter && !e.breakingOff) {
           ctx.font = F(9.5)
           seaLabel(ctx, `hunting · ${Math.ceil(e.huntLeft)}s`, s.x, s.y - 69, 'rgba(255,190,110,0.95)')
@@ -199,11 +197,9 @@ export class Hud {
           ctx.fillRect(s.x - bw / 2, by, bw, h)
           ctx.fillStyle = color
           ctx.fillRect(s.x - bw / 2, by, bw * value, h)
-          if (cel) {
-            ctx.strokeStyle = ui().panel.ink
-            ctx.lineWidth = 1
-            ctx.strokeRect(s.x - bw / 2 + 0.5, by + 0.5, bw - 1, h - 1)
-          }
+          ctx.strokeStyle = ui().panel.ink
+          ctx.lineWidth = 1
+          ctx.strokeRect(s.x - bw / 2 + 0.5, by + 0.5, bw - 1, h - 1)
           by += h + 1.5
         }
       } else {
@@ -248,7 +244,7 @@ export class Hud {
       ctx.beginPath()
       ctx.arc(0, 0, r + 7, a0, a1)
       ctx.lineWidth = 9
-      ctx.strokeStyle = ramp(ship.polar.sample(rel), speedColor)
+      ctx.strokeStyle = ramp(ship.polar.sample(rel))
       ctx.stroke()
     }
 
@@ -379,10 +375,8 @@ export class Hud {
     ctx.textBaseline = 'top'
     label(ctx, 'POINT OF SAIL', IN, 12)
     ctx.font = F(18, true)
-    // The speed ramp is bright on purpose — it is drawn on the rose's dark
-    // rim — and pale green on paper is barely there, so a light panel gets
-    // the same three bands in the theme's own inks.
-    ctx.fillStyle = inIrons ? C('#ff7a6b') : ramp(ship.polarMult, speedColor)
+    // The same red-ochre-green ramp as the compass rim, in ink.
+    ctx.fillStyle = inIrons ? C('#ff7a6b') : ramp(ship.polarMult)
     ctx.fillText(pos, IN, 32)
     ctx.font = F(14)
     ctx.fillStyle = C('rgba(255,255,255,0.7)')
@@ -813,8 +807,8 @@ export class Hud {
     ctx.save()
     ctx.fillStyle = ui().overlay
     ctx.fillRect(0, 0, w, h)
-    // On paper or wood the card is a sheet of its own.
-    if (ui().plaques) panel(ctx, cx - 380, top, 760, height)
+    // The card is a sheet of paper of its own.
+    panel(ctx, cx - 380, top, 760, height)
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -846,15 +840,6 @@ export class Hud {
 function shortName(name: string): string {
   const trimmed = name.replace(/^(Another|Ship's)\s+/, (m) => m.trim() === 'Another' ? '+1 ' : '')
   return trimmed.length > 15 ? `${trimmed.slice(0, 14)}…` : trimmed
-}
-
-/** Rising threat reads as rising heat. */
-const TIER_COLORS: Record<number, string> = {
-  1: 'rgba(170,220,255,0.85)',
-  2: 'rgba(255,214,138,0.9)',
-  3: 'rgba(255,138,122,0.95)',
-  4: 'rgba(255,110,150,0.95)',
-  5: 'rgba(255,90,74,1)',
 }
 
 function normalize(a: number): number {

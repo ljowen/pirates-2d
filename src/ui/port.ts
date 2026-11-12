@@ -5,7 +5,7 @@ import {
 import { canAfford, owns, permitted, priceOf, type Ledger } from '../meta/career'
 import { FEATS, FEATS_BY_ID } from '../meta/feats'
 import {
-  C, bodyFamily, callCss, cardPressedCss, keyCss, panelIsLight, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, isCel, quietCss, ui,
+  C, bodyFamily, callCss, cardPressedCss, keyCss, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, quietCss, ui,
 } from './theme'
 
 type Tab = 'yard' | 'refit' | 'log'
@@ -16,7 +16,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 // Two sets of ink: the menu's, drawn straight onto the backdrop, and the
-// card's, drawn onto a panel — which in a paper theme is dark ink on light.
+// card's, drawn onto paper — dark ink on light.
 const M = ui().menu
 const GOLD = cardInk('#f0c14b')
 const INK = cardInk('#cfe6f5')
@@ -54,7 +54,7 @@ export class PortUI {
       position: fixed; inset: 0; z-index: 30; display: none;
       align-items: center; flex-direction: column; overflow-y: auto;
       padding: 34px 0 28px; box-sizing: border-box;
-      background: ${M.backdrop}; ${isCel() ? '' : 'backdrop-filter: blur(4px);'}
+      background: ${M.backdrop}; 
       font-family: ${bodyFamily()}; color: ${M.text};
     `
     document.body.appendChild(this.root)
@@ -131,8 +131,8 @@ export class PortUI {
     const earned = this.ledger.earned
     const head = el('div', 'text-align:center')
     head.innerHTML = `
-      <div style="color:${M.heading};font-size:${isCel() ? 15 : 14}px;letter-spacing:4px;font-weight:bold;font-family:${displayFamily()}">PIRATES</div>
-      <div style="font-size:${isCel() ? 34 : 21}px;margin:8px 0 10px;font-family:${headingFamily()}">In port</div>
+      <div style="color:${M.heading};font-size:15px;letter-spacing:4px;font-weight:bold;font-family:${displayFamily()}">PIRATES</div>
+      <div style="font-size:34px;margin:8px 0 10px;font-family:${headingFamily()}">In port</div>
       <div data-purse style="color:${M.gold};font-size:16px">
         ${career.doubloons.toLocaleString()} doubloons${
           earned > 0 ? `<span style="color:${M.good}"> &nbsp;+${earned.toLocaleString()} last voyage</span>` : ''}
@@ -153,14 +153,11 @@ export class PortUI {
       const active = t.id === this.tab
       const b = el('button', `
         font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
-        ${isCel()
+        ${active
           // Every tab is the same paper card; the selected one is pressed
           // into the page, which reads as a state rather than a colour.
-          ? active
-            ? `${cardPressedCss()} color: ${INK}; font-weight: bold; padding: 6px 16px;`
-            : `${cardCss()} color: ${DIM}; padding: 6px 16px;`
-          : `border-radius: 6px; border: 1px solid ${active ? GOLD : 'rgba(207,230,245,0.2)'};
-             background: ${active ? 'rgba(240,193,75,0.14)' : 'transparent'}; color: ${active ? GOLD : INK};`}`)
+          ? `${cardPressedCss()} color: ${INK}; font-weight: bold; padding: 6px 16px;`
+          : `${cardCss()} color: ${DIM}; padding: 6px 16px;`}`)
       b.dataset.tab = t.id
       b.textContent = t.label + this.badge(t.id)
       b.onclick = () => { this.tab = t.id; this.render() }
@@ -217,8 +214,7 @@ export class PortUI {
     const career = this.ledger.career
     const box = el('div', `
       margin-top:14px;display:flex;align-items:center;gap:10px;font-size:14px;color:${INK};
-      padding:7px 12px;${isCel() ? cardCss()
-        : 'border-radius:6px;border:1px solid rgba(255,122,107,0.25);background:rgba(255,122,107,0.06)'}`)
+      padding:7px 12px;${cardCss()}`)
     box.dataset.notoriety = String(career.notoriety)
 
     if (career.notorietyMax === 0) {
@@ -234,8 +230,7 @@ export class PortUI {
       const ok = target >= 0 && target <= career.notorietyMax
       const b = el('button', `
         font:inherit;width:26px;height:24px;cursor:${ok ? 'pointer' : 'default'};
-        ${isCel() ? `${keyCss(ok)} color:${RED(1)};`
-          : `border-radius:4px;border:1px solid ${RED(ok ? 0.6 : 0.15)};background:transparent;color:${RED(ok ? 1 : 0.25)};`}`)
+        ${keyCss(ok)} color:${RED(1)};`)
       b.textContent = glyph
       b.dataset.step = String(delta)
       if (ok) b.onclick = () => { this.ledger.setNotoriety(target); this.render() }
@@ -262,7 +257,7 @@ export class PortUI {
     const career = this.ledger.career
     // The hull's own colour on the bars: the light deck tone on a dark card,
     // the darker hull tone on paper, so the swatch never vanishes into it.
-    const swatch = panelIsLight() ? cls.colors.hull : cls.colors.deck
+    const swatch = cls.colors.hull
     const accent = '#' + swatch.toString(16).padStart(6, '0')
     const owned = owns(career, cls)
     const allowed = permitted(career, cls)
@@ -278,9 +273,7 @@ export class PortUI {
     // A hull out of reach is dimmed but still fully legible: reading what she
     // does is what makes her worth saving for.
     if (!owned && !affordable) {
-      if (!isCel()) {
-        card.style.opacity = allowed ? '0.66' : '0.5'
-      } else if (!allowed) {
+      if (!allowed) {
         // Only a hull the yard will not build yet is faded and drained of
         // colour. One that is merely too dear stays on full paper with its
         // price and how close the purse is: on a new career that is every
@@ -299,7 +292,7 @@ export class PortUI {
       return `
         <div style="display:flex;align-items:center;gap:7px;font-size:14px">
           <span style="color:${DIM};width:74px">${label}</span>
-          <span style="flex:1;height:${isCel() ? 6 : 5}px;background:${C('rgba(255,255,255,0.13)')};border-radius:${isCel() ? 0 : 3}px;overflow:hidden;${isCel() ? `border:1px solid ${ui().panel.ink};box-sizing:border-box` : ''}">
+          <span style="flex:1;height:6px;background:${C('rgba(255,255,255,0.13)')};overflow:hidden;border:1px solid ${ui().panel.ink};box-sizing:border-box">
             <span style="display:block;height:100%;width:${scaled * 100}%;background:${accent}"></span>
           </span>
         </div>`
@@ -318,7 +311,7 @@ export class PortUI {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:${isCel() ? 21 : 17}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
+        <span style="font-size:21px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
         <span style="opacity:0.4;font-size:14px">${index + 1}</span>
       </div>
       <div style="font-size:14px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
@@ -351,7 +344,7 @@ export class PortUI {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:${isCel() ? 18 : 15}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
+        <span style="font-size:18px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
         <span style="opacity:0.4;font-size:14px">${index < 9 ? index + 1 : ''}</span>
       </div>
       <div>${pips}</div>
@@ -372,8 +365,7 @@ export class PortUI {
     const done = this.ledger.career.feats.includes(id)
     const row = el('div', `
       display:flex;gap:12px;align-items:baseline;padding:9px 12px;font-size:14px;color:${INK};
-      ${isCel() ? cardCss()
-        : `border-radius:6px;background:rgba(8,24,38,0.9);border:1px solid ${done ? 'rgba(127,224,160,0.35)' : 'rgba(207,230,245,0.12)'}`}`)
+      ${cardCss()}`)
     row.dataset.feat = id
     row.dataset.done = String(done)
     row.innerHTML = `
@@ -398,26 +390,20 @@ function cardShell(accent: string, live: boolean): HTMLButtonElement {
   const card = document.createElement('button')
   card.style.cssText = `
     cursor: ${live ? 'pointer' : 'default'}; text-align: left; font: inherit;
-    ${isCel() ? cardCss() : `background: rgba(8,24,38,0.95); border: 1px solid ${accent}55; border-radius: 8px;`}
+    ${cardCss()}
     padding: 14px; color: ${INK};
     display: flex; flex-direction: column; gap: 9px; transition: all 0.12s ease;
   `
   const rest = card.style.boxShadow
+  // Lift toward the light: the card moves up-left and its hard shadow grows.
   card.onmouseenter = () => {
-    if (isCel()) {
-      // Lift toward the light: the card moves up-left and its hard shadow grows.
-      if (live) { card.style.transform = 'translate(-2px,-2px)'; card.style.boxShadow = cardHoverCss() }
-      return
-    }
-    card.style.borderColor = accent
-    if (live) card.style.transform = 'translateY(-3px)'
-    card.style.background = 'rgba(14,38,58,0.98)'
+    if (!live) return
+    card.style.transform = 'translate(-2px,-2px)'
+    card.style.boxShadow = cardHoverCss()
   }
   card.onmouseleave = () => {
     card.style.transform = 'none'
-    if (isCel()) { card.style.boxShadow = rest; return }
-    card.style.borderColor = `${accent}55`
-    card.style.background = 'rgba(8,24,38,0.95)'
+    card.style.boxShadow = rest
   }
   return card
 }
@@ -425,7 +411,7 @@ function cardShell(accent: string, live: boolean): HTMLButtonElement {
 /** How far the purse is toward a price: a thin inked gauge under the figure. */
 function progress(share: number): string {
   const pct = Math.max(0, Math.min(1, share)) * 100
-  const edge = isCel() ? `border:1px solid ${ui().panel.ink};box-sizing:border-box;` : 'border-radius:2px;'
+  const edge = `border:1px solid ${ui().panel.ink};box-sizing:border-box;`
   return `<div style="margin:6px auto 1px;width:80%;height:5px;background:${C('rgba(255,255,255,0.13)')};${edge}overflow:hidden">
     <div style="height:100%;width:${pct}%;background:${GOLD}"></div></div>`
 }

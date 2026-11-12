@@ -1,4 +1,4 @@
-import { C, bodyFamily, callCss, cardCss, cardHoverCss, displayFamily, headingFamily, isCel, ui } from './theme'
+import { C, bodyFamily, callCss, cardCss, cardHoverCss, displayFamily, headingFamily, ui } from './theme'
 import { isCommitting, type Upgrade } from '../sim/upgrades'
 import { describeStats, type Stat, type StatGroup } from '../sim/stats'
 import type { Ship } from '../sim/ship'
@@ -42,7 +42,7 @@ export class DraftUI {
       position: fixed; inset: 0; z-index: 20; display: none;
       align-items: center; justify-content: center; flex-direction: column;
       overflow-y: auto; padding: 28px 0;
-      background: ${M.backdrop}; ${isCel() ? '' : 'backdrop-filter: blur(3px);'}
+      background: ${M.backdrop}; 
       font-family: ${bodyFamily()};
     `
     document.body.appendChild(this.root)
@@ -84,8 +84,8 @@ export class DraftUI {
 
     const heading = document.createElement('div')
     heading.innerHTML = `
-      <div style="color:${M.heading};font-size:${isCel() ? 16 : 14}px;letter-spacing:3px;font-weight:bold;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
-      <div style="color:${M.text};font-size:${isCel() ? 32 : 20}px;margin:6px 0 26px;text-align:center;font-family:${headingFamily()}">Choose an upgrade</div>`
+      <div style="color:${M.heading};font-size:16px;letter-spacing:3px;font-weight:bold;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
+      <div style="color:${M.text};font-size:32px;margin:6px 0 26px;text-align:center;font-family:${headingFamily()}">Choose an upgrade</div>`
     this.root.appendChild(heading)
 
     const row = document.createElement('div')
@@ -102,8 +102,7 @@ export class DraftUI {
       again.textContent = `Redraw this hand  ·  ${rerolls} left  ·  0`
       again.style.cssText = `
         margin-top: 16px; font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
-        ${isCel() ? `${callCss()}; border-radius: 4px;`
-          : `border-radius: 6px; color: ${M.gold}; border: 1px solid ${M.gold}; background: transparent;`}`
+        ${callCss()}; border-radius: 4px;`
       again.onclick = () => this.onReroll?.()
       this.root.appendChild(again)
     }
@@ -123,7 +122,7 @@ export class DraftUI {
     const card = document.createElement('button')
     card.style.cssText = `
       width: 212px; min-height: 190px; cursor: pointer; text-align: left;
-      ${isCel() ? cardCss() : `background: rgba(8,24,38,0.95); border: 1px solid ${color}55; border-radius: 8px;`}
+      ${cardCss()}
       padding: 16px; color: ${C('#cfe6f5')}; font: inherit;
       display: flex; flex-direction: column; gap: 9px; transition: all 0.12s ease;
     `
@@ -132,24 +131,13 @@ export class DraftUI {
     // deserve to see the answer before they commit.
     const rest = card.style.boxShadow
     const enter = () => {
-      if (isCel()) {
-        card.style.transform = 'translate(-2px,-2px)'
-        card.style.boxShadow = cardHoverCss()
-      } else {
-        card.style.borderColor = color
-        card.style.transform = 'translateY(-3px)'
-        card.style.background = 'rgba(14,38,58,0.98)'
-      }
+      card.style.transform = 'translate(-2px,-2px)'
+      card.style.boxShadow = cardHoverCss()
       this.preview(u)
     }
     const leave = () => {
       card.style.transform = 'none'
-      if (isCel()) {
-        card.style.boxShadow = rest
-      } else {
-        card.style.borderColor = `${color}55`
-        card.style.background = 'rgba(8,24,38,0.95)'
-      }
+      card.style.boxShadow = rest
       this.preview(null)
     }
     card.onmouseenter = enter
@@ -172,7 +160,7 @@ export class DraftUI {
         <span style="color:${color};font-size:14px;letter-spacing:1.5px">${u.group.toUpperCase()}</span>
         <span style="opacity:0.4;font-size:14px">${i + 1}</span>
       </div>
-      <div style="font-size:${isCel() ? 21 : 16}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
+      <div style="font-size:21px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
       <div style="font-size:14px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
       ${footer}
       <div style="font-size:14px;opacity:0.5">
@@ -186,7 +174,7 @@ export class DraftUI {
     const panel = document.createElement('div')
     panel.style.cssText = `
       margin-top: 20px; width: min(920px, calc(100% - 40px));
-      ${isCel() ? cardCss() : 'background: rgba(8,24,38,0.82); border: 1px solid rgba(159,232,255,0.18); border-radius: 8px;'}
+      ${cardCss()}
       padding: 14px 18px 16px; color: ${C('#cfe6f5')};
       display: flex; flex-direction: column; gap: 10px;
     `
