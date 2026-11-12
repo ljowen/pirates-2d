@@ -30,12 +30,31 @@ export class Camera {
       Math.max(Camera.USER_ZOOM_MIN, this.userZoom * factor))
   }
 
+  /** How hard the view is being shaken, 0 to 1. Bleeds away by itself. */
+  private trauma = 0
+  /** Where the shake has pushed the view this frame, in screen pixels. */
+  readonly shake = { x: 0, y: 0 }
+
+  /**
+   * Jolt the view: a broadside going, or a ball coming aboard. Small by
+   * design. The player has to read the water through it, so it is a nudge
+   * that says something heavy happened, not a blur.
+   */
+  kick(amount: number) {
+    this.trauma = Math.min(1, this.trauma + amount)
+  }
+
   resize(w: number, h: number) {
     this.viewW = w
     this.viewH = h
   }
 
   follow(ship: Ship, dt: number) {
+    this.trauma = Math.max(0, this.trauma - dt * 2.6)
+    // Squared, so a light knock barely shows and a heavy one lands.
+    const push = this.trauma * this.trauma * 9
+    this.shake.x = (Math.random() * 2 - 1) * push
+    this.shake.y = (Math.random() * 2 - 1) * push
     const speed = ship.speed
     const leadScale = T.cameraLead
     const target = {
@@ -58,8 +77,8 @@ export class Camera {
 
   worldToScreen(p: Vec2): Vec2 {
     return {
-      x: (p.x - this.pos.x) * this.zoom + this.viewW / 2,
-      y: (p.y - this.pos.y) * this.zoom + this.viewH / 2,
+      x: (p.x - this.pos.x) * this.zoom + this.viewW / 2 + this.shake.x,
+      y: (p.y - this.pos.y) * this.zoom + this.viewH / 2 + this.shake.y,
     }
   }
 }

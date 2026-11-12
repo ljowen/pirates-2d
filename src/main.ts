@@ -14,6 +14,7 @@ import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
 import { SquallView } from './render/squallView'
+import { GullView } from './render/gullView'
 import { P, PALETTES, paletteFromLocation, setPalette } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
@@ -75,12 +76,13 @@ async function main() {
   const plunderView = new PlunderView()
   const terrainView = new TerrainView()
   const squallView = new SquallView()
+  const gulls = new GullView()
   // Land sits on the water; the shadow of a squall falls across both. Wake
   // above that so a ship's trail is never buried, then plunder, hulls, shot
   // and smoke — and the rain last of all, thin enough to see through.
   worldLayer.addChild(
     terrainView.view, squallView.shadow, wake.view, plunderView.view,
-    shipLayer, combat.view, squallView.rain,
+    shipLayer, combat.view, squallView.rain, gulls.view,
   )
   app.stage.addChild(water.view, worldLayer)
 
@@ -176,6 +178,7 @@ async function main() {
     plunderView.clear()
     terrainView.clear()
     squallView.clear()
+    gulls.clear()
     pickupText.clear()
     audioDirector.reset()
     camera.snapTo(world.player.pos)
@@ -206,6 +209,8 @@ async function main() {
   tuner.launcherVisible = DEV
 
   let showDebug = false
+  let lastFired = 0
+  let lastSinceHit = 0
   let paused = false
   let turbo = false
   let fps = 60
@@ -313,6 +318,13 @@ async function main() {
       // plunder all drifted at the wrong rate.
       const dt = frameDt * timeScale
 
+      // The view jolts when her own guns go and when she is struck.
+      const p = world.player
+      const fired = p.shotCount[0] + p.shotCount[1]
+      if (fired > lastFired) camera.kick(0.32)
+      lastFired = fired
+      if (p.sinceHit < lastSinceHit) camera.kick(0.5)
+      lastSinceHit = p.sinceHit
       camera.zoomBy(input.consumeZoom(frameDt))
       // Hulls are raised just beyond the view, so the further out the player
       // looks the further out they have to appear.
@@ -326,6 +338,7 @@ async function main() {
       water.updateGusts(camera, (p) => world.windAt(p), frameDt)
       terrainView.update(world.terrain, camera)
       squallView.update(world.wind.weather, camera, frameDt)
+      gulls.update(camera, dt)
       wake.update(world.ships, dt)
       syncShipViews(dt, alpha)
       combat.update(world.ships, world.projectiles, world.splashes, cameraWind, dt)
@@ -336,8 +349,8 @@ async function main() {
 
       worldLayer.scale.set(camera.zoom)
       worldLayer.position.set(
-        -camera.pos.x * camera.zoom + camera.viewW / 2,
-        -camera.pos.y * camera.zoom + camera.viewH / 2,
+        -camera.pos.x * camera.zoom + camera.viewW / 2 + camera.shake.x,
+        -camera.pos.y * camera.zoom + camera.viewH / 2 + camera.shake.y,
       )
       app.renderer.render(app.stage)
 

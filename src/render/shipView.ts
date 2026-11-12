@@ -211,7 +211,8 @@ export class ShipView {
   private drawColours(ship: Ship) {
     const c = this.colours
     c.clear()
-    if (ship.sunk || ship.faction !== 'enemy') return
+    if (ship.sunk) return
+    if (ship.faction === 'player') { this.drawPennant(ship); return }
     if (!ship.yielding) return
 
     const mx = mainMast(this.look)
@@ -224,6 +225,36 @@ export class ShipView {
       mx + BEAM * 0.9, -BEAM * 0.82 + flutter,
       mx, -BEAM * 0.95,
     ]).fill({ color: P().ship.canvas, alpha: 0.95 }).stroke({ width: 1, color: P().ship.line })
+  }
+
+  /**
+   * The player's own colours: a long red pennant at the masthead, streaming
+   * the way the wind is blowing across the deck. It is there to be hers, and
+   * it happens to be a wind vane: which way it points is where the wind is
+   * going, without looking away at the compass.
+   */
+  private drawPennant(ship: Ship) {
+    const c = this.colours
+    const mx = mainMast(this.look)
+    // In the ship's own frame the wind blows toward this bearing.
+    const to = Math.PI - ship.awaSigned
+    const t = performance.now() * 0.001
+    const len = BEAM * 1.9
+    const pts: number[] = [mx, 0]
+    const back: number[] = []
+    const N = 5
+    for (let n = 1; n <= N; n++) {
+      const f = n / N
+      // A wave running down it, bigger toward the tail.
+      const wave = Math.sin(t * 9 - f * 5) * BEAM * 0.16 * f
+      const x = mx + Math.cos(to) * len * f - Math.sin(to) * wave
+      const y = Math.sin(to) * len * f + Math.cos(to) * wave
+      const half = BEAM * 0.2 * (1 - f * 0.85)
+      pts.push(x - Math.sin(to) * half, y + Math.cos(to) * half)
+      back.unshift(x + Math.sin(to) * half, y - Math.cos(to) * half)
+    }
+    c.poly(pts.concat(back)).fill({ color: 0xb3261c }).stroke({ width: 0.9, color: 0x2a180c })
+    c.circle(mx, 0, 1.6).fill({ color: P().ship.spar })
   }
 
   /** True once the sinking animation has finished and the view can be dropped. */
