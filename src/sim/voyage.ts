@@ -160,6 +160,12 @@ export interface Difficulty {
   intervalScale: number
   /** The hull mix is read this much further into the voyage than the clock says. */
   mixAdvance: number
+  /**
+   * Weight moved from the smallest hull onto the heavy ones, on top of what
+   * the clock gives. This is the lever that does not pay the player back: a
+   * Galleon in place of a Pinnace is more danger for much the same plunder.
+   */
+  heavy: number
   /** Extra escorts with each boss wave. */
   bossEscorts: number
   /** How long the Man-o'-War keeps the chase up, in seconds. */
@@ -173,9 +179,10 @@ export interface Difficulty {
 export function difficultyFor(notoriety: number): Difficulty {
   const n = Math.max(0, Math.min(MAX_NOTORIETY, Math.floor(notoriety)))
   return {
-    capBonus: Math.round(n * 0.8),
-    intervalScale: 1 / (1 + 0.13 * n),
-    mixAdvance: 0.06 * n,
+    capBonus: Math.round(n * 0.5),
+    intervalScale: 1 / (1 + 0.07 * n),
+    mixAdvance: 0.08 * n,
+    heavy: 0.06 * n,
     bossEscorts: Math.floor((n + 1) / 3),
     hunterSeconds: 55 + 8 * n,
     hunterVisits: n >= 4 ? 2 : 1,

@@ -78,7 +78,7 @@ export class Director {
     const progress = clock + this.difficulty.mixAdvance
     // Past the voyage proper the mix keeps sliding toward heavy hulls, so the
     // sea does not merely get busier — it gets meaner.
-    const heavy = Math.min(wave * 0.18, 0.75)
+    const heavy = Math.min(wave * 0.18 + this.difficulty.heavy, 0.75)
     const from = (start: number, rate: number, cap: number) =>
       progress < start ? 0 : clamp((progress - start) * rate, 0, cap)
 
