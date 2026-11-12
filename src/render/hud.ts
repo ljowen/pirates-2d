@@ -9,6 +9,7 @@ import { batteryBearing } from '../sim/combat'
 import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 import { draughtDepth } from '../sim/terrain'
 import { outmatches, toKnots } from '../sim/stats'
+import { iconImage } from '../ui/icons'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
 import {
@@ -633,13 +634,19 @@ export class Hud {
       const ry = 38 + i * rowH
       const color = ui().groups[upgrade.group]
 
-      // A colour tab keeps the groups scannable without repeating the label.
-      ctx.fillStyle = color
-      ctx.fillRect(IN, ry + 2, 3, 13)
+      // Each row leads with the card's icon, the same one the draft showed;
+      // until it has decoded, a colour tab stands in for it.
+      const art = iconImage(upgrade.id)
+      if (art?.complete && art.naturalWidth > 0) {
+        ctx.drawImage(art, IN - 2, ry - 2, 19, 19)
+      } else {
+        ctx.fillStyle = color
+        ctx.fillRect(IN, ry + 2, 3, 13)
+      }
 
       ctx.font = F(14)
       ctx.fillStyle = C('rgba(255,255,255,0.82)')
-      ctx.fillText(shortName(upgrade.name), IN + 9, ry)
+      ctx.fillText(shortName(upgrade.name), IN + 22, ry)
 
       // Pips: filled for what you hold, hollow for what is still available.
       const pipR = 3.6
@@ -839,7 +846,7 @@ export class Hud {
 /** Keep names inside the panel; the pips carry the rest of the meaning. */
 function shortName(name: string): string {
   const trimmed = name.replace(/^(Another|Ship's)\s+/, (m) => m.trim() === 'Another' ? '+1 ' : '')
-  return trimmed.length > 15 ? `${trimmed.slice(0, 14)}…` : trimmed
+  return trimmed.length > 14 ? `${trimmed.slice(0, 13)}…` : trimmed
 }
 
 function normalize(a: number): number {

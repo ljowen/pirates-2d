@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { SvgPainter } from './svgPainter'
+import { SvgPainter } from '../src/render/svgPainter'
 import { SAIL_STATES } from '../src/sim/ship'
 import { ENEMY_CLASSES, PLAYER_CLASSES, type ShipClass } from '../src/sim/shipClasses'
 import { solveRig, hullSize, type RigState } from '../src/render/rig'

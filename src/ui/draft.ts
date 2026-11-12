@@ -3,6 +3,8 @@ import { isCommitting, type Upgrade } from '../sim/upgrades'
 import { describeStats, type Stat, type StatGroup } from '../sim/stats'
 import type { Ship } from '../sim/ship'
 
+import { icon } from './icons'
+
 const GROUP_COLORS: Record<Upgrade['group'], string> = ui().groups
 
 const GROUP_ORDER: StatGroup[] = ['Sailing', 'Gunnery', 'Shot', 'Quarterdeck']
@@ -160,7 +162,10 @@ export class DraftUI {
         <span style="color:${color};font-size:14px;letter-spacing:1.5px">${u.group.toUpperCase()}</span>
         <span style="opacity:0.4;font-size:14px">${i + 1}</span>
       </div>
-      <div style="font-size:21px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
+      <div style="display:flex;align-items:center;gap:10px;min-height:44px">
+        ${icon(u.id, 44)}
+        <span style="font-size:18px;line-height:1.2;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</span>
+      </div>
       <div style="font-size:14px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
       ${footer}
       <div style="font-size:14px;opacity:0.5">

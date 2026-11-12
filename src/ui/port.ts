@@ -1,3 +1,5 @@
+import { icon } from './icons'
+import { shipPortrait } from '../render/shipPortrait'
 import { PLAYER_CLASSES, type ShipClass } from '../sim/shipClasses'
 import {
   difficultyFor, notorietyName, refitCost, REFITS, type Refit,
@@ -159,7 +161,10 @@ export class PortUI {
           ? `${cardPressedCss()} color: ${INK}; font-weight: bold; padding: 6px 16px;`
           : `${cardCss()} color: ${DIM}; padding: 6px 16px;`}`)
       b.dataset.tab = t.id
-      b.textContent = t.label + this.badge(t.id)
+      b.style.display = 'flex'
+      b.style.alignItems = 'center'
+      b.style.gap = '7px'
+      b.innerHTML = `${icon(t.id, 20)}<span>${t.label}${this.badge(t.id)}</span>`
       b.onclick = () => { this.tab = t.id; this.render() }
       tabs.appendChild(b)
     }
@@ -314,6 +319,7 @@ export class PortUI {
         <span style="font-size:26px;line-height:1;font-family:${headingFamily()};color:${WHITE}">${cls.name}</span>
         <span style="opacity:0.4;font-size:14px">${index + 1}</span>
       </div>
+      <div style="border:2px solid ${ui().panel.ink};border-radius:4px;overflow:hidden">${shipPortrait(cls, 204, 92)}</div>
       <div style="font-size:14px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:2px">
         ${bar('guns', cls.guns, 2.1)}
@@ -335,7 +341,7 @@ export class PortUI {
     card.dataset.refit = refit.id
     card.dataset.rank = String(held)
     card.dataset.state = maxed ? 'maxed' : affordable ? 'affordable' : 'locked'
-    card.style.width = '216px'
+    card.style.width = '228px'
     card.onclick = () => { if (this.ledger.buyRefit(refit)) this.render() }
 
     const pips = Array.from({ length: refit.maxRank }, (_, i) =>
@@ -343,9 +349,10 @@ export class PortUI {
         background:${i < held ? GOOD : C('rgba(255,255,255,0.14)')}"></span>`).join('')
 
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:18px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
-        <span style="opacity:0.4;font-size:14px">${index < 9 ? index + 1 : ''}</span>
+      <div style="display:flex;align-items:center;gap:10px;min-height:40px">
+        ${icon(refit.id, 40)}
+        <span style="flex:1;font-size:18px;line-height:1.2;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
+        <span style="opacity:0.4;font-size:14px;align-self:flex-start">${index < 9 ? index + 1 : ''}</span>
       </div>
       <div>${pips}</div>
       <div style="font-size:14px;line-height:1.5;opacity:0.78;min-height:50px">

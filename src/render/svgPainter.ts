@@ -1,4 +1,4 @@
-import type { FillStyle, Painter, StrokeStyle } from '../src/render/painter'
+import type { FillStyle, Painter, StrokeStyle } from './painter'
 
 const hex = (c: number) => `#${(c >>> 0).toString(16).padStart(6, '0').slice(-6)}`
 const n = (v: number) => (Math.round(v * 100) / 100).toString()
