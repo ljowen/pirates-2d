@@ -96,7 +96,7 @@ together — within a run, and across a career.
 
 ## Timed survival
 
-Timed survival. You sail against an escalating sea for eight minutes; the clock running
+Timed survival. You sail against an escalating sea for five minutes; the clock running
 out is the win condition. What a captain carries in from earlier voyages is fixed at the
 quayside, so within a run the difficulty curve still has exactly one variable.
 

@@ -33,6 +33,13 @@ export interface RigState {
    * Omitted, it is taken straight from the wind (the sprite sheet does this).
    */
   side?: number
+  /**
+   * How far the yards and booms are swung round to the wind, 0 to 1. Zero is
+   * squared away: yards straight across the hull, booms along the centreline,
+   * which is how a furled ship lies. The caller eases it so they swing round
+   * as sail is made. Omitted, they are fully braced.
+   */
+  brace?: number
 }
 
 /**
@@ -80,6 +87,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
   const windY = Math.sin(localWindTo)
   const { L } = hullSize(look.hull)
   const side = ship.side ?? (windY >= 0 ? 1 : -1)
+  const brace = ship.brace ?? 1
   const out: RigSolution = { bare: [], sails: [] }
   // Fore-and-aft canvas is set low, on stays and booms; square canvas is
   // carried on yards above it. So every fore-and-aft sail is painted first,
@@ -166,7 +174,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     const trim = Math.max(0.12, Math.min(1.35, off * 0.47))
     // `side` eases through zero as she tacks or gybes, so the boom swings
     // across the centreline rather than appearing on the other side.
-    const angle = Math.PI - side * trim
+    const angle = Math.PI - side * trim * brace
     const dx = Math.cos(angle)
     const dy = Math.sin(angle)
     // Perpendicular to the boom, on the +y side; `side` signs it.
@@ -204,7 +212,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     // wind it folded a three-masted ship's canvas into one fore-and-aft
     // stack — the one rig every class then looked like.
     const MAX_BRACE = 0.8
-    const yardA = Math.PI / 2 + Math.max(-MAX_BRACE, Math.min(MAX_BRACE, localWindTo))
+    const yardA = Math.PI / 2 + Math.max(-MAX_BRACE, Math.min(MAX_BRACE, localWindTo)) * brace
     const yx = Math.cos(yardA)
     const yy = Math.sin(yardA)
     // Shot-away canvas literally shrinks the sail, so a crippled ship looks

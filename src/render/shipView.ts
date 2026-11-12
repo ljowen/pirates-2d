@@ -29,6 +29,8 @@ export class ShipView {
   private side = 0
   private sideTarget = 0
   private rigged = false
+  /** How far the yards are braced round, eased: 0 squared away under bare poles, 1 trimmed to the wind. */
+  private brace = 1
 
   private readonly palette: ShipClass['colors']
   private readonly baseScale: number
@@ -74,6 +76,13 @@ export class ShipView {
     const lean = Math.sin(ship.awaSigned)
     if (!this.rigged || Math.abs(lean) > 0.08) this.sideTarget = leewardSide(ship.awaSigned)
     // A ship first seen is already on her tack, not swinging onto it.
+    // Furled, the yards are squared across the hull and the booms lie along
+    // it. They swing round to the wind as sail is made, and back as it comes
+    // in, over about a second.
+    const braceTarget = ship.yardsSet === 0 ? 0 : 1
+    if (!this.rigged) this.brace = braceTarget
+    const swing = 1.1 * dt
+    this.brace += Math.max(-swing, Math.min(swing, braceTarget - this.brace))
     if (!this.rigged) { this.side = this.sideTarget; this.rigged = true }
     // About three quarters of a second from one side to the other.
     const step = 2.6 * dt
@@ -86,6 +95,7 @@ export class ShipView {
     const rig = solveRig({
       canvas: ship.canvas, polarMult: ship.polarMult, awaSigned: ship.awaSigned,
       sails: ship.sails, yardsSet: ship.yardsSet, side,
+      brace: this.brace * this.brace * (3 - 2 * this.brace),
     }, performance.now(), this.look)
     for (const b of rig.bare) {
       s.moveTo(b.spar[0], b.spar[1]).lineTo(b.spar[2], b.spar[3])

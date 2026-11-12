@@ -206,7 +206,7 @@ export const DEFAULT_TUNING: TuningValues = {
   sailDriveFloor: 0.15,
   sailTurnFloor: 0.5,
 
-  runDuration: 480,
+  runDuration: 300,
   draftCards: 4,
   spawnIntervalStart: 7.0,
   spawnIntervalEnd: 2.6,
