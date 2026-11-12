@@ -190,6 +190,12 @@ The default theme, after a critique pass. These are what keep it one thing:
   draft cards' group labels already worked this way, so the HUD now matches them.
 - **Everything inked.** Panels, cards, bars, key caps and compass all carry the same dark
   ink outline and hard offset shadow. A bare rectangle anywhere reads as a mistake.
+- **One panel, everywhere.** HUD panels (canvas) and menu cards (DOM) are the same shape:
+  `panel()` and `cardCss()` share one corner radius, outline width, 3px shadow offset and
+  8px shade band. Corners are rounded rather than clipped, because the DOM cannot clip a
+  corner and keep its border and shadow. Buttons and steppers are key caps (`keyCss`,
+  `keyHint`): 2px ink, 2px shadow. A selected tab is a card pressed into the page, its
+  shadow gone and the card shifted onto it, so selection reads as a physical state.
 - **Inks, not colours.** Iron-gall brown for text, red for danger and rubrics, navy, green
   and ochre for meaning. The compass's speed ramp runs red-ochre-green in those inks rather
   than neon.

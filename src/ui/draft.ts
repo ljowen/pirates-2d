@@ -1,4 +1,4 @@
-import { C, bodyFamily, cardCss, cardHoverCss, displayFamily, headingFamily, isCel, ui } from './theme'
+import { C, bodyFamily, callCss, cardCss, cardHoverCss, displayFamily, headingFamily, isCel, ui } from './theme'
 import { isCommitting, type Upgrade } from '../sim/upgrades'
 import { describeStats, type Stat, type StatGroup } from '../sim/stats'
 import type { Ship } from '../sim/ship'
@@ -101,9 +101,9 @@ export class DraftUI {
       again.dataset.reroll = String(rerolls)
       again.textContent = `Redraw this hand  ·  ${rerolls} left  ·  0`
       again.style.cssText = `
-        margin-top: 16px; font: inherit; font-size: 12px; cursor: pointer;
-        padding: 7px 16px; border-radius: ${isCel() ? 0 : 6}px; color: ${M.gold};
-        border: ${isCel() ? 2 : 1}px solid ${M.gold}; background: transparent;`
+        margin-top: 16px; font: inherit; font-size: 13px; cursor: pointer; padding: 7px 16px;
+        ${isCel() ? `${callCss()}; border-radius: 4px;`
+          : `border-radius: 6px; color: ${M.gold}; border: 1px solid ${M.gold}; background: transparent;`}`
       again.onclick = () => this.onReroll?.()
       this.root.appendChild(again)
     }

@@ -121,7 +121,7 @@ const LOG: UiTheme = {
   },
   panel: {
     fill: '#f0e3c4', shade: '#dcc79a', ink: '#2a180c', inkWidth: 2.5,
-    shadow: 'rgba(26,14,6,0.62)', shadowOffset: 3, corner: 6, rule: null,
+    shadow: 'rgba(26,14,6,0.62)', shadowOffset: 3, corner: 7, rule: null,
   },
   ink: {
     text: '#22140a', accent: '#8a3f08', good: '#2f5e18', bad: '#a01d12', info: '#1a4766',
@@ -332,35 +332,42 @@ export function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: nu
     ctx.restore()
     return
   }
+  // Rounded, not clipped: the menus are DOM, and a clipped corner cannot
+  // carry a border and a hard shadow there, so the HUD and the menus share
+  // the one shape both can draw — the same radius, outline, offset and band.
   const c = t.corner
+  const round = c > 0
   const o = t.shadowOffset
   ctx.fillStyle = t.shadow
-  outline(ctx, x + o, y + o, w, h, c, false)
+  outline(ctx, x + o, y + o, w, h, c, round)
   ctx.fill()
 
-  outline(ctx, x, y, w, h, c, false)
+  outline(ctx, x, y, w, h, c, round)
   ctx.fillStyle = t.fill
   ctx.fill()
   ctx.save()
   ctx.clip()
-  const band = Math.min(9, h * 0.16)
+  const band = Math.min(BAND, h * 0.16)
   ctx.fillStyle = t.shade
   ctx.fillRect(x, y + h - band, w, band)
   ctx.restore()
 
   if (t.rule) {
     const i = 4
-    outline(ctx, x + i, y + i, w - i * 2, h - i * 2, Math.max(0, c - 2), false)
+    outline(ctx, x + i, y + i, w - i * 2, h - i * 2, Math.max(0, c - 3), round)
     ctx.strokeStyle = t.rule
     ctx.lineWidth = 1
     ctx.stroke()
   }
-  outline(ctx, x, y, w, h, c, false)
+  outline(ctx, x, y, w, h, c, round)
   ctx.strokeStyle = t.ink
   ctx.lineWidth = t.inkWidth
   ctx.stroke()
   ctx.restore()
 }
+
+/** Height of the hard shade band along a panel's foot, on canvas and in CSS alike. */
+const BAND = 8
 
 /** A round panel, for the compass. */
 export function disc(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
@@ -425,16 +432,40 @@ export function cardCss(): string {
   return `
     background: ${t.fill};
     border: ${t.inkWidth}px solid ${t.ink};
-    border-radius: ${t.corner ? 3 : 0}px;
-    box-shadow: ${t.shadowOffset + 1}px ${t.shadowOffset + 1}px 0 ${t.shadow}, inset 0 -8px 0 ${t.shade}
-      ${t.rule ? `, inset 0 0 0 3px ${t.fill}, inset 0 0 0 4px ${t.rule}` : ''};`
+    border-radius: ${t.corner}px;
+    box-shadow: ${restShadow()};`
+}
+
+function restShadow(): string {
+  const t = active.panel
+  return `${t.shadowOffset}px ${t.shadowOffset}px 0 ${t.shadow}, inset 0 -${BAND}px 0 ${t.shade}` +
+    (t.rule ? `, inset 0 0 0 3px ${t.fill}, inset 0 0 0 4px ${t.rule}` : '')
+}
+
+/**
+ * A card pressed into the page: no shadow, shifted onto where it was. The
+ * selected tab and a held button, so "selected" reads as a physical state
+ * rather than a colour.
+ */
+export function cardPressedCss(): string {
+  const t = active.panel
+  if (active.id === MODERN.id) return ''
+  return `${cardCss()} box-shadow: inset 0 -${BAND}px 0 ${t.shade}; ` +
+    `transform: translate(${t.shadowOffset}px, ${t.shadowOffset}px);`
+}
+
+/** A small key cap: the DOM twin of `keyHint`'s key, for steppers and toggles. */
+export function keyCss(enabled = true): string {
+  const t = active.panel
+  return `background: ${t.fill}; border: 2px solid ${t.ink}; border-radius: ${Math.min(4, t.corner)}px; ` +
+    `box-shadow: 2px 2px 0 ${t.ink}; opacity: ${enabled ? 1 : 0.35};`
 }
 
 /** The lifted state of a card under the pointer: the shadow grows, nothing blurs. */
 export function cardHoverCss(): string {
   const t = active.panel
   if (active.id === MODERN.id) return ''
-  return `${t.shadowOffset + 4}px ${t.shadowOffset + 4}px 0 ${t.shadow}, inset 0 -8px 0 ${t.shade}` +
+  return `${t.shadowOffset + 2}px ${t.shadowOffset + 2}px 0 ${t.shadow}, inset 0 -${BAND}px 0 ${t.shade}` +
     (t.rule ? `, inset 0 0 0 3px ${t.fill}, inset 0 0 0 4px ${t.rule}` : '')
 }
 
@@ -549,13 +580,17 @@ export function keyHint(ctx: CanvasRenderingContext2D, key: string, text: string
   const tw = ctx.measureText(text).width
   const total = kw + 10 + tw
   const x = cx - total / 2
+  // Same cap as the DOM's keyCss: rounded, 2px ink, a 2px hard shadow.
+  const kr = Math.min(4, active.panel.corner)
   ctx.fillStyle = active.panel.ink
-  ctx.fillRect(x + 2, y - 10, kw, 20)
+  outline(ctx, x + 2, y - 10, kw, 20, kr, kr > 0)
+  ctx.fill()
   ctx.fillStyle = active.panel.fill
-  ctx.fillRect(x, y - 12, kw, 20)
+  outline(ctx, x, y - 12, kw, 20, kr, kr > 0)
+  ctx.fill()
   ctx.strokeStyle = active.panel.ink
-  ctx.lineWidth = 1.5
-  ctx.strokeRect(x, y - 12, kw, 20)
+  ctx.lineWidth = 2
+  ctx.stroke()
   ctx.fillStyle = active.panel.ink
   ctx.textAlign = 'center'
   ctx.fillText(key, x + kw / 2, y - 2)

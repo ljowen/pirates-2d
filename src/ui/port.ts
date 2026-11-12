@@ -5,7 +5,7 @@ import {
 import { canAfford, owns, permitted, priceOf, type Ledger } from '../meta/career'
 import { FEATS, FEATS_BY_ID } from '../meta/feats'
 import {
-  C, bodyFamily, callCss, panelIsLight, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, isCel, quietCss, ui,
+  C, bodyFamily, callCss, cardPressedCss, keyCss, panelIsLight, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, isCel, quietCss, ui,
 } from './theme'
 
 type Tab = 'yard' | 'refit' | 'log'
@@ -154,9 +154,11 @@ export class PortUI {
       const b = el('button', `
         font: inherit; font-size: 13px; cursor: pointer; padding: 7px 16px;
         ${isCel()
+          // Every tab is the same paper card; the selected one is pressed
+          // into the page, which reads as a state rather than a colour.
           ? active
-            ? `${cardCss()} color: ${INK}; padding: 6px 16px;`
-            : `border: 2px solid ${M.dim}; background: transparent; color: ${M.text};`
+            ? `${cardPressedCss()} color: ${INK}; font-weight: bold; padding: 6px 16px;`
+            : `${cardCss()} color: ${DIM}; padding: 6px 16px;`
           : `border-radius: 6px; border: 1px solid ${active ? GOLD : 'rgba(207,230,245,0.2)'};
              background: ${active ? 'rgba(240,193,75,0.14)' : 'transparent'}; color: ${active ? GOLD : INK};`}`)
       b.dataset.tab = t.id
@@ -231,9 +233,9 @@ export class PortUI {
       const target = level + delta
       const ok = target >= 0 && target <= career.notorietyMax
       const b = el('button', `
-        font:inherit;width:26px;height:24px;border-radius:4px;cursor:${ok ? 'pointer' : 'default'};
-        border:${isCel() ? 2 : 1}px solid ${RED(ok ? 0.6 : 0.15)};background:transparent;
-        color:${RED(ok ? 1 : 0.25)}`)
+        font:inherit;width:26px;height:24px;cursor:${ok ? 'pointer' : 'default'};
+        ${isCel() ? `${keyCss(ok)} color:${RED(1)};`
+          : `border-radius:4px;border:1px solid ${RED(ok ? 0.6 : 0.15)};background:transparent;color:${RED(ok ? 1 : 0.25)};`}`)
       b.textContent = glyph
       b.dataset.step = String(delta)
       if (ok) b.onclick = () => { this.ledger.setNotoriety(target); this.render() }
@@ -430,6 +432,6 @@ function progress(share: number): string {
 
 function plate(html: string, call: boolean): string {
   return `
-    <div style="margin-top:6px;padding:7px 9px;border-radius:5px;font-size:11px;text-align:center;line-height:1.5;
+    <div style="margin-top:6px;padding:7px 9px;border-radius:4px;font-size:11px;text-align:center;line-height:1.5;
       ${call ? callCss() : quietCss()}">${html}</div>`
 }
