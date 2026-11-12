@@ -1,18 +1,15 @@
+import { C, bodyFamily, cardCss, cardHoverCss, displayFamily, isCel, ui } from './theme'
 import { isCommitting, type Upgrade } from '../sim/upgrades'
 import { describeStats, type Stat, type StatGroup } from '../sim/stats'
 import type { Ship } from '../sim/ship'
 
-const GROUP_COLORS: Record<Upgrade['group'], string> = {
-  Sailing: '#9fe8ff',
-  Gunnery: '#ffbe6e',
-  Shot: '#ff9ad5',
-  Quarterdeck: '#7fe0a0',
-}
+const GROUP_COLORS: Record<Upgrade['group'], string> = ui().groups
 
 const GROUP_ORDER: StatGroup[] = ['Sailing', 'Gunnery', 'Shot', 'Quarterdeck']
 
-const IMPROVED = '#7fe0a0'
-const WORSENED = '#ff7a6b'
+const IMPROVED = C('#7fe0a0')
+const WORSENED = C('#ff7a6b')
+const M = ui().menu
 
 /**
  * The level-up draft. A DOM overlay rather than canvas: three cards that want
@@ -45,8 +42,8 @@ export class DraftUI {
       position: fixed; inset: 0; z-index: 20; display: none;
       align-items: center; justify-content: center; flex-direction: column;
       overflow-y: auto; padding: 28px 0;
-      background: rgba(4,14,24,0.82); backdrop-filter: blur(3px);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: ${M.backdrop}; ${isCel() ? '' : 'backdrop-filter: blur(3px);'}
+      font-family: ${bodyFamily()};
     `
     document.body.appendChild(this.root)
 
@@ -87,8 +84,8 @@ export class DraftUI {
 
     const heading = document.createElement('div')
     heading.innerHTML = `
-      <div style="color:#ffd98a;font-size:13px;letter-spacing:3px;text-align:center">LEVEL ${level}</div>
-      <div style="color:#cfe6f5;font-size:20px;margin:6px 0 26px;text-align:center">Choose an upgrade</div>`
+      <div style="color:${M.heading};font-size:${isCel() ? 16 : 13}px;letter-spacing:3px;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
+      <div style="color:${M.text};font-size:${isCel() ? 32 : 20}px;margin:6px 0 26px;text-align:center;font-family:${displayFamily()}">Choose an upgrade</div>`
     this.root.appendChild(heading)
 
     const row = document.createElement('div')
@@ -105,8 +102,8 @@ export class DraftUI {
       again.textContent = `Redraw this hand  ·  ${rerolls} left  ·  0`
       again.style.cssText = `
         margin-top: 16px; font: inherit; font-size: 12px; cursor: pointer;
-        padding: 7px 16px; border-radius: 6px; color: #f0c14b;
-        border: 1px solid rgba(240,193,75,0.5); background: rgba(240,193,75,0.08);`
+        padding: 7px 16px; border-radius: ${isCel() ? 0 : 6}px; color: ${M.gold};
+        border: ${isCel() ? 2 : 1}px solid ${M.gold}; background: transparent;`
       again.onclick = () => this.onReroll?.()
       this.root.appendChild(again)
     }
@@ -116,7 +113,7 @@ export class DraftUI {
     const hint = document.createElement('div')
     hint.textContent =
       `click a card, or press ${upgrades.map((_, i) => i + 1).join(' / ')}`
-    hint.style.cssText = 'color:rgba(207,230,245,0.4);font-size:11px;margin-top:18px'
+    hint.style.cssText = `color:${M.dim};font-size:12px;margin-top:18px`
     this.root.appendChild(hint)
   }
 
@@ -126,23 +123,33 @@ export class DraftUI {
     const card = document.createElement('button')
     card.style.cssText = `
       width: 212px; min-height: 190px; cursor: pointer; text-align: left;
-      background: rgba(8,24,38,0.95); border: 1px solid ${color}55;
-      border-radius: 8px; padding: 16px; color: #cfe6f5; font: inherit;
+      ${isCel() ? cardCss() : `background: rgba(8,24,38,0.95); border: 1px solid ${color}55; border-radius: 8px;`}
+      padding: 16px; color: ${C('#cfe6f5')}; font: inherit;
       display: flex; flex-direction: column; gap: 9px; transition: all 0.12s ease;
     `
     // Pointing at a card and tabbing to it both mean "what would this do?", so
     // both drive the preview. Keyboard players pick by number, but they still
     // deserve to see the answer before they commit.
+    const rest = card.style.boxShadow
     const enter = () => {
-      card.style.borderColor = color
-      card.style.transform = 'translateY(-3px)'
-      card.style.background = 'rgba(14,38,58,0.98)'
+      if (isCel()) {
+        card.style.transform = 'translate(-2px,-2px)'
+        card.style.boxShadow = cardHoverCss()
+      } else {
+        card.style.borderColor = color
+        card.style.transform = 'translateY(-3px)'
+        card.style.background = 'rgba(14,38,58,0.98)'
+      }
       this.preview(u)
     }
     const leave = () => {
-      card.style.borderColor = `${color}55`
       card.style.transform = 'none'
-      card.style.background = 'rgba(8,24,38,0.95)'
+      if (isCel()) {
+        card.style.boxShadow = rest
+      } else {
+        card.style.borderColor = `${color}55`
+        card.style.background = 'rgba(8,24,38,0.95)'
+      }
       this.preview(null)
     }
     card.onmouseenter = enter
@@ -165,7 +172,7 @@ export class DraftUI {
         <span style="color:${color};font-size:10px;letter-spacing:1.5px">${u.group.toUpperCase()}</span>
         <span style="opacity:0.4;font-size:10px">${i + 1}</span>
       </div>
-      <div style="font-size:16px;font-weight:bold;color:#fff">${u.name}</div>
+      <div style="font-size:${isCel() ? 21 : 16}px;font-weight:${isCel() ? 'normal' : 'bold'};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
       <div style="font-size:12px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
       ${footer}
       <div style="font-size:10px;opacity:0.5">
@@ -179,8 +186,8 @@ export class DraftUI {
     const panel = document.createElement('div')
     panel.style.cssText = `
       margin-top: 20px; width: min(920px, calc(100% - 40px));
-      background: rgba(8,24,38,0.82); border: 1px solid rgba(159,232,255,0.18);
-      border-radius: 8px; padding: 14px 18px 16px; color: #cfe6f5;
+      ${isCel() ? cardCss() : 'background: rgba(8,24,38,0.82); border: 1px solid rgba(159,232,255,0.18); border-radius: 8px;'}
+      padding: 14px 18px 16px; color: ${C('#cfe6f5')};
       display: flex; flex-direction: column; gap: 10px;
     `
 
@@ -189,11 +196,11 @@ export class DraftUI {
       'display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:1.5px'
     const title = document.createElement('span')
     title.textContent = `${player.cls.name.toUpperCase()} — CURRENT`
-    title.style.cssText = 'color:rgba(255,255,255,0.6)'
+    title.style.cssText = `color:${C('rgba(255,255,255,0.6)')}`
     this.statHeading = title
     const note = document.createElement('span')
     note.textContent = 'hover a card to see the change'
-    note.style.cssText = 'color:rgba(207,230,245,0.35);letter-spacing:0'
+    note.style.cssText = `color:${C('rgba(207,230,245,0.35)')};letter-spacing:0`
     header.append(title, note)
     panel.appendChild(header)
 
@@ -222,7 +229,7 @@ export class DraftUI {
     const foot = document.createElement('div')
     foot.textContent =
       'Full sail, steady breeze. Repair while furled. Broadside and weight of fire vs a standard hull.'
-    foot.style.cssText = 'font-size:9.5px;color:rgba(207,230,245,0.3);line-height:1.5'
+    foot.style.cssText = `font-size:10.5px;color:${C('rgba(207,230,245,0.5)')};line-height:1.5`
     panel.appendChild(foot)
 
     return panel
@@ -236,10 +243,10 @@ export class DraftUI {
     `
     const label = document.createElement('span')
     label.textContent = stat.label
-    label.style.cssText = 'color:rgba(207,230,245,0.5);white-space:nowrap'
+    label.style.cssText = `color:${C('rgba(207,230,245,0.5)')};white-space:nowrap`
     const value = document.createElement('span')
     value.textContent = stat.format(stat.value)
-    value.style.cssText = 'color:rgba(255,255,255,0.88);white-space:nowrap'
+    value.style.cssText = `color:${C('rgba(255,255,255,0.88)')};white-space:nowrap`
     row.append(label, value)
     this.rows.set(stat.key, { row, value })
     return row
@@ -260,7 +267,7 @@ export class DraftUI {
         : `${this.ship.cls.name.toUpperCase()} — AS SHE STANDS`
       this.statHeading.style.color = upgrade
         ? GROUP_COLORS[upgrade.group]
-        : 'rgba(255,255,255,0.6)'
+        : C('rgba(255,255,255,0.6)')
     }
 
     if (!upgrade) {
@@ -268,7 +275,7 @@ export class DraftUI {
         const row = this.rows.get(stat.key)
         if (!row) continue
         row.value.textContent = stat.format(stat.value)
-        row.value.style.color = 'rgba(255,255,255,0.88)'
+        row.value.style.color = C('rgba(255,255,255,0.88)')
         row.row.style.background = 'transparent'
       }
       return
@@ -290,7 +297,7 @@ export class DraftUI {
       // "7.2 kn → 7.2 kn" and calling it information.
       if (before === now) {
         row.value.textContent = now
-        row.value.style.color = 'rgba(255,255,255,0.35)'
+        row.value.style.color = C('rgba(255,255,255,0.35)')
         row.row.style.background = 'transparent'
         return
       }
@@ -303,10 +310,10 @@ export class DraftUI {
         : improved ? IMPROVED : WORSENED
 
       row.value.innerHTML =
-        `<span style="color:rgba(255,255,255,0.4)">${before}</span>` +
-        `<span style="color:rgba(255,255,255,0.3)"> → </span>` +
+        `<span style="color:${C('rgba(255,255,255,0.4)')}">${before}</span>` +
+        `<span style="color:${C('rgba(255,255,255,0.3)')}"> → </span>` +
         `<span style="color:${color};font-weight:bold">${now}</span>`
-      row.row.style.background = 'rgba(255,255,255,0.05)'
+      row.row.style.background = C('rgba(255,255,255,0.07)')
     })
   }
 

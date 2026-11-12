@@ -1,4 +1,12 @@
 import { Application, Container } from 'pixi.js'
+// Bundled rather than fetched from a font CDN, so the game still runs offline
+// and from GitHub Pages with nothing outside the repo. Latin subsets only.
+import '@fontsource/pirata-one/latin-400.css'
+import '@fontsource/im-fell-english/latin-400.css'
+import '@fontsource/alegreya/latin-400.css'
+import '@fontsource/cinzel/latin-700.css'
+import '@fontsource/eb-garamond/latin-400.css'
+import { UI_THEMES, ui, loadUiFonts } from './ui/theme'
 import { GameLoop } from './core/loop'
 import { Input } from './core/input'
 import { World } from './sim/world'
@@ -27,6 +35,8 @@ import { Ledger, loadCareer, saveCareer, freshCareer, voyageOf } from './meta/ca
 
 async function main() {
   const host = document.getElementById('app')!
+  // Before the first frame, so the menus and the HUD open in their own type.
+  await loadUiFonts()
 
   // Pixi renders the world; a plain 2D canvas on top renders the instruments.
   const app = new Application()
@@ -207,12 +217,17 @@ async function main() {
       if (input.consumePress('styleNext')) {
         const i = PALETTES.findIndex((p) => p.id === style.id)
         const next = PALETTES[(i + 1) % PALETTES.length]
-        window.location.search = `?style=${next.id}&hull=${hullStyle.id}`
+        window.location.search = `?style=${next.id}&hull=${hullStyle.id}&ui=${ui().id}`
       }
       if (input.consumePress('hullNext')) {
         const i = HULL_STYLES.findIndex((h) => h.id === hullStyle.id)
         const next = HULL_STYLES[(i + 1) % HULL_STYLES.length]
-        window.location.search = `?style=${style.id}&hull=${next.id}`
+        window.location.search = `?style=${style.id}&hull=${next.id}&ui=${ui().id}`
+      }
+      if (input.consumePress('uiNext')) {
+        const i = UI_THEMES.findIndex((t) => t.id === ui().id)
+        const next = UI_THEMES[(i + 1) % UI_THEMES.length]
+        window.location.search = `?style=${style.id}&hull=${hullStyle.id}&ui=${next.id}`
       }
       if (input.consumePress('spawnSquall')) {
         world.wind.weather.spawn(world.wind.from, world.player.pos)

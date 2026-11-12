@@ -105,7 +105,7 @@ export class Tuner {
       color: rgba(207,230,245,0.65); transition: right 0.18s ease;
     `
     const legend = document.createElement('span')
-    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ] style &middot; [ hull &middot; P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
+    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ] style &middot; [ hull &middot; \\ ui &middot; P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
     const toggle = document.createElement('button')
     toggle.innerHTML = '&#9881; Tune <span style="opacity:0.55">(`)</span>'
     toggle.style.cssText = `

@@ -4,6 +4,9 @@ import {
 } from '../sim/voyage'
 import { canAfford, owns, permitted, priceOf, type Ledger } from '../meta/career'
 import { FEATS, FEATS_BY_ID } from '../meta/feats'
+import {
+  C, bodyFamily, callCss, panelIsLight, cardCss, cardHoverCss, cardInk, displayFamily, isCel, quietCss, ui,
+} from './theme'
 
 type Tab = 'yard' | 'refit' | 'log'
 const TABS: { id: Tab; label: string }[] = [
@@ -12,10 +15,15 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'log', label: "Captain's log" },
 ]
 
-const GOLD = '#f0c14b'
-const INK = '#cfe6f5'
-const DIM = 'rgba(207,230,245,0.45)'
-const GOOD = '#7fe0a0'
+// Two sets of ink: the menu's, drawn straight onto the backdrop, and the
+// card's, drawn onto a panel — which in a paper theme is dark ink on light.
+const M = ui().menu
+const GOLD = cardInk('#f0c14b')
+const INK = cardInk('#cfe6f5')
+const DIM = cardInk('rgba(207,230,245,0.45)')
+const GOOD = cardInk('#7fe0a0')
+const WHITE = cardInk('#ffffff')
+const RED = (a: number) => C('rgb(255,122,107)', a)
 
 /**
  * Port: everything that happens between voyages, on one screen.
@@ -46,8 +54,8 @@ export class PortUI {
       position: fixed; inset: 0; z-index: 30; display: none;
       align-items: center; flex-direction: column; overflow-y: auto;
       padding: 34px 0 28px; box-sizing: border-box;
-      background: rgba(4,14,24,0.92); backdrop-filter: blur(4px);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: ${INK};
+      background: ${M.backdrop}; ${isCel() ? '' : 'backdrop-filter: blur(4px);'}
+      font-family: ${bodyFamily()}; color: ${M.text};
     `
     document.body.appendChild(this.root)
 
@@ -123,13 +131,13 @@ export class PortUI {
     const earned = this.ledger.earned
     const head = el('div', 'text-align:center')
     head.innerHTML = `
-      <div style="color:#ffd98a;font-size:13px;letter-spacing:4px">PIRATES</div>
-      <div style="font-size:21px;margin:8px 0 10px">In port</div>
-      <div data-purse style="color:${GOLD};font-size:15px">
+      <div style="color:${M.heading};font-size:${isCel() ? 15 : 13}px;letter-spacing:4px;font-family:${displayFamily()}">PIRATES</div>
+      <div style="font-size:${isCel() ? 34 : 21}px;margin:8px 0 10px;font-family:${displayFamily()}">In port</div>
+      <div data-purse style="color:${M.gold};font-size:16px">
         ${career.doubloons.toLocaleString()} doubloons${
-          earned > 0 ? `<span style="color:${GOOD}"> &nbsp;+${earned.toLocaleString()} last voyage</span>` : ''}
+          earned > 0 ? `<span style="color:${M.good}"> &nbsp;+${earned.toLocaleString()} last voyage</span>` : ''}
       </div>
-      <div style="color:${DIM};font-size:11px;margin-top:6px">${
+      <div style="color:${M.dim};font-size:12px;margin-top:6px">${
         career.voyages === 0
           ? 'Plunder is banked as doubloons when a voyage ends, even if you sink.'
           : `${career.voyages} voyage${career.voyages === 1 ? '' : 's'} &nbsp;·&nbsp; ` +
@@ -144,10 +152,13 @@ export class PortUI {
     for (const t of TABS) {
       const active = t.id === this.tab
       const b = el('button', `
-        font: inherit; font-size: 12px; cursor: pointer; padding: 7px 16px; border-radius: 6px;
-        border: 1px solid ${active ? GOLD : 'rgba(207,230,245,0.2)'};
-        background: ${active ? 'rgba(240,193,75,0.14)' : 'transparent'};
-        color: ${active ? GOLD : INK};`)
+        font: inherit; font-size: 13px; cursor: pointer; padding: 7px 16px;
+        ${isCel()
+          ? active
+            ? `${cardCss()} color: ${INK}; padding: 6px 16px;`
+            : `border: 2px solid ${M.dim}; background: transparent; color: ${M.text};`
+          : `border-radius: 6px; border: 1px solid ${active ? GOLD : 'rgba(207,230,245,0.2)'};
+             background: ${active ? 'rgba(240,193,75,0.14)' : 'transparent'}; color: ${active ? GOLD : INK};`}`)
       b.dataset.tab = t.id
       b.textContent = t.label + this.badge(t.id)
       b.onclick = () => { this.tab = t.id; this.render() }
@@ -170,7 +181,7 @@ export class PortUI {
     }
     this.root.appendChild(body)
 
-    const hint = el('div', `color:rgba(207,230,245,0.4);font-size:11px;margin-top:22px;text-align:center;padding:0 20px`)
+    const hint = el('div', `color:${M.dim};font-size:12px;margin-top:22px;text-align:center;padding:0 20px`)
     hint.textContent = this.tab === 'yard'
       ? 'click or press 1–7 to sail or buy  ·  Tab changes page'
       : this.tab === 'refit'
@@ -203,9 +214,9 @@ export class PortUI {
   private notoriety(): HTMLElement {
     const career = this.ledger.career
     const box = el('div', `
-      margin-top:14px;display:flex;align-items:center;gap:10px;font-size:12px;
-      padding:7px 12px;border-radius:6px;border:1px solid rgba(255,122,107,0.25);
-      background:rgba(255,122,107,0.06)`)
+      margin-top:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:${INK};
+      padding:7px 12px;${isCel() ? cardCss()
+        : 'border-radius:6px;border:1px solid rgba(255,122,107,0.25);background:rgba(255,122,107,0.06)'}`)
     box.dataset.notoriety = String(career.notoriety)
 
     if (career.notorietyMax === 0) {
@@ -221,8 +232,8 @@ export class PortUI {
       const ok = target >= 0 && target <= career.notorietyMax
       const b = el('button', `
         font:inherit;width:26px;height:24px;border-radius:4px;cursor:${ok ? 'pointer' : 'default'};
-        border:1px solid rgba(255,122,107,${ok ? 0.6 : 0.15});background:transparent;
-        color:rgba(255,122,107,${ok ? 1 : 0.25})`)
+        border:${isCel() ? 2 : 1}px solid ${RED(ok ? 0.6 : 0.15)};background:transparent;
+        color:${RED(ok ? 1 : 0.25)}`)
       b.textContent = glyph
       b.dataset.step = String(delta)
       if (ok) b.onclick = () => { this.ledger.setNotoriety(target); this.render() }
@@ -231,7 +242,7 @@ export class PortUI {
     const label = el('span', 'min-width:300px;text-align:center')
     label.innerHTML = level === 0
       ? `Notoriety 0 · <b>Unknown</b> <span style="color:${DIM}">— base difficulty</span>`
-      : `Notoriety ${level} · <b style="color:#ff9a8a">${notorietyName(level)}</b>
+      : `Notoriety ${level} · <b style="color:${RED(1)}">${notorietyName(level)}</b>
          <span style="color:${DIM}"> — hulls ×${d.enemyArmour.toFixed(2)}, shot ×${d.enemyDamage.toFixed(2)},</span>
          <span style="color:${GOLD}">pay ×${d.payout.toFixed(1)}</span>`
     box.append(step(-1, '◀'), label, step(1, '▶'))
@@ -247,7 +258,10 @@ export class PortUI {
 
   private hullCard(cls: ShipClass, index: number): HTMLButtonElement {
     const career = this.ledger.career
-    const accent = '#' + cls.colors.deck.toString(16).padStart(6, '0')
+    // The hull's own colour on the bars: the light deck tone on a dark card,
+    // the darker hull tone on paper, so the swatch never vanishes into it.
+    const swatch = panelIsLight() ? cls.colors.hull : cls.colors.deck
+    const accent = '#' + swatch.toString(16).padStart(6, '0')
     const owned = owns(career, cls)
     const allowed = permitted(career, cls)
     const affordable = canAfford(career, cls)
@@ -271,7 +285,7 @@ export class PortUI {
       return `
         <div style="display:flex;align-items:center;gap:7px;font-size:10px">
           <span style="opacity:0.5;width:58px">${label}</span>
-          <span style="flex:1;height:5px;background:rgba(255,255,255,0.13);border-radius:3px;overflow:hidden">
+          <span style="flex:1;height:5px;background:${C('rgba(255,255,255,0.13)')};border-radius:${isCel() ? 0 : 3}px;overflow:hidden">
             <span style="display:block;height:100%;width:${scaled * 100}%;background:${accent}"></span>
           </span>
         </div>`
@@ -289,7 +303,7 @@ export class PortUI {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:17px;font-weight:bold;color:#fff">${cls.name}</span>
+        <span style="font-size:${isCel() ? 21 : 17}px;font-weight:${isCel() ? 'normal' : 'bold'};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
         <span style="opacity:0.4;font-size:10px">${index + 1}</span>
       </div>
       <div style="font-size:11.5px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
@@ -318,11 +332,11 @@ export class PortUI {
 
     const pips = Array.from({ length: refit.maxRank }, (_, i) =>
       `<span style="display:inline-block;width:14px;height:5px;border-radius:2px;margin-right:3px;
-        background:${i < held ? GOOD : 'rgba(255,255,255,0.14)'}"></span>`).join('')
+        background:${i < held ? GOOD : C('rgba(255,255,255,0.14)')}"></span>`).join('')
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:15px;font-weight:bold;color:#fff">${refit.name}</span>
+        <span style="font-size:${isCel() ? 18 : 15}px;font-weight:${isCel() ? 'normal' : 'bold'};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
         <span style="opacity:0.4;font-size:10px">${index < 9 ? index + 1 : ''}</span>
       </div>
       <div>${pips}</div>
@@ -341,13 +355,14 @@ export class PortUI {
     const feat = FEATS_BY_ID.get(id)!
     const done = this.ledger.career.feats.includes(id)
     const row = el('div', `
-      display:flex;gap:12px;align-items:baseline;padding:9px 12px;border-radius:6px;font-size:12px;
-      background:rgba(8,24,38,0.9);border:1px solid ${done ? 'rgba(127,224,160,0.35)' : 'rgba(207,230,245,0.12)'}`)
+      display:flex;gap:12px;align-items:baseline;padding:9px 12px;font-size:13px;color:${INK};
+      ${isCel() ? cardCss()
+        : `border-radius:6px;background:rgba(8,24,38,0.9);border:1px solid ${done ? 'rgba(127,224,160,0.35)' : 'rgba(207,230,245,0.12)'}`}`)
     row.dataset.feat = id
     row.dataset.done = String(done)
     row.innerHTML = `
       <span style="width:14px;color:${done ? GOOD : DIM}">${done ? '✓' : '·'}</span>
-      <span style="width:150px;font-weight:bold;color:${done ? GOOD : '#fff'}">${feat.name}</span>
+      <span style="width:150px;font-weight:bold;color:${done ? GOOD : WHITE}">${feat.name}</span>
       <span style="flex:1;line-height:1.5;opacity:${done ? 0.55 : 0.85}">${feat.how}
         <span style="color:${GOLD};opacity:0.85"> &nbsp;→ ${
           feat.opens === 'a bounty'
@@ -367,18 +382,25 @@ function cardShell(accent: string, live: boolean): HTMLButtonElement {
   const card = document.createElement('button')
   card.style.cssText = `
     cursor: ${live ? 'pointer' : 'default'}; text-align: left; font: inherit;
-    background: rgba(8,24,38,0.95); border: 1px solid ${accent}55;
-    border-radius: 8px; padding: 14px; color: ${INK};
+    ${isCel() ? cardCss() : `background: rgba(8,24,38,0.95); border: 1px solid ${accent}55; border-radius: 8px;`}
+    padding: 14px; color: ${INK};
     display: flex; flex-direction: column; gap: 9px; transition: all 0.12s ease;
   `
+  const rest = card.style.boxShadow
   card.onmouseenter = () => {
+    if (isCel()) {
+      // Lift toward the light: the card moves up-left and its hard shadow grows.
+      if (live) { card.style.transform = 'translate(-2px,-2px)'; card.style.boxShadow = cardHoverCss() }
+      return
+    }
     card.style.borderColor = accent
     if (live) card.style.transform = 'translateY(-3px)'
     card.style.background = 'rgba(14,38,58,0.98)'
   }
   card.onmouseleave = () => {
-    card.style.borderColor = `${accent}55`
     card.style.transform = 'none'
+    if (isCel()) { card.style.boxShadow = rest; return }
+    card.style.borderColor = `${accent}55`
     card.style.background = 'rgba(8,24,38,0.95)'
   }
   return card
@@ -387,7 +409,5 @@ function cardShell(accent: string, live: boolean): HTMLButtonElement {
 function plate(html: string, call: boolean): string {
   return `
     <div style="margin-top:6px;padding:7px 9px;border-radius:5px;font-size:11px;text-align:center;line-height:1.5;
-      ${call
-        ? `background:${GOLD};color:#1a1204;font-weight:bold`
-        : 'background:rgba(255,255,255,0.07);color:rgba(207,230,245,0.75)'}">${html}</div>`
+      ${call ? callCss() : quietCss()}">${html}</div>`
 }

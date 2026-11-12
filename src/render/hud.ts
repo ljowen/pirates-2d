@@ -11,6 +11,7 @@ import { draughtDepth } from '../sim/terrain'
 import { outmatches } from '../sim/stats'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
+import { C, F, disc, panel, panelIsLight, plaque, ui } from '../ui/theme'
 
 /**
  * Instruments, drawn on a plain 2D canvas over the Pixi view. Two of these are
@@ -47,28 +48,28 @@ export class Hud {
 
     if (silent) {
       ctx.save()
-      ctx.font = '11px ui-monospace, monospace'
+      ctx.font = F(11)
       ctx.textAlign = 'right'
       ctx.textBaseline = 'top'
-      ctx.fillStyle = 'rgba(207,230,245,0.45)'
-      ctx.fillText('sound off — M', w - 24, ctx.canvas.clientHeight - 48)
+      ctx.fillStyle = C('rgba(207,230,245,0.45)')
+      plaque(ctx, 'sound off — M', w - 24, ctx.canvas.clientHeight - 48)
       ctx.restore()
     }
 
     if (world.run.state === 'won') this.endCard(world, true, ledger)
     else if (world.run.state === 'lost') this.endCard(world, false, ledger)
-    else if (paused) this.banner('PAUSED', '#ffd27f', 150)
-    else if (turbo) this.banner('TURBO', '#7fe0a0', 150)
+    else if (paused) this.banner('PAUSED', C('#ffd27f'), 150)
+    else if (turbo) this.banner('TURBO', C('#7fe0a0'), 150)
 
     // Boss waves get called out, because three Brigantines appearing over the
     // horizon with no warning is just a sudden death.
     if (world.director.announcementTime > 0 && world.director.announcement) {
       const fade = Math.min(1, world.director.announcementTime / 1.2)
       ctx.save()
-      ctx.font = 'bold 22px ui-monospace, monospace'
+      ctx.font = F(22, true)
       ctx.textAlign = 'center'
-      ctx.fillStyle = `rgba(255,122,107,${fade})`
-      ctx.fillText(world.director.announcement, w / 2, 186)
+      ctx.fillStyle = C('rgb(255,122,107)', fade)
+      plaque(ctx, world.director.announcement, w / 2, 186)
       ctx.restore()
     }
   }
@@ -143,7 +144,7 @@ export class Hud {
         const bw = 48
         // Name the hull: a Pinnace and a Brigantine demand very different
         // decisions, and the silhouettes alone are easy to misread in a fight.
-        ctx.font = '10px ui-monospace, monospace'
+        ctx.font = F(10)
         ctx.textAlign = 'center'
         ctx.textBaseline = 'alphabetic'
         // ...and say which ones are not fights. A new captain cannot tell a
@@ -152,10 +153,10 @@ export class Hud {
         // which is the whole progression of the game drawn on the water.
         const run = !e.yielding && outmatches(e, player)
         ctx.fillStyle = run ? '#ff5a4a' : TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)'
-        if (run) ctx.font = 'bold 12px ui-monospace, monospace'
+        if (run) ctx.font = F(12, true)
         ctx.fillText(run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56)
         if (e.isHunter && !e.breakingOff) {
-          ctx.font = '9px ui-monospace, monospace'
+          ctx.font = F(9)
           ctx.fillStyle = 'rgba(255,190,110,0.9)'
           ctx.fillText(`hunting · ${Math.ceil(e.huntLeft)}s`, s.x, s.y - 68)
         }
@@ -210,10 +211,7 @@ export class Hud {
     ctx.save()
     ctx.translate(cx, cy)
 
-    ctx.beginPath()
-    ctx.arc(0, 0, r + 14, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    ctx.fill()
+    disc(ctx, 0, 0, r + 14)
 
     const segments = 72
     for (let i = 0; i < segments; i++) {
@@ -227,7 +225,7 @@ export class Hud {
       ctx.stroke()
     }
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+    ctx.strokeStyle = C('rgba(255,255,255,0.3)')
     ctx.lineWidth = 1
     for (let i = 0; i < 4; i++) {
       const a = -Math.PI / 2 + (i * Math.PI) / 2
@@ -236,8 +234,8 @@ export class Hud {
       ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r)
       ctx.stroke()
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
-    ctx.font = '10px ui-monospace, monospace'
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
+    ctx.font = F(10)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('N', 0, -r + 2)
@@ -245,8 +243,8 @@ export class Hud {
     const wl = r * (0.5 + 0.42 * Math.min(wind.strength, 2))
     ctx.save()
     ctx.rotate(wind.to)
-    ctx.strokeStyle = '#9fe8ff'
-    ctx.fillStyle = '#9fe8ff'
+    ctx.strokeStyle = C('#9fe8ff')
+    ctx.fillStyle = C('#9fe8ff')
     ctx.lineWidth = 3
     ctx.beginPath()
     ctx.moveTo(-wl, 0)
@@ -262,7 +260,7 @@ export class Hud {
 
     ctx.save()
     ctx.rotate(ship.heading)
-    ctx.fillStyle = '#ffd98a'
+    ctx.fillStyle = C('#ffd98a')
     ctx.beginPath()
     ctx.moveTo(r - 16, 0)
     ctx.lineTo(r - 30, -6)
@@ -272,10 +270,10 @@ export class Hud {
     ctx.restore()
     ctx.restore()
 
-    ctx.fillStyle = 'rgba(255,255,255,0.75)'
-    ctx.font = '11px ui-monospace, monospace'
+    ctx.fillStyle = C('rgba(255,255,255,0.75)')
+    ctx.font = F(11)
     ctx.textAlign = 'center'
-    ctx.fillText(`${label} from ${compassName(wind.from)}`, cx, cy + r + 32)
+    plaque(ctx, `${label} from ${compassName(wind.from)}`, cx, cy + r + 32)
   }
 
   private drawSailIndicator(ship: Ship, x: number, y: number) {
@@ -285,22 +283,20 @@ export class Hud {
     const mending = ship.mending > 1.02
     ctx.save()
     ctx.translate(x, y)
-    ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, mending ? 104 : 86, 6)
-    ctx.fill()
+    panel(ctx, 0, 0, 186, mending ? 104 : 86)
 
-    ctx.font = '12px ui-monospace, monospace'
+    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
     ctx.fillText('SAILS', 12, 11)
-    ctx.fillStyle = '#ffd98a'
-    ctx.font = 'bold 15px ui-monospace, monospace'
+    ctx.fillStyle = C('#ffd98a')
+    ctx.font = F(15, true)
     ctx.fillText(ship.sailName, 12, 28)
 
     if (mending) {
-      ctx.font = '11px ui-monospace, monospace'
-      ctx.fillStyle = '#7fe0a0'
+      ctx.font = F(11)
+      ctx.fillStyle = C('#7fe0a0')
       ctx.fillText(`⚒ mending  ×${ship.mending.toFixed(1)}`, 12, 84)
     }
 
@@ -315,7 +311,7 @@ export class Hud {
     const MAST_X = 142
     const FOOT = 74
     const STEP = 13
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+    ctx.strokeStyle = C('rgba(255,255,255,0.3)')
     ctx.lineWidth = 1.6
     ctx.beginPath()
     ctx.moveTo(MAST_X, FOOT)
@@ -327,21 +323,21 @@ export class Hud {
       const y = FOOT - i * STEP - 7
       const ordered = i < SAIL_STATES[ship.sailOrder].yards
       if (i < set) {
-        ctx.fillStyle = '#ffd98a'
+        ctx.fillStyle = C('#ffd98a')
         ctx.fillRect(MAST_X - half, y, half * 2, 5)
       } else if (ordered) {
-        ctx.strokeStyle = 'rgba(255,217,138,0.55)'
+        ctx.strokeStyle = C('rgba(255,217,138,0.55)')
         ctx.lineWidth = 1
         ctx.strokeRect(MAST_X - half + 0.5, y + 0.5, half * 2 - 1, 4)
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.14)'
+        ctx.fillStyle = C('rgba(255,255,255,0.14)')
         ctx.fillRect(MAST_X - half, y + 1.5, half * 2, 2)
       }
     }
 
-    ctx.fillStyle = 'rgba(255,255,255,0.28)'
+    ctx.fillStyle = C('rgba(255,255,255,0.28)')
     ctx.fillRect(12, 66, 104, 4)
-    ctx.fillStyle = '#9fe8ff'
+    ctx.fillStyle = C('#9fe8ff')
     ctx.fillRect(12, 66, 104 * ship.canvas, 4)
     ctx.restore()
   }
@@ -353,29 +349,33 @@ export class Hud {
 
     ctx.save()
     ctx.translate(x, y)
-    ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, 110, 6)
-    ctx.fill()
+    panel(ctx, 0, 0, 186, 110)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.font = '12px ui-monospace, monospace'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.font = F(12)
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
     ctx.fillText('POINT OF SAIL', 12, 11)
-    ctx.font = 'bold 15px ui-monospace, monospace'
-    ctx.fillStyle = inIrons ? '#ff7a6b' : speedColor(ship.polarMult)
+    ctx.font = F(15, true)
+    // The speed ramp is bright on purpose — it is drawn on the rose's dark
+    // rim — and pale green on paper is barely there, so a light panel gets
+    // the same three bands in the theme's own inks.
+    ctx.fillStyle = inIrons ? C('#ff7a6b')
+      : panelIsLight()
+        ? C(ship.polarMult > 0.66 ? '#7fe0a0' : ship.polarMult > 0.33 ? '#ffd27f' : '#ff7a6b')
+        : speedColor(ship.polarMult)
     ctx.fillText(pos, 12, 28)
-    ctx.font = '12px ui-monospace, monospace'
-    ctx.fillStyle = 'rgba(255,255,255,0.7)'
+    ctx.font = F(12)
+    ctx.fillStyle = C('rgba(255,255,255,0.7)')
     ctx.fillText(`${ship.speed.toFixed(0)} kn   ${deg(ship.awa).toFixed(0)}° off wind`, 12, 52)
     this.drawLeadline(ship, 12, 74)
     ctx.restore()
 
     if (inIrons && ship.canvas > 0.1 && !ship.sunk) {
       ctx.save()
-      ctx.font = 'bold 16px ui-monospace, monospace'
+      ctx.font = F(16, true)
       ctx.textAlign = 'center'
-      ctx.fillStyle = `rgba(255,122,107,${0.55 + 0.45 * Math.sin(performance.now() * 0.006)})`
-      ctx.fillText('IN IRONS — bear away',
+      ctx.fillStyle = C('rgb(255,122,107)', 0.55 + 0.45 * Math.sin(performance.now() * 0.006))
+      plaque(ctx, 'IN IRONS — bear away',
         ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 64)
       ctx.restore()
     }
@@ -401,12 +401,12 @@ export class Hud {
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() * (touching ? 0.012 : 0.006))
 
     ctx.save()
-    ctx.font = 'bold 16px ui-monospace, monospace'
+    ctx.font = F(16, true)
     ctx.textAlign = 'center'
     ctx.fillStyle = touching
-      ? `rgba(255,122,107,${0.6 + 0.4 * pulse})`
-      : `rgba(255,214,138,${(0.35 + 0.45 * pulse) * (0.4 + 0.6 * urgency)})`
-    ctx.fillText(
+      ? C('rgb(255,122,107)', 0.6 + 0.4 * pulse)
+      : C('rgb(255,214,138)', (0.35 + 0.45 * pulse) * (0.4 + 0.6 * urgency))
+    plaque(ctx,
       touching ? 'AGROUND' : 'SHALLOW — about to run aground',
       ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 92,
     )
@@ -436,16 +436,16 @@ export class Hud {
 
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() * (splitting ? 0.014 : 0.005))
     ctx.save()
-    ctx.font = 'bold 16px ui-monospace, monospace'
+    ctx.font = F(16, true)
     ctx.textAlign = 'center'
     ctx.fillStyle = splitting
-      ? `rgba(255,122,107,${0.6 + 0.4 * pulse})`
-      : `rgba(159,196,216,${0.45 + 0.35 * pulse})`
+      ? C('rgb(255,122,107)', 0.6 + 0.4 * pulse)
+      : C('rgb(159,196,216)', 0.45 + 0.35 * pulse)
     // Name the bearing rather than saying "to windward": a cell is only
     // upwind at the moment it makes up, and by the time it matters it has
     // travelled. Telling the player where to look is the entire job here.
     const where = coming && near ? ` ${compassName(near.bearing)}` : ''
-    ctx.fillText(
+    plaque(ctx,
       splitting ? 'CANVAS SPLITTING — shorten sail' : `SQUALL BEARING${where}`,
       ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 116,
     )
@@ -479,10 +479,10 @@ export class Hud {
 
     const margin = (depth - needs) / Math.max(needs, 0.01)
     const touching = ship.aground || depth <= needs
-    const color = touching ? '#ff7a6b' : margin < 1 ? '#ffd27f' : '#9fe8ff'
+    const color = touching ? C('#ff7a6b') : margin < 1 ? C('#ffd27f') : C('#9fe8ff')
 
-    ctx.font = '12px ui-monospace, monospace'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.font = F(12)
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
     ctx.fillText('SOUNDING', x, y)
 
     ctx.textAlign = 'right'
@@ -494,16 +494,16 @@ export class Hud {
     ctx.textAlign = 'left'
 
     const barW = 162
-    ctx.fillStyle = 'rgba(255,255,255,0.14)'
+    ctx.fillStyle = C('rgba(255,255,255,0.14)')
     ctx.fillRect(x, y + 17, barW, 8)
     ctx.fillStyle = color
     ctx.fillRect(x, y + 17, barW * scale(depth), 8)
 
     // The mark she draws. Everything to the left of it is bottom.
     const markX = x + barW * scale(needs)
-    ctx.fillStyle = 'rgba(8,20,30,0.9)'
+    ctx.fillStyle = C('rgba(8,20,30,0.9)')
     ctx.fillRect(markX - 1.5, y + 15, 3, 12)
-    ctx.fillStyle = touching ? '#ff7a6b' : 'rgba(255,255,255,0.8)'
+    ctx.fillStyle = touching ? C('#ff7a6b') : C('rgba(255,255,255,0.8)')
     ctx.fillRect(markX - 0.5, y + 13, 1, 16)
   }
 
@@ -512,32 +512,30 @@ export class Hud {
     const ctx = this.ctx
     ctx.save()
     ctx.translate(x, y)
-    ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, 80, 6)
-    ctx.fill()
+    panel(ctx, 0, 0, 186, 80)
 
-    ctx.font = '12px ui-monospace, monospace'
+    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
     ctx.fillText('CONDITION', 12, 10)
     ctx.textAlign = 'right'
-    ctx.fillStyle = 'rgba(255,217,138,0.8)'
+    ctx.fillStyle = C('rgba(255,217,138,0.8)')
     ctx.fillText(ship.cls.name, 174, 10)
     ctx.textAlign = 'left'
 
     const bars: [string, number, string][] = [
-      ['Hull', ship.hull, '#ff7a6b'],
-      ['Rigging', ship.sails, '#9fe8ff'],
-      ['Crew', ship.crew, '#ffd98a'],
+      ['Hull', ship.hull, C('#ff7a6b')],
+      ['Rigging', ship.sails, C('#9fe8ff')],
+      ['Crew', ship.crew, C('#ffd98a')],
     ]
     const repair: number[] = [ship.mods.hullRepair, ship.mods.sailRepair, ship.mods.crewRepair]
     bars.forEach(([label, value, color], i) => {
       const by = 28 + i * 17
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'
-      ctx.font = '11px ui-monospace, monospace'
+      ctx.fillStyle = C('rgba(255,255,255,0.5)')
+      ctx.font = F(11)
       ctx.fillText(label, 12, by)
-      ctx.fillStyle = 'rgba(255,255,255,0.14)'
+      ctx.fillStyle = C('rgba(255,255,255,0.14)')
       ctx.fillRect(72, by, 102, 8)
       ctx.fillStyle = color
       ctx.fillRect(72, by, 102 * value, 8)
@@ -546,7 +544,7 @@ export class Hud {
       const gain = repair[i] * ship.mending * 10
       if (gain > 0.004 && value < 1) {
         const ahead = Math.min(1 - value, gain)
-        ctx.fillStyle = 'rgba(255,255,255,0.3)'
+        ctx.fillStyle = C('rgba(255,255,255,0.3)')
         ctx.fillRect(72 + 102 * value, by, 102 * ahead, 8)
       }
     })
@@ -560,14 +558,12 @@ export class Hud {
 
     ctx.save()
     ctx.translate(x, y)
-    ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, 66, 6)
-    ctx.fill()
+    panel(ctx, 0, 0, 186, 66)
 
-    ctx.font = '12px ui-monospace, monospace'
+    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
     ctx.fillText('BROADSIDES', 12, 10)
 
     const names = ['Port', 'Starboard']
@@ -582,12 +578,12 @@ export class Hud {
         return Math.abs(angleDiff(dir, bearing)) <= arc
       })
 
-      ctx.fillStyle = bears ? '#ffbe6e' : 'rgba(255,255,255,0.5)'
-      ctx.font = '11px ui-monospace, monospace'
+      ctx.fillStyle = bears ? C('#ffbe6e') : C('rgba(255,255,255,0.5)')
+      ctx.font = F(11)
       ctx.fillText(names[battery], 12, by)
-      ctx.fillStyle = 'rgba(255,255,255,0.14)'
+      ctx.fillStyle = C('rgba(255,255,255,0.14)')
       ctx.fillRect(84, by, 90, 8)
-      ctx.fillStyle = loaded >= 1 ? (bears ? '#ffbe6e' : '#7fe0a0') : 'rgba(159,232,255,0.6)'
+      ctx.fillStyle = loaded >= 1 ? (bears ? C('#ffbe6e') : C('#7fe0a0')) : C('rgba(159,232,255,0.6)')
       ctx.fillRect(84, by, 90 * loaded, 8)
     }
     ctx.restore()
@@ -617,26 +613,24 @@ export class Hud {
 
     ctx.save()
     ctx.translate(x, y)
-    ctx.fillStyle = 'rgba(6,20,32,0.72)'
-    roundRect(ctx, 0, 0, 186, height, 6)
-    ctx.fill()
+    panel(ctx, 0, 0, 186, height)
 
-    ctx.font = '12px ui-monospace, monospace'
+    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.fillStyle = C('rgba(255,255,255,0.55)')
     ctx.fillText('REFIT', 12, 9)
 
     owned.forEach(({ upgrade, stacks }, i) => {
       const ry = 26 + i * rowH
-      const color = GROUP_COLORS[upgrade.group]
+      const color = ui().groups[upgrade.group]
 
       // A colour tab keeps the groups scannable without repeating the label.
       ctx.fillStyle = color
       ctx.fillRect(12, ry + 1, 3, 10)
 
-      ctx.font = '11px ui-monospace, monospace'
-      ctx.fillStyle = 'rgba(255,255,255,0.82)'
+      ctx.font = F(11)
+      ctx.fillStyle = C('rgba(255,255,255,0.82)')
       ctx.fillText(shortName(upgrade.name), 20, ry)
 
       // Pips: filled for what you hold, hollow for what is still available.
@@ -651,7 +645,7 @@ export class Hud {
           ctx.fillStyle = color
           ctx.fill()
         } else {
-          ctx.strokeStyle = 'rgba(255,255,255,0.32)'
+          ctx.strokeStyle = C('rgba(255,255,255,0.32)')
           ctx.lineWidth = 1
           ctx.stroke()
         }
@@ -663,10 +657,10 @@ export class Hud {
   private banner(text: string, color: string, y = 56) {
     const ctx = this.ctx
     ctx.save()
-    ctx.font = 'bold 28px ui-monospace, monospace'
+    ctx.font = F(28, true)
     ctx.textAlign = 'center'
     ctx.fillStyle = color
-    ctx.fillText(text, ctx.canvas.clientWidth / 2, y)
+    plaque(ctx, text, ctx.canvas.clientWidth / 2, y)
     ctx.restore()
   }
 
@@ -677,9 +671,7 @@ export class Hud {
     const cx = w / 2
 
     ctx.save()
-    ctx.fillStyle = 'rgba(6,20,32,0.78)'
-    roundRect(ctx, cx - 180, 14, 360, 62, 7)
-    ctx.fill()
+    panel(ctx, cx - 180, 14, 360, 62)
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
@@ -689,50 +681,50 @@ export class Hud {
       const over = run.overtime
       const mins = Math.floor(over / 60)
       const secs = Math.floor(over % 60)
-      ctx.font = 'bold 22px ui-monospace, monospace'
-      ctx.fillStyle = '#ff9ad5'
+      ctx.font = F(22, true)
+      ctx.fillStyle = C('#ff9ad5')
       ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, cx, 22)
-      ctx.font = '10px ui-monospace, monospace'
-      ctx.fillStyle = 'rgba(255,154,213,0.75)'
+      ctx.font = F(10)
+      ctx.fillStyle = C('rgba(255,154,213,0.75)')
       ctx.fillText(`SAILING ON  ·  WAVE ${run.wave}`, cx, 48)
     } else {
       // Time remaining, which is the actual win condition.
       const left = run.remaining
       const mins = Math.floor(left / 60)
       const secs = Math.floor(left % 60)
-      ctx.font = 'bold 22px ui-monospace, monospace'
-      ctx.fillStyle = left < 30 ? '#ff7a6b' : '#cfe6f5'
+      ctx.font = F(22, true)
+      ctx.fillStyle = left < 30 ? C('#ff7a6b') : C('#cfe6f5')
       ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, cx, 22)
-      ctx.font = '10px ui-monospace, monospace'
-      ctx.fillStyle = 'rgba(255,255,255,0.45)'
+      ctx.font = F(10)
+      ctx.fillStyle = C('rgba(255,255,255,0.45)')
       ctx.fillText('REMAINING', cx, 48)
     }
 
     // Level and the plunder bar filling toward the next draft.
     ctx.textAlign = 'left'
-    ctx.font = 'bold 13px ui-monospace, monospace'
-    ctx.fillStyle = '#ffd98a'
+    ctx.font = F(13, true)
+    ctx.fillStyle = C('#ffd98a')
     ctx.fillText(`Lv ${run.level}`, cx - 166, 24)
 
     const barW = 96
-    ctx.fillStyle = 'rgba(255,255,255,0.16)'
+    ctx.fillStyle = C('rgba(255,255,255,0.16)')
     ctx.fillRect(cx - 166, 44, barW, 7)
-    ctx.fillStyle = '#f0c14b'
+    ctx.fillStyle = C('#f0c14b')
     ctx.fillRect(cx - 166, 44, barW * Math.min(1, run.plunder / run.plunderNeeded), 7)
 
     ctx.textAlign = 'right'
-    ctx.font = '12px ui-monospace, monospace'
-    ctx.fillStyle = 'rgba(255,255,255,0.7)'
+    ctx.font = F(12)
+    ctx.fillStyle = C('rgba(255,255,255,0.7)')
     ctx.fillText(
       run.shipsTaken > 0 ? `${run.shipsSunk} sunk · ${run.shipsTaken} taken` : `${run.shipsSunk} sunk`,
       cx + 166, 24,
     )
-    ctx.fillStyle = 'rgba(240,193,75,0.8)'
+    ctx.fillStyle = C('rgba(240,193,75,0.8)')
     ctx.fillText(`${Math.floor(run.totalPlunder)} plunder`, cx + 166, 44)
 
     // A thin progress line along the bottom edge of the panel: progress through
     // the voyage, or through the current wave once endless.
-    ctx.fillStyle = run.endless ? 'rgba(255,154,213,0.6)' : 'rgba(159,232,255,0.5)'
+    ctx.fillStyle = run.endless ? C('rgba(255,154,213,0.6)') : C('rgba(159,232,255,0.5)')
     ctx.fillRect(cx - 180, 73, 360 * run.waveProgress, 2)
     ctx.restore()
   }
@@ -744,20 +736,28 @@ export class Hud {
     const run = world.run
 
     ctx.save()
-    ctx.fillStyle = 'rgba(4,14,24,0.74)'
+    ctx.fillStyle = ui().overlay
     ctx.fillRect(0, 0, w, h)
+    // On paper or wood the card is a sheet of its own, sized to what it says.
+    if (ui().plaques) {
+      const lines = (run.endless ? 1 : 0) + (ledger ? ledger.news.length + (ledger.rung > 0 ? 1 : 0) : 0)
+      const top = h / 2 - 112
+      const height = 196 + lines * 20 + (ledger ? 60 : 0) + (won ? 24 : 0)
+      // Wide enough for the payout line in the widest face (Cinzel's capitals).
+      panel(ctx, w / 2 - 380, top, 760, height)
+    }
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = 'bold 40px ui-monospace, monospace'
-    ctx.fillStyle = won ? '#7fe0a0' : '#ff7a6b'
+    ctx.font = F(40, true)
+    ctx.fillStyle = won ? C('#7fe0a0') : C('#ff7a6b')
     ctx.fillText(won ? 'VOYAGE COMPLETE' : 'SUNK', w / 2, h / 2 - 64)
 
     const stamp = (seconds: number) =>
       `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`
 
-    ctx.font = '15px ui-monospace, monospace'
-    ctx.fillStyle = '#cfe6f5'
+    ctx.font = F(15)
+    ctx.fillStyle = C('#cfe6f5')
     ctx.fillText(
       `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   ` +
         `${run.shipsTaken} taken   ·   level ${run.level}`,
@@ -766,8 +766,8 @@ export class Hud {
 
     // Sailing on is its own achievement, so it gets its own line.
     if (run.endless) {
-      ctx.font = '15px ui-monospace, monospace'
-      ctx.fillStyle = '#ff9ad5'
+      ctx.font = F(15)
+      ctx.fillStyle = C('#ff9ad5')
       ctx.fillText(
         `endless: ${stamp(run.overtime)}   ·   wave ${run.wave}`,
         w / 2, h / 2 + 12,
@@ -785,8 +785,8 @@ export class Hud {
       if (pay.bounty > 0) parts.push(`${pay.bounty.toLocaleString()} Man-o'-War`)
       const feats = ledger.news.reduce((sum, f) => sum + f.bounty, 0)
       if (feats > 0) parts.push(`${feats.toLocaleString()} feats`)
-      ctx.font = 'bold 17px ui-monospace, monospace'
-      ctx.fillStyle = '#f0c14b'
+      ctx.font = F(17, true)
+      ctx.fillStyle = C('#f0c14b')
       ctx.fillText(
         `+${ledger.earned.toLocaleString()} doubloons` +
           (parts.length > 1 ? `   (${parts.join(' + ')})` : ''),
@@ -794,8 +794,8 @@ export class Hud {
       )
       y += 26
 
-      ctx.font = '13px ui-monospace, monospace'
-      ctx.fillStyle = '#7fe0a0'
+      ctx.font = F(13)
+      ctx.fillStyle = C('#7fe0a0')
       for (const feat of ledger.news) {
         ctx.fillText(
           feat.opens === 'a bounty' ? `✓ ${feat.name}` : `✓ ${feat.name} — unlocks ${feat.opens}`,
@@ -804,7 +804,7 @@ export class Hud {
         y += 20
       }
       if (ledger.rung > 0) {
-        ctx.fillStyle = '#ff9a8a'
+        ctx.fillStyle = C('#ff9a8a')
         ctx.fillText(
           `Notoriety ${ledger.rung} · ${notorietyName(ledger.rung)} unlocked`,
           w / 2, y,
@@ -814,7 +814,7 @@ export class Hud {
 
       const career = ledger.career
       const next = nextPurchase(career)
-      ctx.fillStyle = 'rgba(240,193,75,0.75)'
+      ctx.fillStyle = C('rgba(240,193,75,0.75)')
       let line = `${career.doubloons.toLocaleString()} in the purse`
       if (next) {
         const short = next.price - career.doubloons
@@ -826,26 +826,18 @@ export class Hud {
       y += 34
     }
 
-    ctx.font = '13px ui-monospace, monospace'
+    ctx.font = F(13)
     if (won) {
-      ctx.fillStyle = '#ff9ad5'
+      ctx.fillStyle = C('#ff9ad5')
       ctx.fillText('C — continue in endless mode', w / 2, y)
-      ctx.fillStyle = 'rgba(207,230,245,0.5)'
+      ctx.fillStyle = C('rgba(207,230,245,0.5)')
       ctx.fillText('R — make port', w / 2, y + 24)
     } else {
-      ctx.fillStyle = 'rgba(207,230,245,0.55)'
+      ctx.fillStyle = C('rgba(207,230,245,0.55)')
       ctx.fillText('R — make port', w / 2, y)
     }
     ctx.restore()
   }
-}
-
-/** Matches the draft card colours, so a card and its panel row agree. */
-const GROUP_COLORS: Record<Upgrade['group'], string> = {
-  Sailing: '#9fe8ff',
-  Gunnery: '#ffbe6e',
-  Shot: '#ff9ad5',
-  Quarterdeck: '#7fe0a0',
 }
 
 /** Keep names inside the panel; the pips carry the rest of the meaning. */

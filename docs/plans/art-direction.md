@@ -154,3 +154,28 @@ all want visual identity. Starting earlier means drawing things twice.
 
 The exception is **collecting references and writing the style guide**, which can happen
 any time and should.
+
+## UI theme
+
+The instruments and menus are a third switchable axis beside the sea palette and the hull
+style: `?ui=` or `\` in game, defined in `src/ui/theme.ts`.
+
+| Theme | Look |
+|---|---|
+| `log` (default) | Ink on aged paper. Pirata One heads, IM Fell English body |
+| `cabin` | Dark wood trimmed in brass, cream lettering. Pirata One, Alegreya |
+| `chart` | Navy ink on chart paper, ruled borders. Cinzel, EB Garamond |
+| `modern` | The original dark glass and monospace, kept as the control |
+
+The three period themes are cel shaded to match the ships: flat fill, one hard shade band,
+heavy ink outline, hard offset shadow, no blur or gradients. Text that sits over the sea
+(announcements, warnings, the wind label) gets a small plaque, since dark ink does not read
+on water. The HUD's original colours are remapped by hue per theme, keeping their alpha, so
+its 55% labels and 14% tracks keep their hierarchy as dark ink on paper. Fonts are bundled
+through `@fontsource`, not fetched from a CDN.
+
+Not themed: the tuning panel and key legend (developer chrome), and everything drawn on the
+water itself — enemy labels and bars, gun arcs, pickup colours.
+
+IM Fell English has old-style figures, so `0` and `1` in the log theme look like `o` and
+`I`. That is period-correct and the first thing to change if it reads badly in play.

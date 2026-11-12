@@ -1,4 +1,5 @@
 import type { World } from '../sim/world'
+import { F } from '../ui/theme'
 import type { FlotsamKind } from '../sim/plunder'
 import type { Camera } from './camera'
 import { P } from './palette'
@@ -78,7 +79,7 @@ export class PickupText {
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = 'bold 15px ui-monospace, monospace'
+    ctx.font = F(15, true)
 
     for (const f of this.items) {
       const t = 1 - f.life / f.maxLife
