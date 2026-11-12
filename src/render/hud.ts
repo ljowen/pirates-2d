@@ -175,7 +175,10 @@ export class Hud {
         // light type in a dark ink halo, legible over any water.
         ctx.font = F(11)
         if (run) ctx.font = F(12, true)
-        seaLabel(ctx, run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56,
+        // What she has loaded is on the label, because it changes what
+        // fighting her costs and nothing else on the water says so.
+        const name = e.shot === 'round' ? e.cls.name : `${e.cls.name} · ${e.shot}`
+        seaLabel(ctx, run ? `☠ ${name} — RUN` : name, s.x, s.y - 56,
           run ? '#ff5a4a' : ui().menu.text)
         if (e.isHunter && !e.breakingOff) {
           ctx.font = F(9.5)

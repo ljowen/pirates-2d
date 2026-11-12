@@ -61,6 +61,9 @@ const FURLED_CANVAS = 0.02
  * Keeping the whole upgrade surface in one struct means the draft never has to
  * reach into the physics or the global tuning values — it only ever edits these.
  */
+/** Round is the plain load; the others trade hull damage for rigging or crew, or the reverse. */
+export type ShotType = 'round' | 'chain' | 'grape' | 'double'
+
 export interface ShipMods {
   // Sailing
   turnRate: number
@@ -204,6 +207,11 @@ export class Ship {
 
   /** Upgrade modifiers. Mutate these; the physics reads them every step. */
   mods: ShipMods = { ...STOCK_MODS }
+  /**
+   * What an enemy has loaded, chosen as she is raised. The player's own shot
+   * is whatever cards were drafted, so this stays 'round' for her.
+   */
+  shot: ShotType = 'round'
 
   // --- Condition ----------------------------------------------------------
   /** All three run 1 (sound) to 0 (gone). */

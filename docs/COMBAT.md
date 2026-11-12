@@ -10,7 +10,7 @@ This is the Vampire Survivors half of the fusion, and a deliberate departure fro
 
 ## Broadsides
 
-Port and starboard batteries, each with its own reload timer, firing in a ±62° arc square
+Port and starboard batteries, each with its own reload timer, firing in a ±45° arc square
 out from the beam. A battery only fires if a target is genuinely inside its arc — it then
 aims properly, leading the target by its velocity.
 

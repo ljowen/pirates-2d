@@ -194,10 +194,10 @@ export const DEFAULT_TUNING: TuningValues = {
   blowoutRate: 0.6,
 
   gunRange: 500,
-  gunArcDegrees: 62,
+  gunArcDegrees: 45,
   gunReload: 2.0,
   gunsPerBroadside: 6,
-  ballSpeed: 280,
+  ballSpeed: 200,
   ballSpread: 0.08,
   gunLayError: 0.05,
   gunLeadError: 0.28,
