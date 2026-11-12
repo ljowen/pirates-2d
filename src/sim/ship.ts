@@ -45,6 +45,9 @@ export const SAIL_COURSES = 1
 export const SAIL_FIGHTING = 2
 export const SAIL_FULL = 3
 
+/** Canvas still aloft below which she counts as furled. Canvas eases toward its order and never quite reaches zero. */
+const FURLED_CANVAS = 0.02
+
 /**
  * Everything an upgrade is allowed to touch. All multiplicative and 1.0 on a
  * stock ship, except `extraGuns` which is a flat addition and the repair rates
@@ -273,15 +276,18 @@ export class Ship {
   }
 
   /**
-   * How far the canvas is off her, 0 to 1. Zero at battle sails or more — the
-   * fighting states — rising to one when she is lying under bare poles.
+   * 1 when she is lying under bare poles, 0 otherwise. Nothing in between.
    *
-   * Driven by `canvas`, the sail actually set, rather than by the order given,
-   * so the crew's time on the yards is part of the cost of heaving to.
+   * It used to ramp from Topsails down, so a ship under Courses — still
+   * making way, still able to run — was already mending at about 40% of the
+   * hove-to rate. That made reefing a cheap partial heave-to, and the
+   * decision the mechanic exists for (stop, or keep going) blurred into a
+   * dial. Now the canvas has to be ordered off *and* actually be off: the
+   * order alone does nothing until the hands have the last of it in, so the
+   * time on the yards is still part of the price.
    */
   get hoveTo(): number {
-    const fighting = SAIL_STATES[SAIL_FIGHTING].canvas
-    return clamp(1 - this.canvas / fighting, 0, 1)
+    return this.sailOrder === SAIL_FURLED && this.canvas <= FURLED_CANVAS ? 1 : 0
   }
 
   get pointOfSail(): PointOfSail {

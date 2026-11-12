@@ -123,9 +123,9 @@ Full sail in heavy air costs you speed rather than gaining it (`overcanvasPenalt
 ### Furled is not just "stopped" — it is the *only* way to mend
 
 Take the canvas off her and the hands come off the yards and go to the pumps. **Under way
-she mends nothing at all**: `mending` is `heaveToRepair × hoveTo`, which is zero at battle
-sails and six at furled, and the guns are served at 60% of their usual rate while it
-happens.
+she mends nothing at all**, and neither does she under Courses: `mending` is
+`heaveToRepair` (×6) once she is fully furled and nothing otherwise, and the guns are
+served at 60% of their usual rate while it happens.
 
 It did not start that way. There was a baseline repair rate under way, and wrecks shed
 timber that mended the hull on top of it. Both worked, and both were removed, because
@@ -138,10 +138,13 @@ one of its kind: you have to make the sea room first, and then spend the time. T
 honest — you are stopped, visible, slow to answer the helm and slow to answer a broadside
 — so heaving to inside somebody's gun range is simply dying more comfortably.
 
-The multiplier scales with `hoveTo`, which is driven by the canvas actually set rather
-than the order given. The crew's time on the yards is therefore part of the price, in
-both directions: she does not begin mending the instant you give the order, and she does
-not get under way the instant you want to run.
+`hoveTo` is all or nothing. It used to ramp up from Topsails, so a ship under Courses —
+still making way, still able to run — mended at about 40% of the full rate, and reefing
+became a cheap half-measure that blurred the one decision the mechanic exists to ask. Now
+the order has to be Furled *and* the canvas actually in (under 2% aloft). The crew's time
+on the yards is therefore still part of the price, in both directions: she does not begin
+mending the instant you give the order, and she does not get under way the instant you
+want to run.
 
 A Sloop mends her hull from nothing in **20 seconds hove to, and never under way**. With
 three stacks of Ship's Carpenter that falls to 6 — the card's job is not whether you
