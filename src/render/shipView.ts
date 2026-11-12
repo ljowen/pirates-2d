@@ -4,6 +4,7 @@ import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
 import { P } from './palette'
 import { solveRig, hullSize, mainMast, leewardSide, BEAM } from './rig'
+import type { SailDraw } from './hullStyle'
 import { H } from './hullStyle'
 
 
@@ -18,6 +19,9 @@ export class ShipView {
   private readonly hull = new Graphics()
   private readonly sails = new Graphics()
   private readonly shadow = new Graphics()
+  /** Shot holes in the hull, over the paint and under the canvas. */
+  private readonly scars = new Graphics()
+  private scarCount = -1
   /** A white flag at the main, drawn only once she has given up. */
   private readonly colours = new Graphics()
   private sinkTime = 0
@@ -34,7 +38,7 @@ export class ShipView {
     this.look = cls.look
     this.palette = P().shipTint(cls.colors)
     this.view.addChild(this.shadow, this.heelLayer)
-    this.heelLayer.addChild(this.hull, this.sails, this.colours)
+    this.heelLayer.addChild(this.hull, this.scars, this.sails, this.colours)
     // Hull size is a class property, so a Pinnace reads as small at a glance.
     this.view.scale.set(cls.scale)
     this.baseScale = cls.scale
@@ -87,8 +91,64 @@ export class ShipView {
       s.moveTo(b.spar[0], b.spar[1]).lineTo(b.spar[2], b.spar[3])
         .stroke({ width: H().sparWidth, color: P().ship.spar })
     }
-    for (const sail of rig.sails) {
+    for (const [n, sail] of rig.sails.entries()) {
       H().drawSail(s, sail, this.palette, H().sparWidth * sail.taper)
+      this.drawHoles(s, sail, ship, n)
+    }
+  }
+
+  /**
+   * Shot holes in a sail: more of them as the rigging goes.
+   *
+   * The canvas already shrinks and fades as it is shot away, which shows how
+   * much is left. Holes show that it was *shot*, and they are what makes a
+   * ship that has taken chain look different from one that has reefed.
+   */
+  private drawHoles(g: Graphics, sail: SailDraw, ship: Ship, n: number) {
+    const lost = 1 - sail.health
+    const holes = Math.min(MAX_HOLES, Math.floor(lost * (MAX_HOLES + 1)))
+    if (holes === 0 || sail.depth < 2) return
+    const [x1, y1, x2, y2] = sail.spar
+    const yard = Math.hypot(x2 - x1, y2 - y1)
+    for (let i = 0; i < holes; i++) {
+      const seed = ship.id * 131 + n * 17 + i * 53
+      const along = 0.2 + rnd(seed) * 0.6
+      const out = (0.25 + rnd(seed + 1) * 0.45) * sail.depth
+      const x = x1 + (x2 - x1) * along + sail.push[0] * out
+      const y = y1 + (y2 - y1) * along + sail.push[1] * out
+      const r = Math.min(yard * 0.09, 1.6 + rnd(seed + 2) * 1.6)
+      g.poly(ragged(x, y, r, seed)).fill({ color: P().ship.shadow, alpha: 0.75 })
+    }
+  }
+
+  /**
+   * Shot holes in the hull, in the same places on a given ship every time.
+   * Redrawn only when the count changes; the last to appear is the first
+   * mended, so repair visibly undoes the damage in order.
+   */
+  private drawScars(ship: Ship) {
+    const count = ship.sunk ? MAX_SCARS : Math.min(MAX_SCARS, Math.floor((1 - ship.hull) * (MAX_SCARS + 1)))
+    if (count === this.scarCount) return
+    this.scarCount = count
+    const g = this.scars
+    g.clear()
+    const { L, B } = hullSize(this.look.hull)
+    for (let i = 0; i < count; i++) {
+      const seed = ship.id * 977 + i * 61
+      const x = (-0.72 + rnd(seed) * 1.35) * L
+      // The hull narrows toward the bow, so the holes do too.
+      const taper = 1 - Math.max(0, x / L) ** 2 * 0.7
+      const side = rnd(seed + 1) < 0.5 ? -1 : 1
+      const y = side * (0.25 + rnd(seed + 2) * 0.5) * B * taper
+      const r = 1.7 + rnd(seed + 3) * 1.5
+      g.poly(ragged(x, y, r, seed)).fill({ color: SCAR, alpha: 0.9 })
+      // A pale splinter or two thrown up beside it.
+      for (let k = 0; k < 2; k++) {
+        const a = rnd(seed + 7 + k) * Math.PI * 2
+        g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r)
+          .lineTo(x + Math.cos(a) * (r + 2.4), y + Math.sin(a) * (r + 2.4))
+          .stroke({ width: 0.9, color: SPLINTER, alpha: 0.9 })
+      }
     }
   }
 
@@ -108,6 +168,7 @@ export class ShipView {
 
     this.drawSails(ship, dt)
     this.drawColours(ship)
+    this.drawScars(ship)
 
     // A fresh hit whitens the hull for an instant — the cheapest possible
     // confirmation that your shot connected.
@@ -159,6 +220,29 @@ export class ShipView {
   get finishedSinking() { return this.sinkTime >= 2.4 }
 }
 
+
+const MAX_SCARS = 9
+const MAX_HOLES = 3
+const SCAR = 0x1c110a
+const SPLINTER = 0xe9d3a6
+
+/** Stable randomness from a whole number, so damage sits still between frames. */
+function rnd(n: number): number {
+  const x = Math.sin(n * 12.9898 + 4.1414) * 43758.5453
+  return x - Math.floor(x)
+}
+
+/** A small jagged hole. */
+function ragged(x: number, y: number, r: number, seed: number): number[] {
+  const pts: number[] = []
+  const N = 7
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2 + rnd(seed + 20) * 2
+    const rr = r * (0.6 + rnd(seed + 30 + i) * 0.7)
+    pts.push(x + Math.cos(a) * rr, y + Math.sin(a) * rr)
+  }
+  return pts
+}
 
 function shortestDelta(a: number, b: number): number {
   let d = (b - a) % (Math.PI * 2)

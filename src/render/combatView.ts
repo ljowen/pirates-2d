@@ -5,7 +5,15 @@ import { batteryBearing } from '../sim/combat'
 import type { WindSample } from '../sim/wind'
 import { P } from './palette'
 
-interface Smoke { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }
+interface Smoke {
+  x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number
+  /** Powder smoke is pale; a burning hull's is dark; flame is drawn hot and short. */
+  kind: 'powder' | 'burning' | 'flame'
+}
+
+/** Below this much hull she smokes; below `ABLAZE` she is visibly on fire. */
+const SMOULDER = 0.5
+const ABLAZE = 0.25
 
 /**
  * Shot, splashes and gun smoke. Smoke does most of the work here: a broadside
@@ -18,6 +26,7 @@ export class CombatView {
   private readonly shotG = new Graphics()
   private smoke: Smoke[] = []
   private readonly lastGun = new Map<string, number>()
+  private readonly owed = new Map<number, { smoke: number; flame: number }>()
 
   constructor() {
     // Smoke under the shot so balls stay legible against it.
@@ -26,6 +35,7 @@ export class CombatView {
 
   update(ships: Ship[], projectiles: Projectile[], splashes: Splash[], wind: WindSample, dt: number) {
     this.emitMuzzleSmoke(ships)
+    this.emitDamageSmoke(ships, dt)
     this.stepSmoke(wind, dt)
     this.drawSmoke()
     this.drawShot(projectiles, splashes)
@@ -63,7 +73,9 @@ export class CombatView {
     const along = ((index % 6) / 5 - 0.5) * 46
 
     for (let i = 0; i < 3; i++) {
-      const life = 1.1 + Math.random() * 0.9
+      // Long enough that a fight leaves a haze over the water it was fought
+      // on, and a broadside is still hanging there when the next one goes.
+      const life = 4 + Math.random() * 3.5
       this.smoke.push({
         x: ship.pos.x + Math.cos(ship.heading) * along + bx * 10,
         y: ship.pos.y + Math.sin(ship.heading) * along + by * 10,
@@ -71,7 +83,49 @@ export class CombatView {
         vy: by * (40 + Math.random() * 70),
         life, maxLife: life,
         r: 4 + Math.random() * 7,
+        kind: 'powder',
       })
+    }
+  }
+
+  /**
+   * A badly hurt hull smokes, and a worse one burns.
+   *
+   * The bars already say how hurt a ship is, but only for the player's own.
+   * This says it about every ship, at a distance, and from the direction the
+   * smoke is blowing: which of three enemies is nearly done is something the
+   * player should be able to see without reading anything.
+   */
+  private emitDamageSmoke(ships: Ship[], dt: number) {
+    for (const ship of ships) {
+      if (ship.sunk || ship.hull >= SMOULDER) continue
+      const hurt = 1 - ship.hull / SMOULDER
+      // Always the same spot on a given ship, a little abaft the mainmast.
+      const along = (((ship.id * 37) % 11) / 11 - 0.6) * 26 * ship.cls.scale
+      const x = ship.pos.x + Math.cos(ship.heading) * along
+      const y = ship.pos.y + Math.sin(ship.heading) * along
+      // Owed puffs are carried between frames, so the plume is as thick at
+      // thirty frames a second as at a hundred and forty.
+      const owed = this.owed.get(ship.id) ?? { smoke: 0, flame: 0 }
+      this.owed.set(ship.id, owed)
+      owed.smoke += (4 + hurt * 10) * dt
+      owed.flame += ship.hull < ABLAZE ? 18 * dt : 0
+      for (; owed.smoke >= 1; owed.smoke--) {
+        const life = 2.6 + Math.random() * 2.4
+        this.smoke.push({
+          x: x + (Math.random() - 0.5) * 6, y: y + (Math.random() - 0.5) * 6,
+          vx: ship.vel.x * 0.5, vy: ship.vel.y * 0.5,
+          life, maxLife: life, r: 2.5 + Math.random() * 3 + hurt * 2.5, kind: 'burning',
+        })
+      }
+      for (; owed.flame >= 1; owed.flame--) {
+        const life = 0.25 + Math.random() * 0.3
+        this.smoke.push({
+          x: x + (Math.random() - 0.5) * 9, y: y + (Math.random() - 0.5) * 7,
+          vx: ship.vel.x, vy: ship.vel.y,
+          life, maxLife: life, r: 2.5 + Math.random() * 3, kind: 'flame',
+        })
+      }
     }
   }
 
@@ -84,8 +138,10 @@ export class CombatView {
       if (s.life <= 0) continue
       // Muzzle velocity bleeds off fast; after that the bank just drifts with
       // the wind, which quietly reinforces where the wind is coming from.
-      s.vx += (wx - s.vx) * 2.2 * dt
-      s.vy += (wy - s.vy) * 2.2 * dt
+      // Flame stays with the ship it is burning; smoke is carried off.
+      const pull = s.kind === 'flame' ? 0 : 2.2
+      s.vx += (wx - s.vx) * pull * dt
+      s.vy += (wy - s.vy) * pull * dt
       s.x += s.vx * dt
       s.y += s.vy * dt
       alive.push(s)
@@ -98,8 +154,19 @@ export class CombatView {
     g.clear()
     for (const s of this.smoke) {
       const t = s.life / s.maxLife
-      const grow = 1 + (1 - t) * 2.4
-      g.circle(s.x, s.y, s.r * grow).fill({ color: P().combat.splash, alpha: t * 0.34 })
+      if (s.kind === 'flame') {
+        g.circle(s.x, s.y, s.r * (0.6 + t * 0.6)).fill({ color: P().combat.flash, alpha: 0.85 * t })
+        g.circle(s.x, s.y, s.r * 0.45 * t).fill({ color: P().combat.flashCore, alpha: t })
+        continue
+      }
+      // Thick as it leaves the gun, then thinning for most of its life as it
+      // spreads, so the bank lingers as haze rather than as solid puffs.
+      const grow = 1 + (1 - t) * 3.4
+      const dark = s.kind === 'burning'
+      g.circle(s.x, s.y, s.r * grow).fill({
+        color: dark ? P().combat.shotCore : P().combat.splash,
+        alpha: (dark ? 0.3 : 0.34) * Math.min(1, t * 1.7) * (0.35 + 0.65 * t),
+      })
     }
   }
 
@@ -142,6 +209,7 @@ export class CombatView {
   clear() {
     this.smoke = []
     this.lastGun.clear()
+    this.owed.clear()
     this.smokeG.clear()
     this.shotG.clear()
   }
