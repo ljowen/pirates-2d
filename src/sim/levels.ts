@@ -19,6 +19,8 @@ export interface Level {
   id: string
   name: string
   blurb: string
+  /** The palette this place is drawn in, by id. */
+  theme: string
   /** Side of the square the map fills, centred on the origin. It repeats beyond that, so the sea wraps. */
   size: number
   /** Null for the endless hashed sea, which has no list to give. */
@@ -343,27 +345,27 @@ function theTeeth(): TerrainMap {
 
 export const LEVELS: Level[] = [
   {
-    id: 'windward-cays', name: 'Windward Cays', size: 10000,
+    id: 'windward-cays', theme: 'current', name: 'Windward Cays', size: 10000,
     blurb: 'Two chains, two atolls, a harbour and a big island.',
     map: windwardCays(),
   },
   {
-    id: 'the-narrows', name: 'The Narrows', size: 10000,
+    id: 'the-narrows', theme: 'mediterranean', name: 'The Narrows', size: 10000,
     blurb: 'A strait between two long shores, with gaps through to the open sea behind.',
     map: theNarrows(),
   },
   {
-    id: 'pinnace-banks', name: 'Pinnace Banks', size: 10000,
+    id: 'pinnace-banks', theme: 'sunset', name: 'Pinnace Banks', size: 10000,
     blurb: 'Hardly any land and a great deal of shallow water. Kind to small hulls.',
     map: pinnaceBanks(),
   },
   {
-    id: 'the-teeth', name: 'The Teeth', size: 10000,
+    id: 'the-teeth', theme: 'indies', name: 'The Teeth', size: 10000,
     blurb: 'Fields of steep rocks round two hooked islands. Cover everywhere, warning nowhere.',
     map: theTeeth(),
   },
   {
-    id: 'endless', name: 'Open Sea', size: 0,
+    id: 'endless', theme: 'current', name: 'Open Sea', size: 0,
     blurb: 'The endless sea: scattered islands and bars, different every voyage.',
     map: null,
   },

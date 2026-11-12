@@ -14,7 +14,7 @@ import { CombatView } from './render/combatView'
 import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
 import { SquallView } from './render/squallView'
-import { PALETTES, paletteFromLocation } from './render/palette'
+import { P, PALETTES, paletteFromLocation, setPalette } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
 import { LEVELS_BY_ID } from './sim/levels'
@@ -62,14 +62,16 @@ async function main() {
   host.appendChild(overlay)
   const octx = overlay.getContext('2d')!
 
-  // Chosen before anything is constructed: the water's tiling textures and
-  // every cached geometry are built from it, so it cannot change mid-run.
-  const style = paletteFromLocation(window.location.search)
+  // A palette named in the address overrides every location's own, which is
+  // how the looks are compared. Otherwise each location brings its palette.
+  const forcedStyle = paletteFromLocation(window.location.search)
   const hullStyle = hullStyleFromLocation(window.location.search)
 
   const world = new World()
   const level = chosenLevel()
   if (level) world.level = level
+  // Before the water is built, so its first textures are already the right sea.
+  if (!forcedStyle) setPalette(world.level.theme)
   const camera = new Camera()
   const input = new Input(app.canvas)
 
@@ -160,6 +162,12 @@ async function main() {
     atSea = true
     // The career is boiled down to a voyage here and not looked at again
     // until the run is over.
+    // The location's colours, before anything that keeps colour is rebuilt.
+    if (!forcedStyle && P().id !== world.level.theme) {
+      setPalette(world.level.theme)
+      water.retheme()
+      tuner.themeChanged()
+    }
     world.reset(Math.floor(Math.random() * 0xffffff), cls, voyageOf(ledger.career))
     dropAllShipViews()
     wake.clear()
@@ -233,14 +241,14 @@ async function main() {
       // textures and every cached outline are built from the palette, and
       // rebuilding all of it is a lot of machinery for a comparison made once.
       if (input.consumePress('styleNext')) {
-        const i = PALETTES.findIndex((p) => p.id === style.id)
+        const i = PALETTES.findIndex((p) => p.id === P().id)
         const next = PALETTES[(i + 1) % PALETTES.length]
         window.location.search = `?style=${next.id}&hull=${hullStyle.id}`
       }
       if (input.consumePress('hullNext')) {
         const i = HULL_STYLES.findIndex((h) => h.id === hullStyle.id)
         const next = HULL_STYLES[(i + 1) % HULL_STYLES.length]
-        window.location.search = `?style=${style.id}&hull=${next.id}`
+        window.location.search = `?${forcedStyle ? `style=${forcedStyle.id}&` : ''}hull=${next.id}`
       }
       if (input.consumePress('spawnSquall')) {
         world.wind.weather.spawn(world.wind.from, world.player.pos)
@@ -349,7 +357,7 @@ async function main() {
     // The tuning object itself, so a look can be framed and compared from the
     // console — zooming in on a hull is not something the game needs a control
     // for, but it is exactly what judging one requires.
-    T, style, hullStyle,
+    T, style: P, hullStyle,
     // Exposed so the "ship views must never outlive their hull" invariant can
     // be asserted rather than eyeballed — a ghost that re-sinks forever is
     // exactly the kind of bug that hides in a busy frame.

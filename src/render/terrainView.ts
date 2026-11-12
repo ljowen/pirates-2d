@@ -193,10 +193,135 @@ export class TerrainView {
     each((i) => g.poly(this.ring(i, land(i), 0.68)).fill({ color: P().land.scrub }))
     each((i) => g.poly(this.ring(i, land(i), 0.4)).fill({ color: P().land.scrubDark }))
     each((i) => g.poly(this.ring(i, land(i), 0.18)).fill({ color: P().land.inland }))
+
+    // What stands on the land. Cliffs first, since they are part of the
+    // shore; then rocks along the beach; then trees over everything.
+    each((i) => this.drawCliffs(i, islands))
+    each((i) => this.drawRocks(i))
+    each((i) => this.drawTrees(i))
+  }
+
+  /**
+   * A stretch of cliff on the bigger islands: the beach replaced by a band
+   * of rock with a dark foot, round part of the shore. Purely how the shore
+   * looks. The land's edge is where it always was, so nothing about where a
+   * ship grounds has moved.
+   */
+  private drawCliffs(island: Island, all: Island[]) {
+    if (island.radius < 110) return
+    const roll = seeded(island.seed, 1)
+    if (roll > 0.6) return
+    const g = this.g
+    const from = seeded(island.seed, 2) * Math.PI * 2
+    const span = 0.7 + seeded(island.seed, 3) * 1.3
+    const steps = Math.max(5, Math.round(span * 9))
+    const outer: number[] = []
+    const inner: number[] = []
+    for (let n = 0; n <= steps; n++) {
+      const a = from + (n / steps) * span
+      const r = landRadius(island, a)
+      // Tapered at both ends so the cliff runs out into beach, not a step.
+      const depth = 0.15 * Math.sin((n / steps) * Math.PI)
+      const ox = island.x + Math.cos(a) * r
+      const oy = island.y + Math.sin(a) * r
+      // Where another island's land covers this shore there is no shore.
+      if (all.some((o) => o !== island && inside(o, ox, oy))) return
+      outer.push(ox, oy)
+      inner.unshift(island.x + Math.cos(a) * r * (1 - depth), island.y + Math.sin(a) * r * (1 - depth))
+    }
+    // `inner` was filled from the front, so it already runs back the other way.
+    g.poly(outer.concat(inner)).fill({ color: P().flora.rock })
+    g.poly(outer, false).stroke({ width: 3.5, color: P().flora.rockDark })
+  }
+
+  /** A few boulders along the beach, inside the shoreline so they hide no hazard. */
+  private drawRocks(island: Island) {
+    const g = this.g
+    const count = 1 + Math.floor(seeded(island.seed, 10) * 4) + (island.radius > 150 ? 2 : 0)
+    for (let n = 0; n < count; n++) {
+      const a = seeded(island.seed, 11 + n * 3) * Math.PI * 2
+      const r = landRadius(island, a) * (0.86 + seeded(island.seed, 12 + n * 3) * 0.1)
+      const size = 5 + seeded(island.seed, 13 + n * 3) * 8
+      const x = island.x + Math.cos(a) * r
+      const y = island.y + Math.sin(a) * r
+      const turn = seeded(island.seed, 14 + n * 3) * 6
+      g.poly(ngon(x + 1.5, y + 2, size, 5, turn)).fill({ color: P().flora.rockDark })
+      g.poly(ngon(x, y, size, 5, turn)).fill({ color: P().flora.rock })
+    }
+  }
+
+  /**
+   * Trees inland, of whatever kind the place grows. More on a bigger island,
+   * all inside the scrub so they never stand on the beach. Each is a few
+   * flat shapes with a hard shadow, the same way everything else is drawn.
+   */
+  private drawTrees(island: Island) {
+    const g = this.g
+    const flora = P().flora
+    const dense = flora.kind === 'jungle' ? 1.7 : flora.kind === 'cypress' ? 0.7 : 1
+    const count = Math.min(46, Math.round((island.radius * island.radius) / 3400 * dense))
+    for (let n = 0; n < count; n++) {
+      const a = seeded(island.seed, 40 + n * 2) * Math.PI * 2
+      const out = Math.sqrt(seeded(island.seed, 41 + n * 2)) * 0.6
+      const x = island.x + Math.cos(a) * landRadius(island, a) * out
+      const y = island.y + Math.sin(a) * landRadius(island, a) * out
+      const size = 0.8 + seeded(island.seed, 42 + n * 2) * 0.5
+      const turn = seeded(island.seed, 43 + n * 2) * 6
+      if (flora.kind === 'palm') {
+        const r = 11 * size
+        g.poly(star(x + 3, y + 4, r, r * 0.3, 6, turn)).fill({ color: P().land.scrubDark, alpha: 0.55 })
+        g.poly(star(x, y, r, r * 0.3, 6, turn)).fill({ color: flora.tree })
+        g.poly(ngon(x, y, r * 0.24, 5, turn)).fill({ color: flora.treeDark })
+      } else if (flora.kind === 'jungle') {
+        const r = 12 * size
+        g.poly(ngon(x + 3, y + 4, r, 8, turn)).fill({ color: flora.treeDark })
+        g.poly(ngon(x - r * 0.15, y - r * 0.2, r * 0.82, 8, turn)).fill({ color: flora.tree })
+      } else {
+        const r = 6.5 * size
+        // A cypress is a small dark point with a long shadow.
+        g.poly([x + 2, y + 2, x + r * 2.6, y + r * 2.4, x + r * 1.2, y + r * 3]).fill({ color: P().land.scrubDark, alpha: 0.6 })
+        g.poly(ngon(x, y, r, 6, turn)).fill({ color: flora.treeDark })
+        g.poly(ngon(x - r * 0.2, y - r * 0.25, r * 0.55, 6, turn)).fill({ color: flora.tree })
+      }
+    }
   }
 
   clear() {
     this.lastKey = ''
     this.g.clear()
   }
+}
+
+/** A stable value in [0,1) from an island's seed and a salt. */
+function seeded(seed: number, salt: number): number {
+  const x = Math.sin(seed * 9301.7 + salt * 78.233) * 43758.5453
+  return x - Math.floor(x)
+}
+
+/** Is this point on the island's dry land? */
+function inside(island: Island, x: number, y: number): boolean {
+  const dx = x - island.x
+  const dy = y - island.y
+  return Math.hypot(dx, dy) < landRadius(island, Math.atan2(dy, dx))
+}
+
+function ngon(x: number, y: number, r: number, sides: number, turn: number): number[] {
+  const pts: number[] = []
+  for (let n = 0; n < sides; n++) {
+    const a = turn + (n / sides) * Math.PI * 2
+    // Slightly uneven, so a boulder or a canopy is not a regular polygon.
+    const rr = r * (0.82 + 0.18 * Math.sin(n * 2.4 + turn * 3))
+    pts.push(x + Math.cos(a) * rr, y + Math.sin(a) * rr)
+  }
+  return pts
+}
+
+function star(x: number, y: number, outer: number, inner: number, points: number, turn: number): number[] {
+  const pts: number[] = []
+  for (let n = 0; n < points * 2; n++) {
+    const a = turn + (n / (points * 2)) * Math.PI * 2
+    const r = n % 2 === 0 ? outer : inner
+    pts.push(x + Math.cos(a) * r, y + Math.sin(a) * r)
+  }
+  return pts
 }

@@ -27,6 +27,16 @@ export class Water {
     this.view.addChild(this.deep, this.swell, this.gusts)
   }
 
+  /** Repaint the sea in the palette now in use. Called when the location changes. */
+  retheme() {
+    const deep = this.deep.texture
+    const swell = this.swell.texture
+    this.deep.texture = makeWaveTexture(256, P().water.deep, P().water.light, 420, 1.6)
+    this.swell.texture = makeWaveTexture(512, 0x000000, P().water.swell, 150, 3.2, true)
+    deep.destroy(true)
+    swell.destroy(true)
+  }
+
   resize(w: number, h: number) {
     this.deep.width = this.swell.width = w
     this.deep.height = this.swell.height = h

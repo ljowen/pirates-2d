@@ -119,7 +119,7 @@ export class Tuner {
     // The three look switches name what they switch and what is showing,
     // since a key labelled only "style" says nothing about which style.
     const look = (key: string, what: string, name: string) =>
-      `${key} ${what}: <span style="color:${ui().panel.ink};font-weight:bold">${name}</span>`
+      `${key} ${what}: <span data-look="${what}" style="color:${ui().panel.ink};font-weight:bold">${name}</span>`
     // Each key stays on one line with its action, so a wrap never strands one.
     legend.innerHTML = [
       '&larr;&rarr; steer', '&uarr;&darr; sails', '+/&minus; zoom', 'E spawn enemy', 'Q squall',
@@ -192,6 +192,12 @@ export class Tuner {
     this.refreshBench()
     this.refreshCareer()
     this.root.scrollTop = 0
+  }
+
+  /** The palette changed with the location: name the new one in the key legend. */
+  themeChanged() {
+    const name = this.launcher.querySelector('[data-look="sea"]')
+    if (name) name.textContent = P().name
   }
 
   /** The key legend is for play; over port or the draft it only covers the cards. */
