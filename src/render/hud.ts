@@ -8,7 +8,7 @@ import { angleDiff, compassName, deg } from '../core/math'
 import { batteryBearing } from '../sim/combat'
 import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 import { draughtDepth } from '../sim/terrain'
-import { outmatches } from '../sim/stats'
+import { outmatches, toKnots } from '../sim/stats'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
 import {
@@ -380,7 +380,7 @@ export class Hud {
     ctx.fillText(pos, IN, 32)
     ctx.font = F(14)
     ctx.fillStyle = C('rgba(255,255,255,0.7)')
-    ctx.fillText(`${ship.speed.toFixed(0)} kn   ${deg(ship.awa).toFixed(0)}° off wind`, IN, 58)
+    ctx.fillText(`${toKnots(ship.speed).toFixed(1)} kn   ${deg(ship.awa).toFixed(0)}° off wind`, IN, 58)
     this.drawLeadline(ship, IN, 86)
     ctx.restore()
 

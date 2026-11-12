@@ -67,9 +67,17 @@ export function outmatches(
 
 // --- Formatting -----------------------------------------------------------
 
-// Speeds run into the hundreds in world units, which is what the HUD already
-// reads out, so a decimal is noise once past a hundred.
-const knots = (v: number) => `${v >= 100 ? v.toFixed(0) : v.toFixed(1)} kn`
+/**
+ * World units per second in a knot, for display only. The sim runs in
+ * arbitrary units where a good turn of speed is about 200; read out raw,
+ * that had a sloop making 200 knots. At 16 to the knot she makes 12 or 13,
+ * and the fastest hull driven hard in a squall stays in the low twenties,
+ * which is about what the fastest ships under sail ever logged.
+ */
+export const UNITS_PER_KNOT = 16
+export const toKnots = (unitsPerSecond: number) => unitsPerSecond / UNITS_PER_KNOT
+
+const knots = (v: number) => `${toKnots(v).toFixed(1)} kn`
 const perSecond = (v: number) => `${v.toFixed(0)}°/s`
 const seconds = (v: number) => `${v.toFixed(2)}s`
 const whole = (v: number) => `${Math.round(v)}`

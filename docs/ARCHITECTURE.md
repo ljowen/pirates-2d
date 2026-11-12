@@ -166,7 +166,8 @@ Screen-space throughout: **+X is east, +Y is down, angles increase clockwise.**
 ### Units
 
 Distances are arbitrary "units"; a hull is 58 units long and a good turn of speed is
-around 200 units/second. The HUD labels speed "kn" as flavour — it is not knots.
+around 200 units/second. Speed is shown in knots at 16 units/second to the knot
+(`toKnots` in `sim/stats.ts`), so that reads as 12 or 13 kn; nothing in the sim uses knots.
 
 ### Determinism
 
