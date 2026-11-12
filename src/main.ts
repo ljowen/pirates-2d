@@ -14,6 +14,7 @@ import { PALETTES, paletteFromLocation } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
 import { PortUI } from './ui/port'
+import type { ShipClass } from './sim/shipClasses'
 import { Hud } from './render/hud'
 import { PickupText } from './render/pickupText'
 import { DebugOverlay } from './render/debug'
@@ -116,7 +117,6 @@ async function main() {
   const hud = new Hud(octx)
   const pickupText = new PickupText()
   const debug = new DebugOverlay(octx)
-  const tuner = new Tuner(world)
   const draft = new DraftUI()
   // The career is read once and written on every change to it. `?career=new`
   // starts a clean one, which is the only way to see the opening again.
@@ -126,29 +126,44 @@ async function main() {
   /** False until a hull has been chosen, so the idle sea behind the first quayside is never paid. */
   let atSea = false
 
-  /** Put the captain back at the quayside to pick a hull for the next voyage. */
-  const chooseShip = () => {
+  /**
+   * Put to sea in this hull. Reached from port, and straight from the tuning
+   * panel, which skips port so a hull or a refit can be tried in one click.
+   */
+  const startVoyage = (cls: ShipClass) => {
     // Whatever she hauled is banked however the voyage ended — sunk, home, or
     // abandoned at the quay. Only the bonus is reserved for finishing.
     if (atSea) ledger.settle(world.run)
-    atSea = false
-    port.show((cls) => {
-      ledger.open(cls)
-      atSea = true
-      // The career is boiled down to a voyage here and not looked at again
-      // until the run is over.
-      world.reset(Math.floor(Math.random() * 0xffffff), cls, voyageOf(ledger.career))
-      dropAllShipViews()
-      wake.clear()
-      combat.clear()
-      plunderView.clear()
-      terrainView.clear()
-      squallView.clear()
-      pickupText.clear()
-      audioDirector.reset()
-      camera.snapTo(world.player.pos)
-    })
+    port.hide()
+    draft.hide()
+    ledger.open(cls)
+    atSea = true
+    // The career is boiled down to a voyage here and not looked at again
+    // until the run is over.
+    world.reset(Math.floor(Math.random() * 0xffffff), cls, voyageOf(ledger.career))
+    dropAllShipViews()
+    wake.clear()
+    combat.clear()
+    plunderView.clear()
+    terrainView.clear()
+    squallView.clear()
+    pickupText.clear()
+    audioDirector.reset()
+    camera.snapTo(world.player.pos)
   }
+
+  /** Put the captain back at the quayside to pick a hull for the next voyage. */
+  const chooseShip = () => {
+    if (atSea) ledger.settle(world.run)
+    atSea = false
+    port.show(startVoyage)
+  }
+
+  const tuner = new Tuner(world, {
+    ledger,
+    sail: startVoyage,
+    careerChanged: () => port.refresh(),
+  })
 
   let showDebug = false
   let paused = false

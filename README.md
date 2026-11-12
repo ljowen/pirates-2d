@@ -49,7 +49,7 @@ The career is kept in `localStorage`; add `?career=new` to the URL to start over
 | E | Spawn an enemy |
 | Q | Spawn a squall to windward |
 | F1 | Debug overlay — polar plot, velocity vectors, numbers |
-| ` | Live tuning panel (or click **⚙ Tune**, bottom right) |
+| ` | Live tuning panel (or click **⚙ Tune**, bottom right). The **Career** tab unlocks hulls, refits, feats and notoriety and puts you to sea in any hull in one click |
 
 A control legend sits along the bottom of the screen, so none of this has to be
 memorised from here.

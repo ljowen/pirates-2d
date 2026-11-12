@@ -53,6 +53,8 @@ export class PortUI {
 
     window.addEventListener('keydown', (e) => {
       if (!this.onSail) return
+      // Keys pressed while working the tuning panel are the panel's.
+      if ((e.target as HTMLElement | null)?.closest?.('[data-tuner]')) return
       if (e.code === 'Tab') {
         e.preventDefault()
         const i = TABS.findIndex((t) => t.id === this.tab)
@@ -91,6 +93,11 @@ export class PortUI {
     this.root.style.display = 'flex'
     this.root.scrollTop = 0
     this.render()
+  }
+
+  /** Redraw if open — the tuning panel edits the career under it. */
+  refresh() {
+    if (this.onSail) this.render()
   }
 
   hide() {

@@ -270,6 +270,16 @@ export class Ledger {
     return true
   }
 
+  /**
+   * Save a career that was edited directly. Only the tuning panel does this:
+   * every in-game change goes through a method above that saves for itself.
+   */
+  commit() {
+    this.career.notorietyMax = Math.max(0, Math.min(MAX_NOTORIETY, this.career.notorietyMax))
+    this.career.notoriety = Math.max(0, Math.min(this.career.notorietyMax, this.career.notoriety))
+    this.persist(this.career)
+  }
+
   setNotoriety(level: number) {
     const clamped = Math.max(0, Math.min(this.career.notorietyMax, Math.floor(level)))
     if (clamped === this.career.notoriety) return

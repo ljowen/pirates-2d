@@ -100,7 +100,9 @@ refit ranks, notoriety, earned cards) before a run starts, and read again only w
 ends. A run is a function of `(seed, hull, voyage)`, which is what lets the harness
 measure any career it is handed.
 
-**`ui/`** — `tuner.ts` (live parameter panel), `draft.ts` (level-up cards and the stat
+**`ui/`** — `tuner.ts` (live parameter panel, in tabs: Career for editing progression and
+putting to sea in any hull at once, Upgrades for granting draft cards mid-voyage, and the
+sliders split across Sailing, Combat, Run and World), `draft.ts` (level-up cards and the stat
 preview under them) and `port.ts` (shipyard, refits and the captain's log). All DOM overlays rather than
 canvas, because they want hover states, scrolling and readable body text.
 

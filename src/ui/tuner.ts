@@ -2,8 +2,43 @@ import { T, TUNING_SCHEMA, DEFAULT_TUNING, resetTuning, type TuningValues } from
 import type { World } from '../sim/world'
 import { UPGRADES, type Upgrade } from '../sim/upgrades'
 import { clamp } from '../core/math'
+import { PLAYER_CLASSES, type ShipClass } from '../sim/shipClasses'
+import { MAX_NOTORIETY, notorietyName, REFITS } from '../sim/voyage'
+import { freshCareer, owns, priceOf, type Ledger } from '../meta/career'
+import { FEATS } from '../meta/feats'
 
 const STORAGE_KEY = 'pirates2d.tuning.v2'
+const TAB_KEY = 'pirates2d.tuning.tab'
+
+type TabId = 'career' | 'upgrades' | 'sailing' | 'combat' | 'run' | 'world'
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'career', label: 'Career' },
+  { id: 'upgrades', label: 'Upgrades' },
+  { id: 'sailing', label: 'Sailing' },
+  { id: 'combat', label: 'Combat' },
+  { id: 'run', label: 'Run' },
+  { id: 'world', label: 'World' },
+]
+
+/** Which tab each schema group's sliders live on. Unlisted groups go to World. */
+const TAB_OF_GROUP: Record<string, TabId> = {
+  'Steering': 'sailing',
+  'Hull & drive': 'sailing',
+  'Rigging': 'sailing',
+  'Gunnery': 'combat',
+  'Enemy captains': 'combat',
+  'The run': 'run',
+}
+
+/** What the panel needs from the game to edit a career and act on it. */
+export interface TunerHooks {
+  ledger: Ledger
+  /** Put to sea in this hull now, skipping port. */
+  sail: (cls: ShipClass) => void
+  /** The career was edited; anything showing it should redraw. */
+  careerChanged: () => void
+}
 
 /**
  * Live tuning panel (backtick to toggle). Sliders are generated from the
@@ -13,9 +48,20 @@ const STORAGE_KEY = 'pirates2d.tuning.v2'
  *
  * Everything persists to localStorage, and Copy JSON pulls a preset out so a
  * good feel can be committed to the defaults.
+ *
+ * Split into tabs, because one long scroll of ninety sliders, a bench and a
+ * curve had stopped being something anyone could find a value in. The
+ * Career tab is the shortcut through progression: own any hull, set any
+ * refit, mark any feat, and put to sea in one click, so an unlock can be
+ * tried in the time it takes to want to try it rather than a dozen voyages.
  */
 export class Tuner {
   private readonly root: HTMLDivElement
+  /** Where the builders are currently appending: one tab's pane. */
+  private pane!: HTMLDivElement
+  private readonly panes = new Map<TabId, HTMLDivElement>()
+  private readonly tabButtons = new Map<TabId, HTMLButtonElement>()
+  private careerRows: (() => void)[] = []
   private readonly launcher: HTMLDivElement
   private readonly sliders = new Map<string, { input: HTMLInputElement; readout: HTMLSpanElement }>()
   private curveCanvas!: HTMLCanvasElement
@@ -33,15 +79,17 @@ export class Tuner {
   private readonly polar
   private benchRows: (() => void)[] = []
 
-  constructor(private readonly world: World) {
+  constructor(private readonly world: World, private readonly hooks: TunerHooks) {
     this.polar = world.polar
     this.root = document.createElement('div')
+    this.root.dataset.tuner = ''
+    // Above port and the draft, so the panel can be worked while either is up.
     this.root.style.cssText = `
       position: fixed; top: 0; right: 0; width: 340px; height: 100vh;
       overflow-y: auto; background: rgba(6,18,30,0.95); color: #cfe6f5;
       font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
       border-left: 1px solid rgba(159,232,255,0.25); padding: 12px 14px 60px;
-      box-sizing: border-box; display: none; z-index: 10;
+      box-sizing: border-box; display: none; z-index: 40;
       backdrop-filter: blur(6px);
     `
     document.body.appendChild(this.root)
@@ -51,7 +99,7 @@ export class Tuner {
     // to it rather than living only in the README.
     this.launcher = document.createElement('div')
     this.launcher.style.cssText = `
-      position: fixed; bottom: 14px; right: 14px; z-index: 11;
+      position: fixed; bottom: 14px; right: 14px; z-index: 41;
       display: flex; align-items: center; gap: 10px;
       font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
       color: rgba(207,230,245,0.65); transition: right 0.18s ease;
@@ -70,10 +118,55 @@ export class Tuner {
     document.body.appendChild(this.launcher)
 
     this.buildHeader()
+    this.buildTabs()
+    this.pane = this.panes.get('career')!
+    this.buildCareer()
+    this.pane = this.panes.get('upgrades')!
     this.buildBench()
+    this.pane = this.panes.get('sailing')!
     this.buildCurveEditor()
     this.buildSliders()
     this.load()
+    let saved: string | null = null
+    try { saved = localStorage.getItem(TAB_KEY) } catch { /* no storage */ }
+    this.select(TABS.some((t) => t.id === saved) ? saved as TabId : 'career')
+  }
+
+  private buildTabs() {
+    const bar = document.createElement('div')
+    bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px'
+    for (const t of TABS) {
+      const b = document.createElement('button')
+      b.textContent = t.label
+      b.dataset.tab = t.id
+      b.style.cssText = `
+        flex: 1 0 30%; font: inherit; cursor: pointer; padding: 5px 0; border-radius: 4px;
+        border: 1px solid rgba(159,232,255,0.3); background: transparent; color: #cfe6f5;`
+      b.onclick = () => this.select(t.id)
+      bar.appendChild(b)
+      this.tabButtons.set(t.id, b)
+
+      const pane = document.createElement('div')
+      pane.dataset.pane = t.id
+      pane.style.display = 'none'
+      this.panes.set(t.id, pane)
+    }
+    this.root.appendChild(bar)
+    for (const pane of this.panes.values()) this.root.appendChild(pane)
+  }
+
+  private select(id: TabId) {
+    for (const [tab, pane] of this.panes) pane.style.display = tab === id ? 'block' : 'none'
+    for (const [tab, b] of this.tabButtons) {
+      const on = tab === id
+      b.style.background = on ? 'rgba(159,232,255,0.18)' : 'transparent'
+      b.style.color = on ? '#9fe8ff' : '#cfe6f5'
+      b.style.borderColor = on ? '#9fe8ff' : 'rgba(159,232,255,0.3)'
+    }
+    try { localStorage.setItem(TAB_KEY, id) } catch { /* no storage */ }
+    this.refreshBench()
+    this.refreshCareer()
+    this.root.scrollTop = 0
   }
 
   toggle() {
@@ -81,20 +174,20 @@ export class Tuner {
     this.root.style.display = this.visible ? 'block' : 'none'
     // Stacks change constantly during play, so refresh on open rather than
     // trying to keep the bench live every frame.
-    if (this.visible) this.refreshBench()
+    if (this.visible) { this.refreshBench(); this.refreshCareer() }
     // Step the handle aside so the open panel never covers its own toggle.
     this.launcher.style.right = this.visible ? '354px' : '14px'
   }
 
   private buildHeader() {
     const h = document.createElement('div')
-    h.innerHTML = `<div style="font-size:13px;font-weight:bold;color:#9fe8ff;margin-bottom:2px">SAILING TUNER</div>
-      <div style="opacity:0.55;margin-bottom:10px">\` toggles &middot; F1 debug &middot; P pause &middot; T turbo &middot; R reset ship</div>`
+    h.innerHTML = `<div style="font-size:13px;font-weight:bold;color:#9fe8ff;margin-bottom:2px">TUNER</div>
+      <div style="opacity:0.55;margin-bottom:10px">\` toggles &middot; F1 debug &middot; P pause &middot; T turbo &middot; R port</div>`
     this.root.appendChild(h)
 
     const bar = document.createElement('div')
-    bar.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap'
-    bar.appendChild(this.button('Reset all', () => {
+    bar.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap'
+    bar.appendChild(this.button('Reset tuning', () => {
       resetTuning()
       this.polar.reset()
       this.dirty.clear()
@@ -110,6 +203,184 @@ export class Tuner {
     this.root.appendChild(bar)
   }
 
+  // --- Career ---------------------------------------------------------------
+
+  /**
+   * Progression, editable. Everything here writes the saved career, the same
+   * one port reads, so it is a cheat and is labelled as one. Hulls, refits,
+   * feats and notoriety are read when a voyage *starts*; the Sail buttons
+   * start one at once so a change can be felt without walking through port.
+   */
+  private buildCareer() {
+    const career = this.hooks.ledger.career
+    const changed = () => {
+      this.hooks.ledger.commit()
+      this.hooks.careerChanged()
+      this.refreshCareer()
+    }
+
+    const status = document.createElement('div')
+    status.style.cssText =
+      'margin:0 0 10px;padding:6px 8px;border:1px solid rgba(240,193,75,0.3);border-radius:4px;line-height:1.6'
+    this.pane.appendChild(status)
+    this.careerRows.push(() => {
+      const atSea = this.world.player.cls
+      status.innerHTML =
+        `<span style="color:#f0c14b">${career.doubloons.toLocaleString()} doubloons</span>` +
+        ` <span style="opacity:0.5">· ${career.lifetime.toLocaleString()} lifetime</span><br>` +
+        `<span style="opacity:0.7">${career.voyages} voyages · ${career.completed} completed · ` +
+        `${career.feats.length}/${FEATS.length} feats</span><br>` +
+        `<span style="opacity:0.7">at sea in the <b style="color:#fff">${atSea.name}</b>, notoriety ` +
+        `${this.world.voyage.notoriety}</span>`
+    })
+
+    const bar = (...buttons: HTMLButtonElement[]) => {
+      const row = document.createElement('div')
+      row.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap'
+      row.append(...buttons)
+      this.pane.appendChild(row)
+    }
+    bar(
+      this.button('Unlock everything', () => {
+        for (const cls of PLAYER_CLASSES) if (!career.hulls.includes(cls.id)) career.hulls.push(cls.id)
+        for (const r of REFITS) career.refits[r.id] = r.maxRank
+        career.feats = FEATS.map((f) => f.id)
+        career.notorietyMax = MAX_NOTORIETY
+        changed()
+      }),
+      this.button('Fresh career', () => {
+        if (!confirm('Wipe the saved career and start over?')) return
+        Object.assign(career, freshCareer())
+        changed()
+      }),
+    )
+
+    this.section('PURSE')
+    bar(
+      this.button('+1,000', () => { career.doubloons += 1000; changed() }),
+      this.button('+10,000', () => { career.doubloons += 10000; changed() }),
+      this.button('Empty', () => { career.doubloons = 0; changed() }),
+    )
+
+    this.section('NOTORIETY — next voyage')
+    const stepper = (
+      label: string, read: () => number, write: (v: number) => void, describe?: (v: number) => string,
+    ) => {
+      const row = document.createElement('div')
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px'
+      const name = document.createElement('span')
+      name.textContent = label
+      name.style.cssText = 'flex:1'
+      const value = document.createElement('span')
+      value.style.cssText = 'color:#ffd98a;min-width:110px;text-align:right'
+      const minus = this.button('−', () => { write(read() - 1); changed() })
+      const plus = this.button('+', () => { write(read() + 1); changed() })
+      for (const b of [minus, plus]) b.style.padding = '1px 7px'
+      row.append(name, value, minus, plus)
+      this.pane.appendChild(row)
+      this.careerRows.push(() => {
+        const v = read()
+        value.textContent = describe ? describe(v) : String(v)
+      })
+    }
+    stepper('Sail at', () => career.notoriety, (v) => {
+      career.notoriety = clamp(v, 0, MAX_NOTORIETY)
+      career.notorietyMax = Math.max(career.notorietyMax, career.notoriety)
+    }, (v) => `${v} · ${notorietyName(v)}`)
+    stepper('Open to', () => career.notorietyMax, (v) => { career.notorietyMax = clamp(v, 0, MAX_NOTORIETY) })
+
+    this.section('HULLS — Sail starts a voyage now')
+    for (const cls of PLAYER_CLASSES) {
+      const row = document.createElement('div')
+      row.dataset.hull = cls.id
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:3px'
+      const name = document.createElement('span')
+      name.textContent = cls.name
+      name.title = cls.blurb ?? ''
+      name.style.cssText = 'flex:1'
+      const own = this.button('', () => {
+        const i = career.hulls.indexOf(cls.id)
+        if (i >= 0) career.hulls.splice(i, 1)
+        else career.hulls.push(cls.id)
+        changed()
+      })
+      own.style.minWidth = '62px'
+      // Sailing a hull nobody has bought is allowed: this is the place to try
+      // one before deciding whether she is worth her price.
+      const sail = this.button('Sail', () => {
+        this.hooks.sail(cls)
+        this.refreshBench()
+        this.refreshCareer()
+      })
+      row.append(name, own, sail)
+      this.pane.appendChild(row)
+      this.careerRows.push(() => {
+        const free = priceOf(cls) === 0
+        own.disabled = free
+        own.textContent = free ? 'free' : owns(career, cls) ? 'owned' : 'locked'
+        own.style.opacity = free ? '0.4' : '1'
+        own.style.color = owns(career, cls) ? '#7fe0a0' : 'rgba(207,230,245,0.55)'
+        name.style.color = this.world.player.cls === cls ? '#fff' : ''
+        name.style.fontWeight = this.world.player.cls === cls ? 'bold' : ''
+      })
+    }
+
+    this.section('REFITS — ranks, next voyage')
+    bar(
+      this.button('All max', () => { for (const r of REFITS) career.refits[r.id] = r.maxRank; changed() }),
+      this.button('All 0', () => { for (const r of REFITS) delete career.refits[r.id]; changed() }),
+    )
+    for (const refit of REFITS) {
+      stepper(refit.name, () => career.refits[refit.id] ?? 0, (v) => {
+        const rank = clamp(v, 0, refit.maxRank)
+        if (rank === 0) delete career.refits[refit.id]
+        else career.refits[refit.id] = rank
+      }, (v) => `${v}/${refit.maxRank}`)
+    }
+
+    this.section('FEATS — open cards and hulls')
+    for (const feat of FEATS) {
+      const row = document.createElement('div')
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:3px'
+      const name = document.createElement('span')
+      name.textContent = feat.name
+      name.title = `${feat.how} → ${feat.opens}`
+      name.style.cssText = 'flex:1'
+      const toggle = this.button('', () => {
+        const i = career.feats.indexOf(feat.id)
+        if (i >= 0) career.feats.splice(i, 1)
+        else career.feats.push(feat.id)
+        changed()
+      })
+      toggle.style.minWidth = '50px'
+      row.append(name, toggle)
+      this.pane.appendChild(row)
+      this.careerRows.push(() => {
+        const done = career.feats.includes(feat.id)
+        toggle.textContent = done ? 'done' : '—'
+        toggle.style.color = done ? '#7fe0a0' : 'rgba(207,230,245,0.55)'
+      })
+    }
+
+    const note = document.createElement('div')
+    note.textContent =
+      'Edits the saved career. Hulls, refits, feats and notoriety are read when a voyage ' +
+      'starts, so use Sail (or R and port) to feel a change. Feats are not paid out when set here.'
+    note.style.cssText = 'opacity:0.45;margin:10px 0 0;line-height:1.4'
+    this.pane.appendChild(note)
+  }
+
+  private section(text: string) {
+    const head = document.createElement('div')
+    head.textContent = text
+    head.style.cssText = 'color:#9fe8ff;opacity:0.8;margin:12px 0 5px;letter-spacing:0.5px'
+    this.pane.appendChild(head)
+  }
+
+  private refreshCareer() {
+    for (const update of this.careerRows) update()
+  }
+
   /**
    * The refit bench: grant or strip any upgrade mid-run, so a card can be felt
    * rather than reasoned about. Changes rebuild the player's modifiers from
@@ -117,9 +388,9 @@ export class Tuner {
    */
   private buildBench() {
     const label = document.createElement('div')
-    label.textContent = 'REFIT BENCH — grant upgrades'
+    label.textContent = 'UPGRADES — grant draft cards to the voyage at sea'
     label.style.cssText = 'color:#9fe8ff;opacity:0.8;margin:6px 0 4px;letter-spacing:0.5px'
-    this.root.appendChild(label)
+    this.pane.appendChild(label)
 
     const bar = document.createElement('div')
     bar.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap'
@@ -130,14 +401,14 @@ export class Tuner {
       // Enough plunder to trip the next draft immediately.
       this.world.run.collect(this.world.run.plunderNeeded - this.world.run.plunder + 0.01)
     }))
-    this.root.appendChild(bar)
+    this.pane.appendChild(bar)
 
     const note = document.createElement('div')
     note.textContent =
       'The bench ignores shot exclusivity so types can be compared directly — but ' +
       'opposing types cancel, and holding one still locks the draft.'
     note.style.cssText = 'opacity:0.45;margin:0 0 6px;line-height:1.4'
-    this.root.appendChild(note)
+    this.pane.appendChild(note)
 
     // Live damage split: the thing you actually want to see when tuning shot,
     // since the three types trade against each other rather than adding.
@@ -145,7 +416,7 @@ export class Tuner {
     split.style.cssText =
       'margin:0 0 10px;padding:5px 7px;border:1px solid rgba(159,232,255,0.18);' +
       'border-radius:4px;display:flex;gap:10px;justify-content:space-between'
-    this.root.appendChild(split)
+    this.pane.appendChild(split)
     this.benchRows.push(() => {
       const m = this.world.player.mods
       const h = 0.62 * m.shotHull
@@ -165,16 +436,16 @@ export class Tuner {
       const head = document.createElement('div')
       head.textContent = group.toUpperCase()
       head.style.cssText = 'color:#9fe8ff;opacity:0.55;margin:8px 0 3px;font-size:10px'
-      this.root.appendChild(head)
+      this.pane.appendChild(head)
 
       for (const upgrade of UPGRADES.filter((u) => u.group === group)) {
-        this.root.appendChild(this.benchRow(upgrade))
+        this.pane.appendChild(this.benchRow(upgrade))
       }
     }
 
     const spacer = document.createElement('div')
     spacer.style.height = '14px'
-    this.root.appendChild(spacer)
+    this.pane.appendChild(spacer)
   }
 
   private benchRow(upgrade: Upgrade): HTMLDivElement {
@@ -243,19 +514,19 @@ export class Tuner {
     const label = document.createElement('div')
     label.textContent = 'POLAR CURVE — drag points'
     label.style.cssText = 'color:#9fe8ff;opacity:0.8;margin:6px 0 4px;letter-spacing:0.5px'
-    this.root.appendChild(label)
+    this.pane.appendChild(label)
 
     const c = document.createElement('canvas')
     c.width = 312
     c.height = 170
     c.style.cssText = 'width:100%;border:1px solid rgba(159,232,255,0.2);border-radius:4px;cursor:ns-resize;display:block'
     this.curveCanvas = c
-    this.root.appendChild(c)
+    this.pane.appendChild(c)
 
     const hint = document.createElement('div')
     hint.textContent = 'Vertical only — angles stay fixed so the shape stays readable.'
     hint.style.cssText = 'opacity:0.45;margin:4px 0 14px;line-height:1.4'
-    this.root.appendChild(hint)
+    this.pane.appendChild(hint)
 
     const pick = (e: PointerEvent) => {
       const rect = c.getBoundingClientRect()
@@ -363,10 +634,11 @@ export class Tuner {
     for (const param of TUNING_SCHEMA) {
       if (param.group !== currentGroup) {
         currentGroup = param.group
+        this.pane = this.panes.get(TAB_OF_GROUP[currentGroup] ?? 'world')!
         const g = document.createElement('div')
         g.textContent = currentGroup.toUpperCase()
-        g.style.cssText = 'color:#9fe8ff;opacity:0.8;margin:14px 0 6px;letter-spacing:0.5px'
-        this.root.appendChild(g)
+        g.style.cssText = 'color:#9fe8ff;opacity:0.8;margin:6px 0 6px;letter-spacing:0.5px'
+        this.pane.appendChild(g)
       }
 
       const row = document.createElement('div')
@@ -397,7 +669,7 @@ export class Tuner {
 
       readout.textContent = format(T[param.key])
       row.append(top, input)
-      this.root.appendChild(row)
+      this.pane.appendChild(row)
       this.sliders.set(param.key, { input, readout })
     }
   }
