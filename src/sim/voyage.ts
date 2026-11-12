@@ -143,18 +143,17 @@ export function notorietyName(level: number): string {
 /**
  * What a level of notoriety does to the sea.
  *
- * The lesson recorded in PROGRESSION.md is that the spawn curve is a poor
- * difficulty lever on its own: more hulls is also more plunder and a faster
- * draft, so both sides of the race speed up together. Notoriety therefore
- * leans on the levers that do *not* pay the player back — how much a hull
- * takes to sink and how hard she hits — and uses numbers only to change the
- * texture: heavier ships sooner, bosses with more company, a hunter who
- * stays longer.
+ * Notoriety makes the sea busier and heavier, and leaves the ships
+ * themselves alone: a Barque at notoriety 8 is the same Barque as at 0, there
+ * are just more of them, sooner, alongside bigger company.
+ *
+ * It used to thicken enemy hulls and weight their shot as well. PROGRESSION.md
+ * records why: more hulls is also more plunder and a faster draft, so numbers
+ * alone speed up both sides of the race. That trade is accepted now. A ship
+ * that takes twice the shot at one rung as at another cannot be learned, and
+ * a harder sea should look harder rather than only measure harder.
  */
 export interface Difficulty {
-  /** Incoming damage to enemy hulls is divided by this. */
-  enemyArmour: number
-  enemyDamage: number
   /** Added to both ends of the enemy cap. */
   capBonus: number
   /** Multiplies the gap between routine spawns. Below 1 is busier. */
@@ -174,11 +173,9 @@ export interface Difficulty {
 export function difficultyFor(notoriety: number): Difficulty {
   const n = Math.max(0, Math.min(MAX_NOTORIETY, Math.floor(notoriety)))
   return {
-    enemyArmour: 1 + 0.15 * n,
-    enemyDamage: 1 + 0.08 * n,
-    capBonus: Math.floor(n / 2),
-    intervalScale: 1 / (1 + 0.06 * n),
-    mixAdvance: 0.035 * n,
+    capBonus: Math.round(n * 0.8),
+    intervalScale: 1 / (1 + 0.13 * n),
+    mixAdvance: 0.06 * n,
     bossEscorts: Math.floor((n + 1) / 3),
     hunterSeconds: 55 + 8 * n,
     hunterVisits: n >= 4 ? 2 : 1,

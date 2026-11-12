@@ -191,12 +191,9 @@ export class World {
     ship.prevHeading = heading
     if (faction === 'player') {
       ship.mods = this.playerBaseMods(cls)
-    } else {
-      // Notoriety is felt here and in the director, and nowhere else: the
-      // hulls are the same hulls, harder to sink and heavier of shot.
-      ship.mods.armour = this.difficulty.enemyArmour
-      ship.mods.damage = this.difficulty.enemyDamage
     }
+    // An enemy is always a stock hull. Notoriety is felt in the director,
+    // which sends more of them and heavier ones, and nowhere else.
     this.ships.push(ship)
     if (faction === 'enemy') this.captains.set(ship.id, new CaptainAI())
     return ship

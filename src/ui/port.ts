@@ -261,7 +261,7 @@ export class PortUI {
     label.innerHTML = level === 0
       ? `Notoriety 0 · <b>Unknown</b> <span style="color:${DIM}">— base difficulty</span>`
       : `Notoriety ${level} · <b style="color:${RED(1)}">${notorietyName(level)}</b>
-         <span style="color:${DIM}"> — hulls ×${d.enemyArmour.toFixed(2)}, shot ×${d.enemyDamage.toFixed(2)},</span>
+         <span style="color:${DIM}"> — +${d.capBonus} ships at once, ×${(1 / d.intervalScale).toFixed(1)} as often, heavier sooner,</span>
          <span style="color:${GOLD}">pay ×${d.payout.toFixed(1)}</span>`
     box.append(step(-1, '◀'), label, step(1, '▶'))
     const top = el('span', `color:${DIM};font-size:14px`)
