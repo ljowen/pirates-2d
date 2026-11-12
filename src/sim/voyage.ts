@@ -20,6 +20,12 @@ export interface Voyage {
   notoriety: number
   /** Ids of the gated draft cards this captain has earned. */
   cards: ReadonlySet<string>
+  /**
+   * Voyages this captain has sailed before this one. The first three are
+   * gentler; unset, the sea is at full strength, which is what the bench
+   * measures unless a row says otherwise.
+   */
+  sailed?: number
 }
 
 export const STOCK_VOYAGE: Voyage = { refits: {}, notoriety: 0, cards: new Set() }
@@ -183,17 +189,36 @@ export interface Difficulty {
   payout: number
 }
 
-export function difficultyFor(notoriety: number): Difficulty {
+/**
+ * How much gentler each of a captain's first voyages is: the gap between
+ * routine spawns is stretched, and the heavy classes arrive later in the
+ * voyage than the clock says. The first also meets no hunter. A first voyage
+ * at full strength lasted about two minutes, most of it spent finding out
+ * what the keys did.
+ *
+ * The number of ships at once is left alone. Thinning that was tried first
+ * and starved the player: fewer ships is less plunder, a slower draft, and a
+ * captain still at level 3 when the heavy hulls arrive.
+ */
+const GREEN: { gap: number; later: number }[] = [
+  { gap: 1.35, later: 0.22 },
+  { gap: 1.2, later: 0.12 },
+  { gap: 1.1, later: 0.05 },
+]
+
+export function difficultyFor(notoriety: number, sailed = GREEN.length): Difficulty {
   const n = Math.max(0, Math.min(MAX_NOTORIETY, Math.floor(notoriety)))
+  const green = GREEN[Math.max(0, Math.floor(sailed))] ?? { gap: 1, later: 0 }
+  const maiden = sailed < 1
   return {
     capBonus: Math.round(n * 0.5),
-    intervalScale: 1 / (1 + 0.07 * n),
-    mixAdvance: 0.08 * n,
+    intervalScale: green.gap / (1 + 0.07 * n),
+    mixAdvance: 0.08 * n - green.later,
     heavy: 0.06 * n,
     levelCost: 1 + 0.3 * n,
     bossEscorts: Math.floor((n + 1) / 3),
     hunterSeconds: 55 + 8 * n,
-    hunterVisits: n >= 4 ? 2 : 1,
+    hunterVisits: maiden ? 0 : n >= 4 ? 2 : 1,
     payout: 1 + 0.3 * n,
   }
 }

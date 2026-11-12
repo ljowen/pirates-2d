@@ -204,8 +204,8 @@ export class Director {
     this.announcementTime = seconds
   }
 
-  reset(notoriety = 0) {
-    this.difficulty = difficultyFor(notoriety)
+  reset(notoriety = 0, sailed?: number) {
+    this.difficulty = difficultyFor(notoriety, sailed)
     this.cooldown = 2
     this.firedBosses.clear()
     this.firedHunts = 0

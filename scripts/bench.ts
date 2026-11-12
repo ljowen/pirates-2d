@@ -59,7 +59,9 @@ const rows: Row[] =
           { label: `Man-o'-War, full, notoriety ${n}`, cls: hull('player-man-of-war'), voyage: career(1, n) },
         ])
       : [
-          { label: 'Sloop, first voyage', cls: hull('sloop'), voyage: STOCK_VOYAGE },
+          { label: 'Sloop, maiden voyage', cls: hull('sloop'), voyage: { ...STOCK_VOYAGE, sailed: 0 } },
+          { label: 'Sloop, second voyage', cls: hull('sloop'), voyage: { ...STOCK_VOYAGE, sailed: 1 } },
+          { label: 'Sloop, full strength', cls: hull('sloop'), voyage: STOCK_VOYAGE },
           { label: 'Sloop, a third refitted', cls: hull('sloop'), voyage: career(0.34) },
           { label: 'Brigantine, half refitted', cls: hull('player-brigantine'), voyage: career(0.5) },
           { label: 'Frigate, three quarters', cls: hull('player-frigate'), voyage: career(0.75) },

@@ -689,7 +689,7 @@ export class World {
   ) {
     this.playerClass = playerClass
     this.voyage = voyage
-    this.difficulty = difficultyFor(voyage.notoriety)
+    this.difficulty = difficultyFor(voyage.notoriety, voyage.sailed)
     this.ships.length = 0
     this.captains.clear()
     this.projectiles = []
@@ -711,7 +711,7 @@ export class World {
     this.wind.reseed(seed ^ 0x1234567)
     this.wind.reset()
     this.run = new Run(() => this.rand(), voyage)
-    this.director.reset(voyage.notoriety)
+    this.director.reset(voyage.notoriety, voyage.sailed)
     this.placePlayerClearOfLand()
     this.run.grantStarting(this.player)
   }

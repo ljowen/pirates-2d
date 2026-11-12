@@ -153,6 +153,7 @@ export function voyageOf(career: Career): Voyage {
     refits: { ...career.refits },
     notoriety: Math.min(career.notoriety, career.notorietyMax),
     cards,
+    sailed: career.voyages,
   }
 }
 
