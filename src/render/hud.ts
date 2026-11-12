@@ -177,14 +177,6 @@ export class Hud {
         if (run) ctx.font = F(12, true)
         const text = run ? `☠ ${e.cls.name} — RUN` : e.cls.name
         seaLabel(ctx, text, s.x, s.y - 56, run ? '#ff5a4a' : ui().menu.text)
-        // What she has loaded sits after her name as the draft card's own
-        // icon, because it changes what fighting her costs and nothing else
-        // on the water says so. Plain round shot shows nothing.
-        const loaded = e.shot === 'round' ? undefined : iconImage(SHOT_ICON[e.shot])
-        if (loaded?.complete && loaded.naturalWidth > 0) {
-          const half = ctx.measureText(text).width / 2
-          ctx.drawImage(loaded, s.x + half + 5, s.y - 70, 18, 18)
-        }
         if (e.isHunter && !e.breakingOff) {
           ctx.font = F(9.5)
           seaLabel(ctx, `hunting · ${Math.ceil(e.huntLeft)}s`, s.x, s.y - 69, 'rgba(255,190,110,0.95)')
@@ -852,9 +844,6 @@ export class Hud {
 }
 
 /** Keep names inside the panel; the pips carry the rest of the meaning. */
-/** The draft card whose icon stands for each enemy shot type. */
-const SHOT_ICON = { chain: 'chain-shot', grape: 'grape-shot', double: 'round-shot' } as const
-
 function shortName(name: string): string {
   const trimmed = name.replace(/^(Another|Ship's)\s+/, (m) => m.trim() === 'Another' ? '+1 ' : '')
   return trimmed.length > 14 ? `${trimmed.slice(0, 13)}…` : trimmed

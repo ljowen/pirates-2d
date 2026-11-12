@@ -1,4 +1,4 @@
-import { Ship, STOCK_MODS, SAIL_FURLED, SAIL_FULL, type Faction, type ShotType } from './ship'
+import { Ship, STOCK_MODS, SAIL_FURLED, SAIL_FULL, type Faction } from './ship'
 import {
   SLOOP, ENEMY_CLASSES, BARQUE, BRIGANTINE, FLUYT, FRIGATE, GALLEON, MAN_OF_WAR, ROYAL_SLOOP,
   type ShipClass,
@@ -19,11 +19,6 @@ import {
   updateGunnery, releasePending, stepProjectiles, stepSplashes,
   type Projectile, type PendingShot, type Splash, type CombatEvents,
 } from './combat'
-
-/** The draft card each enemy shot type borrows its numbers from. */
-const SHOT_CARD: Record<Exclude<ShotType, 'round'>, string> = {
-  chain: 'chain-shot', grape: 'grape-shot', double: 'round-shot',
-}
 
 /**
  * The simulation, with no knowledge of rendering. The player is simply ships[0]
@@ -235,8 +230,7 @@ export class World {
       )
       ship.sailOrder = SAIL_FULL
       ship.canvas = 1
-      this.loadShot(ship)
-    }
+      }
   }
 
   /**
@@ -359,25 +353,6 @@ export class World {
     ship.isBoss = isBoss
     ship.isHunter = isHunter
     ship.huntLeft = this.difficulty.hunterSeconds
-    this.loadShot(ship)
-  }
-
-  /**
-   * Give an enemy a shot type. Half fire plain round shot; the rest load one
-   * of the three the player can draft, one stack's worth, so the same class
-   * is not the same fight twice: one Brig cuts up your rigging, the next
-   * thins your crew. A class that already favours a kind of damage keeps it.
-   */
-  private loadShot(ship: Ship) {
-    const bias = ship.cls.shotBias
-    if (bias) {
-      ship.shot = bias.sails > bias.crew ? 'chain' : 'grape'
-      return
-    }
-    const roll = this.rand()
-    const shot: ShotType = roll < 0.5 ? 'round' : roll < 0.7 ? 'chain' : roll < 0.9 ? 'grape' : 'double'
-    ship.shot = shot
-    if (shot !== 'round') UPGRADES_BY_ID.get(SHOT_CARD[shot])?.apply(ship.mods)
   }
 
   step(dt: number) {
