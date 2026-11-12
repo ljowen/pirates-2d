@@ -3,7 +3,7 @@ import type { Ship } from '../sim/ship'
 import type { ShipClass } from '../sim/shipClasses'
 import { lerp } from '../core/math'
 import { P } from './palette'
-import { solveRig, hullSize, mainMast, BEAM } from './rig'
+import { solveRig, hullSize, mainMast, leewardSide, BEAM } from './rig'
 import { H } from './hullStyle'
 
 
@@ -21,6 +21,10 @@ export class ShipView {
   /** A white flag at the main, drawn only once she has given up. */
   private readonly colours = new Graphics()
   private sinkTime = 0
+  /** Which side the booms and headsails are on, eased between -1 and 1. */
+  private side = 0
+  private sideTarget = 0
+  private rigged = false
 
   private readonly palette: ShipClass['colors']
   private readonly baseScale: number
@@ -55,14 +59,30 @@ export class ShipView {
    * and the canvas bellies out to leeward. That makes the rig itself a readout
    * of your point of sail, which is worth more than any HUD element.
    */
-  private drawSails(ship: Ship) {
+  private drawSails(ship: Ship, dt: number) {
     const s = this.sails
     s.clear()
+
+    // Ease the booms and headsails across as she tacks or gybes. The target
+    // only changes once the wind is clearly on the other side, so running
+    // dead before it does not flog the boom from side to side on every
+    // flicker of the wind.
+    const lean = Math.sin(ship.awaSigned)
+    if (!this.rigged || Math.abs(lean) > 0.08) this.sideTarget = leewardSide(ship.awaSigned)
+    // A ship first seen is already on her tack, not swinging onto it.
+    if (!this.rigged) { this.side = this.sideTarget; this.rigged = true }
+    // About three quarters of a second from one side to the other.
+    const step = 2.6 * dt
+    this.side += Math.max(-step, Math.min(step, this.sideTarget - this.side))
 
     // Geometry from the shared solver; paint from the style. The build's
     // sprite sheet runs the same `solveRig` in Node, which is what stops the
     // sheet from being a picture of a second, drifting copy of the art.
-    const rig = solveRig(ship, performance.now(), this.look)
+    const side = this.side * this.side * (3 - 2 * Math.abs(this.side)) * Math.sign(this.side)
+    const rig = solveRig({
+      canvas: ship.canvas, polarMult: ship.polarMult, awaSigned: ship.awaSigned,
+      sails: ship.sails, yardsSet: ship.yardsSet, side,
+    }, performance.now(), this.look)
     for (const b of rig.bare) {
       s.moveTo(b.spar[0], b.spar[1]).lineTo(b.spar[2], b.spar[3])
         .stroke({ width: H().sparWidth, color: P().ship.spar })
@@ -86,7 +106,7 @@ export class ShipView {
     this.heelLayer.position.set(0, Math.sin(heel) * BEAM * 0.5)
     this.shadow.position.set(-Math.sin(heel) * 5, Math.sin(heel) * 3)
 
-    this.drawSails(ship)
+    this.drawSails(ship, dt)
     this.drawColours(ship)
 
     // A fresh hit whitens the hull for an instant — the cheapest possible

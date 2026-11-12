@@ -94,9 +94,12 @@ see *Every class has her own rig* below):
 **The ship shows which.** The sprite carries one sail per yard, each higher one narrower
 and stepped a little toward the bow — from directly overhead a course and a topsail sit
 at the same plan position and would draw exactly on top of each other, so the stack is
-false perspective. They are painted lowest first, so each smaller sail sits over the
-larger one below it, as it is seen from aloft — for a long time they were painted the
-other way round and the course hid everything above it. The HUD draws the mast
+on the same yard line. They are painted lowest first, so each smaller sail sits over the
+larger one below it with the course's belly showing round it, as it is seen from aloft —
+for a long time they were painted the other way round and the course hid everything
+above it, and then for a while each upper yard was stepped toward the bow as false
+perspective, which once braced round put it out on the course's belly instead of on its
+yard. The HUD draws the mast
 itself: a filled yard is carrying canvas, an outlined one has been ordered and the hands
 are still getting it on her. Yards are derived from the canvas actually aloft rather than
 from the order, so sail appears one yard at a time as the crew works.
@@ -475,3 +478,14 @@ all go through one `drawSail`. A boom trims to leeward by how far off the wind s
 nearly fore and aft close-hauled and squared out when running, so a fore-and-aft rig
 reads its point of sail the way braced yards do. Yards brace no further than 45° — they
 were allowed 66°, and near the wind that folded a three-master's canvas into one stack.
+
+**Fore-and-aft canvas is painted under square canvas**, on every mast: jibs, gaff mains,
+lateens and spankers are set low on stays and booms, and square sails are carried on yards
+above them. A brigantine's gaff main used to be painted over her fore yards simply because
+her mainmast came later in the list.
+
+**Booms swing across; they do not jump.** Each ship view eases which side its booms and
+headsails are on (`RigState.side`) over about three quarters of a second as she tacks or
+gybes, and the canvas goes slack through the centreline and fills again on the new side.
+The target only changes once the wind is clearly across, so running dead before it does
+not flog the boom on every flicker of the wind.

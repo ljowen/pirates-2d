@@ -27,6 +27,21 @@ export interface RigState {
   sails: number
   /** Sail orders actually set: 0 bare poles … 3 everything. */
   yardsSet: number
+  /**
+   * Which side the booms and headsails are on, -1 to 1, eased by the caller
+   * as she tacks or gybes so the canvas swings across instead of jumping.
+   * Omitted, it is taken straight from the wind (the sprite sheet does this).
+   */
+  side?: number
+}
+
+/**
+ * The side a fore-and-aft sail wants to be on: -1 or 1, the leeward side.
+ * The ship view eases toward this; it is exported so that the two can never
+ * disagree about which way is leeward.
+ */
+export function leewardSide(awaSigned: number): number {
+  return Math.sin(awaSigned) >= 0 ? 1 : -1
 }
 
 /** Half-length and half-beam of a hull drawn to this plan. */
@@ -64,7 +79,15 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
   const windX = Math.cos(localWindTo)
   const windY = Math.sin(localWindTo)
   const { L } = hullSize(look.hull)
+  const side = ship.side ?? (windY >= 0 ? 1 : -1)
   const out: RigSolution = { bare: [], sails: [] }
+  // Fore-and-aft canvas is set low, on stays and booms; square canvas is
+  // carried on yards above it. So every fore-and-aft sail is painted first,
+  // whichever mast it is on, and the square sails go over the lot — a
+  // brigantine's gaff main or a frigate's spanker used to be painted over
+  // the yards forward of it simply because its mast came later in the list.
+  const below: SailDraw[] = []
+  const above: SailDraw[] = []
 
   // Every sail bellies away from the wind, whichever way her spar points.
   const leeward = (dx: number, dy: number): [number, number] => {
@@ -75,14 +98,22 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     return [nx, ny]
   }
 
-  /** A sail on a spar from (ax, ay) to (cx, cy), bellied by `push` to leeward. */
+  /**
+   * A sail on a spar from (ax, ay) to (cx, cy), bellied by `push`. Square
+   * sails belly to leeward of the wind. Fore-and-aft sails are handed the
+   * direction instead (`normal`, and a signed push), because they belly to
+   * whichever side the boom is on — which mid-gybe is not yet leeward.
+   */
   const sail = (
+    into: SailDraw[],
     ax: number, ay: number, cx: number, cy: number, push: number, half: number, taper: number,
+    normal?: [number, number],
   ) => {
-    const [bx, by] = leeward(cx - ax, cy - ay)
+    let [bx, by] = normal ?? leeward(cx - ax, cy - ay)
+    if (push < 0) { bx = -bx; by = -by; push = -push }
     const at = (t: number, k: number) =>
       [ax + (cx - ax) * t + bx * push * k, ay + (cy - ay) * t + by * push * k]
-    out.sails.push({
+    into.push({
       points: [ax, ay, ...at(0.275, 0.72), ...at(0.5, 1), ...at(0.725, 0.72), cx, cy],
       spar: [ax, ay, cx, cy],
       push: [bx, by],
@@ -106,7 +137,9 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     const to = L * (0.42 + j * 0.3)
     const push = BEAM * (0.35 + 0.9 * drawing) * canvas * (0.9 - j * 0.15) +
       (1 - drawing) * Math.sin(time * 0.025 + j) * BEAM * 0.15
-    sail(from, 0, to, 0, push * (0.4 + 0.6 * health), (from - to) / 2, 0.45)
+    // Signed by the side, so through a tack the jib flattens against its
+    // stay and fills again on the other tack rather than flicking across.
+    sail(below, from, 0, to, 0, push * (0.4 + 0.6 * health) * side, (from - to) / 2, 0.45, [0, 1])
   }
 
   // --- Masts -----------------------------------------------------------------
@@ -119,6 +152,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     }
     foreAndAft(mast.kind, mast.size, mx, shiver, mast.kind === 'gaff' && yards >= 3)
   }
+  out.sails = below.concat(above)
   return out
 
   /**
@@ -130,10 +164,13 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
   function foreAndAft(kind: 'gaff' | 'lateen', size: number, mx: number, shiver: number, topsail: boolean) {
     const off = Math.abs(wrapPi(ship.awaSigned))
     const trim = Math.max(0.12, Math.min(1.35, off * 0.47))
-    const side = windY >= 0 ? 1 : -1
+    // `side` eases through zero as she tacks or gybes, so the boom swings
+    // across the centreline rather than appearing on the other side.
     const angle = Math.PI - side * trim
     const dx = Math.cos(angle)
     const dy = Math.sin(angle)
+    // Perpendicular to the boom, on the +y side; `side` signs it.
+    const normal: [number, number] = [dy, -dx]
     // A lateen yard crosses the mast and reaches well forward of it.
     const lead = kind === 'lateen' ? 0.32 : 0
     const length = LENGTH * size
@@ -148,15 +185,16 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     // Courses is a reefed main; anything more is the whole sail.
     const reef = yards === 1 ? 0.75 : 1
     const l = length * reef * (0.4 + 0.6 * health)
-    const push = BEAM * (0.3 + 1.1 * drawing) * canvas + shiver * 0.6
-    sail(mx - dx * l * lead, -dy * l * lead, mx + dx * l * (1 - lead), dy * l * (1 - lead), push, l / 2, 1)
+    // Slack as the boom crosses: the canvas only fills once it is out.
+    const push = (BEAM * (0.3 + 1.1 * drawing) * canvas + shiver * 0.6) * side
+    sail(below, mx - dx * l * lead, -dy * l * lead, mx + dx * l * (1 - lead), dy * l * (1 - lead),
+      push, l / 2, 1, normal)
 
     if (topsail) {
-      // A gaff topsail above it, stepped forward in the same false
-      // perspective the square rigs use to show height from overhead.
+      // A gaff topsail above it, on the same spar line and shallower, so the
+      // main's belly shows round it.
       const t = l * 0.55
-      const ax = mx + BEAM * 0.28
-      sail(ax, 0, ax + dx * t, dy * t, push * 0.8, t / 2, 0.6)
+      sail(below, mx, 0, mx + dx * t, dy * t, push * 0.6, t / 2, 0.6, normal)
     }
   }
 
@@ -174,6 +212,7 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     const halfWidth = BEAM * mast.size * 1.1 * (0.35 + 0.65 * health)
 
     if (mast.spanker && yards > 0) {
+      // Fore-and-aft, so it lands in `below` with the rest of them.
       const shiver = (1 - drawing) * Math.sin(time * 0.02 + i * 2.1) * BEAM * 0.22
       foreAndAft('gaff', mast.spanker, mx, shiver, false)
     }
@@ -194,19 +233,17 @@ export function solveRig(ship: RigState, time: number, look: ShipLook): RigSolut
     // Each yard up the mast, *lowest first*, so the topsail is painted over
     // the course and the royal over the topsail.
     //
-    // From directly overhead a course, a topsail and a royal sit at the same
-    // plan position and would draw exactly on top of one another, so the
-    // stack is faked: each higher yard is narrower and stepped a little
-    // toward the bow. That is the same false perspective the masts already
-    // rely on, and it is what makes "more sail" visible as a *shape* rather
-    // than only as a number in the corner. This loop used to run highest
-    // first, which hid each smaller sail under the bigger one beneath it.
+    // From directly overhead a course, a topsail and a royal hang from yards
+    // on the same mast, so they share one line: each higher yard is laid on
+    // the course's yard, narrower, with a shallower belly, and the course's
+    // canvas shows round it. They used to be stepped toward the bow as false
+    // perspective, which once the yards were braced round put each upper
+    // sail out on the belly of the one below instead of on its yard.
     for (let j = 0; j < set; j++) {
       const taper = 1 - j * 0.23
       const half = halfWidth * taper
-      const push = (belly + shiver) * (1 - j * 0.1)
-      const lift = mx + j * BEAM * 0.3
-      sail(lift - yx * half, -yy * half, lift + yx * half, yy * half, push, half, taper)
+      const push = (belly + shiver) * (1 - j * 0.26)
+      sail(above, mx - yx * half, -yy * half, mx + yx * half, yy * half, push, half, taper)
     }
   }
 }
