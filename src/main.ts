@@ -2,8 +2,6 @@ import { Application, Container } from 'pixi.js'
 // Bundled rather than fetched from a font CDN, so the game still runs offline
 // and from GitHub Pages with nothing outside the repo. Latin subsets only.
 import '@fontsource/pirata-one/latin-400.css'
-import '@fontsource/old-standard-tt/latin-400.css'
-import '@fontsource/old-standard-tt/latin-700.css'
 import { loadUiFonts } from './ui/theme'
 import { GameLoop } from './core/loop'
 import { Input } from './core/input'
@@ -275,6 +273,10 @@ async function main() {
       // plunder all drifted at the wrong rate.
       const dt = frameDt * timeScale
 
+      camera.zoomBy(input.consumeZoom(frameDt))
+      // Hulls are raised just beyond the view, so the further out the player
+      // looks the further out they have to appear.
+      world.viewReach = Math.max(1, 1 / camera.userZoom)
       camera.follow(world.player, frameDt)
       // Presentation uses the wind where the camera and the player actually
       // are, so local weather is visible rather than averaged away.

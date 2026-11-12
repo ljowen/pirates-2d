@@ -20,22 +20,23 @@
 // attributes, where a double quote ends the attribute and the face silently
 // falls back to the browser default.
 const SERIF = "Georgia, 'Times New Roman', serif"
+const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 
 const LOOK = {
   name: "Captain's log",
   font: {
     /**
-     * Values and anything bold, and all body text: Old Standard TT, a
-     * 19th-century serif with lining figures. It replaced IM Fell English,
-     * which was thin at small sizes and whose old-style figures made 0 and 1
-     * read as o and I.
+     * Values and anything bold, and all body text: the system monospace. Two
+     * serifs were tried first (IM Fell English, then Old Standard TT) and
+     * neither read as easily at 14px; a monospace also keeps figures in
+     * columns without any extra work.
      */
-    display: `'Old Standard TT', ${SERIF}`,
-    body: `'Old Standard TT', ${SERIF}`,
-    /** Blackletter, for big titles only, and never in capitals. */
+    display: MONO,
+    body: MONO,
+    /** Blackletter, for titles and ship names only, and never in capitals. */
     heading: `'Pirata One', ${SERIF}`,
-    displayScale: 1.02,
-    bodyScale: 1.04,
+    displayScale: 1,
+    bodyScale: 1,
     headingScale: 1.12,
     displayWeight: 'bold',
   },
@@ -176,14 +177,13 @@ export function titleCase(text: string): string {
 /**
  * Ask the browser for the faces up front. Canvas text does not trigger a
  * webfont load by itself, so without this the first frames — and any frame
- * drawn before a face happened to load — fall back to Georgia.
+ * drawn before the face happened to load — fall back to Georgia. Only the
+ * heading face is a webfont; the rest is the system monospace.
  */
 export function loadUiFonts(): Promise<unknown> {
   if (typeof document === 'undefined' || !document.fonts) return Promise.resolve()
   const f = LOOK.font
   return Promise.all([
-    document.fonts.load(`20px ${f.display}`),
-    document.fonts.load(`bold 20px ${f.display}`),
     document.fonts.load(`20px ${f.heading}`),
   ]).catch(() => undefined)
 }
@@ -260,8 +260,14 @@ export function plaque(ctx: CanvasRenderingContext2D, text: string, x: number, y
   const m = ctx.measureText(text)
   const asc = m.actualBoundingBoxAscent || 12
   const desc = m.actualBoundingBoxDescent || 4
-  const left = ctx.textAlign === 'center' ? x - m.width / 2
-    : ctx.textAlign === 'right' || ctx.textAlign === 'end' ? x - m.width : x
+  const align = ctx.textAlign
+  let left = align === 'center' ? x - m.width / 2
+    : align === 'right' || align === 'end' ? x - m.width : x
+  // Kept on screen: a long label beside the edge slides in rather than clips.
+  const viewW = ctx.canvas.clientWidth || ctx.canvas.width
+  const moved = Math.max(16, Math.min(viewW - 16 - m.width, left)) - left
+  left += moved
+  x += moved
   const fill = ctx.fillStyle
   panel(ctx, left - 10, y - asc - 6, m.width + 20, asc + desc + 12)
   ctx.fillStyle = fill

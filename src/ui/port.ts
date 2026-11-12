@@ -311,7 +311,7 @@ export class PortUI {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:21px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
+        <span style="font-size:26px;line-height:1;font-family:${headingFamily()};color:${WHITE}">${cls.name}</span>
         <span style="opacity:0.4;font-size:14px">${index + 1}</span>
       </div>
       <div style="font-size:14px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>

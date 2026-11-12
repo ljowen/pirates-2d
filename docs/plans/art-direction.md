@@ -171,10 +171,10 @@ this one was chosen, along with the key that switched between them.
 What keeps it one thing:
 
 - **Two faces, two jobs.** Blackletter (Pirata One) only for titles with room: the end
-  card, announcements, "In port", "Choose an upgrade". Never in capitals, which in
-  blackletter is unreadable. Everything that must be read at 11–16px is Old Standard TT, a
-  19th-century serif with lining figures. It replaced IM Fell English, whose thin strokes and
-  old-style figures (`0` and `1` as `o` and `I`) were the main readability complaint.
+  card, announcements, "In port", "Choose an upgrade", and ship names on the port's cards.
+  Never in capitals, which in blackletter is unreadable. Everything else is the system
+  monospace (`ui-monospace`). Two serifs were tried in its place, IM Fell English and then
+  Old Standard TT, and neither read as easily at 14px.
 - **Rubrication.** Section labels (SAILS, CONDITION, REMAINING) and eyebrows (PIRATES,
   LEVEL) are small spaced capitals in red ink, as a log book rubricated its headings. The
   draft cards' group labels already worked this way, so the HUD now matches them.
