@@ -2,7 +2,8 @@ import { Application, Container } from 'pixi.js'
 // Bundled rather than fetched from a font CDN, so the game still runs offline
 // and from GitHub Pages with nothing outside the repo. Latin subsets only.
 import '@fontsource/pirata-one/latin-400.css'
-import '@fontsource/im-fell-english/latin-400.css'
+import '@fontsource/old-standard-tt/latin-400.css'
+import '@fontsource/old-standard-tt/latin-700.css'
 import '@fontsource/alegreya/latin-400.css'
 import '@fontsource/cinzel/latin-700.css'
 import '@fontsource/eb-garamond/latin-400.css'
@@ -312,7 +313,9 @@ async function main() {
       // on screen for a second and must never cover a reading.
       pickupText.update(world, dt)
       pickupText.draw(octx, camera)
-      hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready, ledger)
+      const menu = port.open || draft.open
+      hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready, ledger, menu)
+      tuner.legendVisible = !menu
       if (showDebug) debug.draw(world.player, playerWind, camera, fps)
     },
     120,

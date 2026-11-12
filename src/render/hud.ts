@@ -11,7 +11,9 @@ import { draughtDepth } from '../sim/terrain'
 import { outmatches } from '../sim/stats'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
-import { C, F, disc, panel, panelIsLight, plaque, ui } from '../ui/theme'
+import {
+  C, F, Fh, bar, disc, keyHint, label, panel, plaque, ramp, seaLabel, titleCase, ui,
+} from '../ui/theme'
 
 /**
  * Instruments, drawn on a plain 2D canvas over the Pixi view. Two of these are
@@ -25,6 +27,8 @@ export class Hud {
   draw(
     world: World, camera: Camera, paused: boolean, turbo: boolean, silent = false,
     ledger: Ledger | null = null,
+    /** A menu is up: draw the instruments, but not banners that would show through it. */
+    menu = false,
   ) {
     const ctx = this.ctx
     const w = ctx.canvas.clientWidth
@@ -58,15 +62,16 @@ export class Hud {
 
     if (world.run.state === 'won') this.endCard(world, true, ledger)
     else if (world.run.state === 'lost') this.endCard(world, false, ledger)
+    else if (menu) { /* nothing over a menu */ }
     else if (paused) this.banner('PAUSED', C('#ffd27f'), 150)
     else if (turbo) this.banner('TURBO', C('#7fe0a0'), 150)
 
     // Boss waves get called out, because three Brigantines appearing over the
     // horizon with no warning is just a sudden death.
-    if (world.director.announcementTime > 0 && world.director.announcement) {
+    if (!menu && world.director.announcementTime > 0 && world.director.announcement) {
       const fade = Math.min(1, world.director.announcementTime / 1.2)
       ctx.save()
-      ctx.font = F(22, true)
+      ctx.font = Fh(24)
       ctx.textAlign = 'center'
       ctx.fillStyle = C('rgb(255,122,107)', fade)
       plaque(ctx, world.director.announcement, w / 2, 186)
@@ -152,13 +157,17 @@ export class Hud {
         // the warning goes away by itself as the build outgrows the ship,
         // which is the whole progression of the game drawn on the water.
         const run = !e.yielding && outmatches(e, player)
-        ctx.fillStyle = run ? '#ff5a4a' : TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)'
+        // On the water, not on a panel: modern keeps its tier tints; the
+        // period themes letter the sea as a chart does, light type in a
+        // dark ink halo, so every label is legible over any water.
+        const cel = ui().id !== 'modern'
+        if (cel) ctx.font = F(11)
         if (run) ctx.font = F(12, true)
-        ctx.fillText(run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56)
+        seaLabel(ctx, run ? `☠ ${e.cls.name} — RUN` : e.cls.name, s.x, s.y - 56,
+          run ? '#ff5a4a' : cel ? ui().menu.text : TIER_COLORS[e.cls.tier] ?? 'rgba(255,255,255,0.7)')
         if (e.isHunter && !e.breakingOff) {
-          ctx.font = F(9)
-          ctx.fillStyle = 'rgba(255,190,110,0.9)'
-          ctx.fillText(`hunting · ${Math.ceil(e.huntLeft)}s`, s.x, s.y - 68)
+          ctx.font = F(9.5)
+          seaLabel(ctx, `hunting · ${Math.ceil(e.huntLeft)}s`, s.x, s.y - 69, 'rgba(255,190,110,0.95)')
         }
 
         // All three pools, in the same order and colours as your own
@@ -177,6 +186,11 @@ export class Hud {
           ctx.fillRect(s.x - bw / 2, by, bw, h)
           ctx.fillStyle = color
           ctx.fillRect(s.x - bw / 2, by, bw * value, h)
+          if (cel) {
+            ctx.strokeStyle = ui().panel.ink
+            ctx.lineWidth = 1
+            ctx.strokeRect(s.x - bw / 2 + 0.5, by + 0.5, bw - 1, h - 1)
+          }
           by += h + 1.5
         }
       } else {
@@ -221,7 +235,7 @@ export class Hud {
       ctx.beginPath()
       ctx.arc(0, 0, r + 7, a0, a1)
       ctx.lineWidth = 9
-      ctx.strokeStyle = speedColor(ship.polar.sample(rel))
+      ctx.strokeStyle = ramp(ship.polar.sample(rel), speedColor)
       ctx.stroke()
     }
 
@@ -289,7 +303,7 @@ export class Hud {
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    ctx.fillText('SAILS', 12, 11)
+    label(ctx, 'SAILS', 12, 11)
     ctx.fillStyle = C('#ffd98a')
     ctx.font = F(15, true)
     ctx.fillText(ship.sailName, 12, 28)
@@ -335,10 +349,7 @@ export class Hud {
       }
     }
 
-    ctx.fillStyle = C('rgba(255,255,255,0.28)')
-    ctx.fillRect(12, 66, 104, 4)
-    ctx.fillStyle = C('#9fe8ff')
-    ctx.fillRect(12, 66, 104 * ship.canvas, 4)
+    bar(ctx, 12, 65, 104, 5, ship.canvas, C('#9fe8ff'))
     ctx.restore()
   }
 
@@ -354,15 +365,12 @@ export class Hud {
     ctx.textBaseline = 'top'
     ctx.font = F(12)
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    ctx.fillText('POINT OF SAIL', 12, 11)
+    label(ctx, 'POINT OF SAIL', 12, 11)
     ctx.font = F(15, true)
     // The speed ramp is bright on purpose — it is drawn on the rose's dark
     // rim — and pale green on paper is barely there, so a light panel gets
     // the same three bands in the theme's own inks.
-    ctx.fillStyle = inIrons ? C('#ff7a6b')
-      : panelIsLight()
-        ? C(ship.polarMult > 0.66 ? '#7fe0a0' : ship.polarMult > 0.33 ? '#ffd27f' : '#ff7a6b')
-        : speedColor(ship.polarMult)
+    ctx.fillStyle = inIrons ? C('#ff7a6b') : ramp(ship.polarMult, speedColor)
     ctx.fillText(pos, 12, 28)
     ctx.font = F(12)
     ctx.fillStyle = C('rgba(255,255,255,0.7)')
@@ -483,7 +491,7 @@ export class Hud {
 
     ctx.font = F(12)
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    ctx.fillText('SOUNDING', x, y)
+    label(ctx, 'SOUNDING', x, y)
 
     ctx.textAlign = 'right'
     ctx.fillStyle = color
@@ -494,10 +502,7 @@ export class Hud {
     ctx.textAlign = 'left'
 
     const barW = 162
-    ctx.fillStyle = C('rgba(255,255,255,0.14)')
-    ctx.fillRect(x, y + 17, barW, 8)
-    ctx.fillStyle = color
-    ctx.fillRect(x, y + 17, barW * scale(depth), 8)
+    bar(ctx, x, y + 17, barW, 8, scale(depth), color)
 
     // The mark she draws. Everything to the left of it is bottom.
     const markX = x + barW * scale(needs)
@@ -518,7 +523,7 @@ export class Hud {
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    ctx.fillText('CONDITION', 12, 10)
+    label(ctx, 'CONDITION', 12, 10)
     ctx.textAlign = 'right'
     ctx.fillStyle = C('rgba(255,217,138,0.8)')
     ctx.fillText(ship.cls.name, 174, 10)
@@ -535,10 +540,7 @@ export class Hud {
       ctx.fillStyle = C('rgba(255,255,255,0.5)')
       ctx.font = F(11)
       ctx.fillText(label, 12, by)
-      ctx.fillStyle = C('rgba(255,255,255,0.14)')
-      ctx.fillRect(72, by, 102, 8)
-      ctx.fillStyle = color
-      ctx.fillRect(72, by, 102 * value, 8)
+      bar(ctx, 72, by, 102, 8, value, color)
       // A pale ghost ahead of the bar showing the next ten seconds of mending,
       // so repair is something you can watch happening rather than infer.
       const gain = repair[i] * ship.mending * 10
@@ -564,7 +566,7 @@ export class Hud {
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    ctx.fillText('BROADSIDES', 12, 10)
+    label(ctx, 'BROADSIDES', 12, 10)
 
     const names = ['Port', 'Starboard']
     for (const battery of [0, 1] as const) {
@@ -581,10 +583,8 @@ export class Hud {
       ctx.fillStyle = bears ? C('#ffbe6e') : C('rgba(255,255,255,0.5)')
       ctx.font = F(11)
       ctx.fillText(names[battery], 12, by)
-      ctx.fillStyle = C('rgba(255,255,255,0.14)')
-      ctx.fillRect(84, by, 90, 8)
-      ctx.fillStyle = loaded >= 1 ? (bears ? C('#ffbe6e') : C('#7fe0a0')) : C('rgba(159,232,255,0.6)')
-      ctx.fillRect(84, by, 90 * loaded, 8)
+      bar(ctx, 84, by, 90, 8, loaded,
+        loaded >= 1 ? (bears ? C('#ffbe6e') : C('#7fe0a0')) : C('rgba(159,232,255,0.6)'))
     }
     ctx.restore()
   }
@@ -619,7 +619,7 @@ export class Hud {
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    ctx.fillText('REFIT', 12, 9)
+    label(ctx, 'REFIT', 12, 9)
 
     owned.forEach(({ upgrade, stacks }, i) => {
       const ry = 26 + i * rowH
@@ -657,10 +657,10 @@ export class Hud {
   private banner(text: string, color: string, y = 56) {
     const ctx = this.ctx
     ctx.save()
-    ctx.font = F(28, true)
+    ctx.font = Fh(30)
     ctx.textAlign = 'center'
     ctx.fillStyle = color
-    plaque(ctx, text, ctx.canvas.clientWidth / 2, y)
+    plaque(ctx, titleCase(text), ctx.canvas.clientWidth / 2, y)
     ctx.restore()
   }
 
@@ -697,7 +697,7 @@ export class Hud {
       ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, cx, 22)
       ctx.font = F(10)
       ctx.fillStyle = C('rgba(255,255,255,0.45)')
-      ctx.fillText('REMAINING', cx, 48)
+      label(ctx, 'REMAINING', cx, 48)
     }
 
     // Level and the plunder bar filling toward the next draft.
@@ -707,10 +707,7 @@ export class Hud {
     ctx.fillText(`Lv ${run.level}`, cx - 166, 24)
 
     const barW = 96
-    ctx.fillStyle = C('rgba(255,255,255,0.16)')
-    ctx.fillRect(cx - 166, 44, barW, 7)
-    ctx.fillStyle = C('#f0c14b')
-    ctx.fillRect(cx - 166, 44, barW * Math.min(1, run.plunder / run.plunderNeeded), 7)
+    bar(ctx, cx - 166, 44, barW, 7, run.plunder / run.plunderNeeded, C('#f0c14b'))
 
     ctx.textAlign = 'right'
     ctx.font = F(12)
@@ -734,107 +731,98 @@ export class Hud {
     const w = ctx.canvas.clientWidth
     const h = ctx.canvas.clientHeight
     const run = world.run
-
-    ctx.save()
-    ctx.fillStyle = ui().overlay
-    ctx.fillRect(0, 0, w, h)
-    // On paper or wood the card is a sheet of its own, sized to what it says.
-    if (ui().plaques) {
-      const lines = (run.endless ? 1 : 0) + (ledger ? ledger.news.length + (ledger.rung > 0 ? 1 : 0) : 0)
-      const top = h / 2 - 112
-      const height = 196 + lines * 20 + (ledger ? 60 : 0) + (won ? 24 : 0)
-      // Wide enough for the payout line in the widest face (Cinzel's capitals).
-      panel(ctx, w / 2 - 380, top, 760, height)
-    }
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.font = F(40, true)
-    ctx.fillStyle = won ? C('#7fe0a0') : C('#ff7a6b')
-    ctx.fillText(won ? 'VOYAGE COMPLETE' : 'SUNK', w / 2, h / 2 - 64)
+    const cx = w / 2
 
     const stamp = (seconds: number) =>
       `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`
 
-    ctx.font = F(15)
-    ctx.fillStyle = C('#cfe6f5')
-    ctx.fillText(
+    // Laid out as a list first and drawn second, so the sheet behind it is
+    // exactly as tall as what it says. It used to be sized by estimate, which
+    // left a dead band in the middle and slack at the foot.
+    type Line = { text: string; font: string; color: string; height: number }
+    const lines: Line[] = []
+    const add = (text: string, font: string, color: string, height: number) =>
+      lines.push({ text, font, color, height })
+    const gap = (height: number) => lines.push({ text: '', font: '', color: '', height })
+
+    add(titleCase(won ? 'VOYAGE COMPLETE' : 'SUNK'), Fh(46), won ? C('#7fe0a0') : C('#ff7a6b'), 60)
+    add(
       `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   ` +
         `${run.shipsTaken} taken   ·   level ${run.level}`,
-      w / 2, h / 2 - 16,
+      F(15), C('#cfe6f5'), 26,
     )
-
     // Sailing on is its own achievement, so it gets its own line.
     if (run.endless) {
-      ctx.font = F(15)
-      ctx.fillStyle = C('#ff9ad5')
-      ctx.fillText(
-        `endless: ${stamp(run.overtime)}   ·   wave ${run.wave}`,
-        w / 2, h / 2 + 12,
-      )
+      add(`endless: ${stamp(run.overtime)}   ·   wave ${run.wave}`, F(15), C('#ff9ad5'), 24)
     }
 
     // What the voyage paid, what it opened, and what that puts within reach.
     // The last line is the reason to press R: it names the next thing and
     // how far off it is.
-    let y = h / 2 + 46
     if (ledger) {
+      gap(14)
       const pay = payoutFor(run)
       const parts = [`${pay.haul.toLocaleString()} plunder`]
       if (pay.bonus > 0) parts.push(`${pay.bonus.toLocaleString()} voyage`)
       if (pay.bounty > 0) parts.push(`${pay.bounty.toLocaleString()} Man-o'-War`)
       const feats = ledger.news.reduce((sum, f) => sum + f.bounty, 0)
       if (feats > 0) parts.push(`${feats.toLocaleString()} feats`)
-      ctx.font = F(17, true)
-      ctx.fillStyle = C('#f0c14b')
-      ctx.fillText(
-        `+${ledger.earned.toLocaleString()} doubloons` +
-          (parts.length > 1 ? `   (${parts.join(' + ')})` : ''),
-        w / 2, y,
-      )
-      y += 26
-
-      ctx.font = F(13)
-      ctx.fillStyle = C('#7fe0a0')
+      add(`+${ledger.earned.toLocaleString()} doubloons`, F(20, true), C('#f0c14b'), 28)
+      if (parts.length > 1) add(parts.join('  +  '), F(13), C('rgba(255,255,255,0.7)'), 22)
       for (const feat of ledger.news) {
-        ctx.fillText(
+        add(
           feat.opens === 'a bounty' ? `✓ ${feat.name}` : `✓ ${feat.name} — unlocks ${feat.opens}`,
-          w / 2, y,
+          F(14), C('#7fe0a0'), 21,
         )
-        y += 20
       }
       if (ledger.rung > 0) {
-        ctx.fillStyle = C('#ff9a8a')
-        ctx.fillText(
-          `Notoriety ${ledger.rung} · ${notorietyName(ledger.rung)} unlocked`,
-          w / 2, y,
-        )
-        y += 20
+        add(`Notoriety ${ledger.rung} · ${notorietyName(ledger.rung)} unlocked`, F(14), C('#ff7a6b'), 21)
       }
-
       const career = ledger.career
       const next = nextPurchase(career)
-      ctx.fillStyle = C('rgba(240,193,75,0.75)')
-      let line = `${career.doubloons.toLocaleString()} in the purse`
+      let purse = `${career.doubloons.toLocaleString()} in the purse`
       if (next) {
         const short = next.price - career.doubloons
-        line += short <= 0
+        purse += short <= 0
           ? `   ·   enough for ${next.name}`
           : `   ·   ${short.toLocaleString()} short of ${next.name}`
       }
-      ctx.fillText(line, w / 2, y + 2)
-      y += 34
+      add(purse, F(14), C('rgba(240,193,75,0.85)'), 24)
+    }
+    gap(16)
+    const keysHeight = 26
+
+    const pad = 26
+    const height = lines.reduce((sum, l) => sum + l.height, 0) + keysHeight + pad * 2
+    const top = Math.max(16, h / 2 - height / 2)
+
+    ctx.save()
+    ctx.fillStyle = ui().overlay
+    ctx.fillRect(0, 0, w, h)
+    // On paper or wood the card is a sheet of its own.
+    if (ui().plaques) panel(ctx, cx - 380, top, 760, height)
+
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    let y = top + pad
+    for (const line of lines) {
+      if (line.text) {
+        ctx.font = line.font
+        ctx.fillStyle = line.color
+        ctx.fillText(line.text, cx, y + line.height / 2)
+      }
+      y += line.height
     }
 
-    ctx.font = F(13)
+    // The two ways out, side by side, as keys rather than sentences.
+    ctx.font = F(14)
+    ctx.fillStyle = C('rgba(255,255,255,0.85)')
+    const ky = y + keysHeight / 2
     if (won) {
-      ctx.fillStyle = C('#ff9ad5')
-      ctx.fillText('C — continue in endless mode', w / 2, y)
-      ctx.fillStyle = C('rgba(207,230,245,0.5)')
-      ctx.fillText('R — make port', w / 2, y + 24)
+      keyHint(ctx, 'C', 'sail on, endless', cx - 120, ky)
+      keyHint(ctx, 'R', 'make port', cx + 120, ky)
     } else {
-      ctx.fillStyle = C('rgba(207,230,245,0.55)')
-      ctx.fillText('R — make port', w / 2, y)
+      keyHint(ctx, 'R', 'make port', cx, ky)
     }
     ctx.restore()
   }

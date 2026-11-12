@@ -5,7 +5,7 @@ import {
 import { canAfford, owns, permitted, priceOf, type Ledger } from '../meta/career'
 import { FEATS, FEATS_BY_ID } from '../meta/feats'
 import {
-  C, bodyFamily, callCss, panelIsLight, cardCss, cardHoverCss, cardInk, displayFamily, isCel, quietCss, ui,
+  C, bodyFamily, callCss, panelIsLight, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, isCel, quietCss, ui,
 } from './theme'
 
 type Tab = 'yard' | 'refit' | 'log'
@@ -131,8 +131,8 @@ export class PortUI {
     const earned = this.ledger.earned
     const head = el('div', 'text-align:center')
     head.innerHTML = `
-      <div style="color:${M.heading};font-size:${isCel() ? 15 : 13}px;letter-spacing:4px;font-family:${displayFamily()}">PIRATES</div>
-      <div style="font-size:${isCel() ? 34 : 21}px;margin:8px 0 10px;font-family:${displayFamily()}">In port</div>
+      <div style="color:${M.heading};font-size:${isCel() ? 15 : 13}px;letter-spacing:4px;font-weight:bold;font-family:${displayFamily()}">PIRATES</div>
+      <div style="font-size:${isCel() ? 34 : 21}px;margin:8px 0 10px;font-family:${headingFamily()}">In port</div>
       <div data-purse style="color:${M.gold};font-size:16px">
         ${career.doubloons.toLocaleString()} doubloons${
           earned > 0 ? `<span style="color:${M.good}"> &nbsp;+${earned.toLocaleString()} last voyage</span>` : ''}
@@ -275,7 +275,13 @@ export class PortUI {
     card.onclick = () => this.hullAction(cls)
     // A hull out of reach is dimmed but still fully legible: reading what she
     // does is what makes her worth saving for.
-    if (!owned && !affordable) card.style.opacity = allowed ? '0.66' : '0.5'
+    if (!owned && !affordable) {
+      // Faded and drained of colour, like a page not yet inked, rather than
+      // simply see-through: transparency over the dark backdrop turned paper
+      // to mud.
+      card.style.opacity = isCel() ? (allowed ? '0.82' : '0.7') : allowed ? '0.66' : '0.5'
+      if (isCel()) card.style.filter = `saturate(${allowed ? 0.6 : 0.45})`
+    }
 
     // Relative to the Sloop, which is the tuning baseline, so the bars read as
     // "how does this differ from the honest choice". The scale runs to 2.6 so
@@ -284,8 +290,8 @@ export class PortUI {
       const scaled = Math.max(0, Math.min(1, invert ? (top - value) / top : value / top))
       return `
         <div style="display:flex;align-items:center;gap:7px;font-size:10px">
-          <span style="opacity:0.5;width:58px">${label}</span>
-          <span style="flex:1;height:5px;background:${C('rgba(255,255,255,0.13)')};border-radius:${isCel() ? 0 : 3}px;overflow:hidden">
+          <span style="color:${DIM};width:58px">${label}</span>
+          <span style="flex:1;height:${isCel() ? 6 : 5}px;background:${C('rgba(255,255,255,0.13)')};border-radius:${isCel() ? 0 : 3}px;overflow:hidden;${isCel() ? `border:1px solid ${ui().panel.ink};box-sizing:border-box` : ''}">
             <span style="display:block;height:100%;width:${scaled * 100}%;background:${accent}"></span>
           </span>
         </div>`
@@ -303,7 +309,7 @@ export class PortUI {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:${isCel() ? 21 : 17}px;font-weight:${isCel() ? 'normal' : 'bold'};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
+        <span style="font-size:${isCel() ? 21 : 17}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
         <span style="opacity:0.4;font-size:10px">${index + 1}</span>
       </div>
       <div style="font-size:11.5px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
@@ -336,7 +342,7 @@ export class PortUI {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:${isCel() ? 18 : 15}px;font-weight:${isCel() ? 'normal' : 'bold'};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
+        <span style="font-size:${isCel() ? 18 : 15}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
         <span style="opacity:0.4;font-size:10px">${index < 9 ? index + 1 : ''}</span>
       </div>
       <div>${pips}</div>

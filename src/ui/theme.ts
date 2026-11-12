@@ -21,8 +21,10 @@ export interface UiTheme {
   /** Paper or wood: text drawn over the sea needs a plaque behind it. */
   plaques: boolean
   font: {
-    /** Headings, values and anything bold. */
+    /** Values and anything bold: has to read at 12–16px. */
     display: string
+    /** Big titles only — the end card, announcements, menu headings. Can be decorative. */
+    heading: string
     /** Labels and body text. */
     body: string
     /** Size multipliers, because a serif at 11px reads smaller than a monospace. */
@@ -61,17 +63,27 @@ export interface UiTheme {
   overlay: string
   /** The menus' backdrop, and the light inks drawn straight onto it rather than onto a card. */
   menu: { backdrop: string; text: string; dim: string; gold: string; good: string; heading: string }
+  /**
+   * Section labels on panels — SAILS, CONDITION. A log book rubricated its
+   * headings in red ink; this is that, and it is what separates a label from
+   * the value under it when both are in the same face.
+   */
+  rubric: string
   /** Shipped draft-card group colours, remapped to inks that read on this panel. */
   groups: { Sailing: string; Gunnery: string; Shot: string; Quarterdeck: string }
 }
 
-const SERIF_FALLBACK = 'Georgia, "Times New Roman", serif'
+// Single-quoted names throughout: these strings go into inline style="…"
+// attributes, where a double quote ends the attribute and the face silently
+// falls back to the browser default.
+const SERIF_FALLBACK = "Georgia, 'Times New Roman', serif"
 
 const MODERN: UiTheme = {
   id: 'modern', name: 'Modern', blurb: 'Dark glass and monospace. The control.',
   plaques: false,
   font: {
     display: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    heading: 'ui-monospace, SFMono-Regular, Menlo, monospace',
     body: 'ui-monospace, SFMono-Regular, Menlo, monospace',
     displayScale: 1, bodyScale: 1, displayWeight: 'bold',
   },
@@ -84,6 +96,7 @@ const MODERN: UiTheme = {
     gun: '#ffbe6e', warn: '#ffd27f', endless: '#ff9ad5', gold: '#f0c14b',
   },
   overlay: 'rgba(4,14,24,0.74)',
+  rubric: 'rgba(255,255,255,0.55)',
   menu: {
     backdrop: 'rgba(4,14,24,0.92)', text: '#cfe6f5', dim: 'rgba(207,230,245,0.45)',
     gold: '#f0c14b', good: '#7fe0a0', heading: '#ffd98a',
@@ -93,24 +106,31 @@ const MODERN: UiTheme = {
 
 /** Ink on aged paper: a ship's log. */
 const LOG: UiTheme = {
-  id: 'log', name: "Captain's log", blurb: 'Ink on aged paper. Blackletter heads, Fell type.',
+  id: 'log', name: "Captain's log", blurb: 'Ink on paper: blackletter titles, rubricated labels, a 19th-century serif for everything read.',
   plaques: true,
+  // It used IM Fell English throughout, with blackletter for every value.
+  // Fell is thin at 11px and has old-style figures (0 and 1 read as o and I),
+  // and blackletter made "Courses" or "Beam Reach" a puzzle. Old Standard is
+  // just as period, sturdier, and has lining figures; blackletter is kept
+  // for titles, where it has room.
   font: {
-    display: `"Pirata One", ${SERIF_FALLBACK}`,
-    body: `"IM Fell English", ${SERIF_FALLBACK}`,
-    displayScale: 1.12, bodyScale: 1.14, displayWeight: 'normal',
+    display: `'Old Standard TT', ${SERIF_FALLBACK}`,
+    heading: `'Pirata One', ${SERIF_FALLBACK}`,
+    body: `'Old Standard TT', ${SERIF_FALLBACK}`,
+    displayScale: 1.02, bodyScale: 1.04, displayWeight: 'bold',
   },
   panel: {
-    fill: '#e8d6ad', shade: '#d3bb88', ink: '#3a2314', inkWidth: 2.5,
+    fill: '#f0e3c4', shade: '#dcc79a', ink: '#2a180c', inkWidth: 2.5,
     shadow: 'rgba(26,14,6,0.62)', shadowOffset: 3, corner: 6, rule: null,
   },
   ink: {
-    text: '#3a2314', accent: '#8f4a10', good: '#3b6a22', bad: '#a3241a', info: '#22506e',
-    gun: '#b5600e', warn: '#9a6400', endless: '#86306a', gold: '#8f4a10',
+    text: '#22140a', accent: '#8a3f08', good: '#2f5e18', bad: '#a01d12', info: '#1a4766',
+    gun: '#a8540a', warn: '#8a5800', endless: '#7c255f', gold: '#8a3f08',
   },
   overlay: 'rgba(20,12,6,0.5)',
+  rubric: '#9a2a17',
   menu: {
-    backdrop: 'rgba(30,19,10,0.88)', text: '#efe0bd', dim: 'rgba(239,224,189,0.55)',
+    backdrop: 'rgba(26,16,8,0.95)', text: '#efe0bd', dim: 'rgba(239,224,189,0.55)',
     gold: '#f0c14b', good: '#b5df8f', heading: '#f0c14b',
   },
   groups: { Sailing: '#22506e', Gunnery: '#b5600e', Shot: '#86306a', Quarterdeck: '#3b6a22' },
@@ -121,8 +141,9 @@ const CABIN: UiTheme = {
   id: 'cabin', name: "Captain's cabin", blurb: 'Dark wood trimmed in brass, cream lettering.',
   plaques: true,
   font: {
-    display: `"Pirata One", ${SERIF_FALLBACK}`,
-    body: `"Alegreya", ${SERIF_FALLBACK}`,
+    display: `'Pirata One', ${SERIF_FALLBACK}`,
+    heading: `'Pirata One', ${SERIF_FALLBACK}`,
+    body: `'Alegreya', ${SERIF_FALLBACK}`,
     displayScale: 1.12, bodyScale: 1.06, displayWeight: 'normal',
   },
   panel: {
@@ -134,8 +155,9 @@ const CABIN: UiTheme = {
     gun: '#ffb35c', warn: '#ffd27f', endless: '#ff9ad5', gold: '#f2c14e',
   },
   overlay: 'rgba(10,5,2,0.55)',
+  rubric: '#c9973a',
   menu: {
-    backdrop: 'rgba(18,10,5,0.9)', text: '#f4e4c1', dim: 'rgba(244,228,193,0.55)',
+    backdrop: 'rgba(18,10,5,0.95)', text: '#f4e4c1', dim: 'rgba(244,228,193,0.55)',
     gold: '#f2c14e', good: '#a7d97c', heading: '#f2c14e',
   },
   groups: { Sailing: '#9fd3e6', Gunnery: '#ffb35c', Shot: '#ff9ad5', Quarterdeck: '#a7d97c' },
@@ -146,8 +168,9 @@ const CHART: UiTheme = {
   id: 'chart', name: 'Admiralty chart', blurb: 'Navy ink on chart paper, engraved capitals, ruled borders.',
   plaques: true,
   font: {
-    display: `"Cinzel", ${SERIF_FALLBACK}`,
-    body: `"EB Garamond", ${SERIF_FALLBACK}`,
+    display: `'Cinzel', ${SERIF_FALLBACK}`,
+    heading: `'Cinzel', ${SERIF_FALLBACK}`,
+    body: `'EB Garamond', ${SERIF_FALLBACK}`,
     displayScale: 0.98, bodyScale: 1.12, displayWeight: 'bold',
   },
   panel: {
@@ -159,8 +182,9 @@ const CHART: UiTheme = {
     gun: '#c0601a', warn: '#946200', endless: '#7a2f6a', gold: '#8a5410',
   },
   overlay: 'rgba(10,18,32,0.5)',
+  rubric: '#ab2f25',
   menu: {
-    backdrop: 'rgba(14,24,40,0.9)', text: '#ece3c8', dim: 'rgba(236,227,200,0.55)',
+    backdrop: 'rgba(14,24,40,0.95)', text: '#ece3c8', dim: 'rgba(236,227,200,0.55)',
     gold: '#e8bf62', good: '#9fd49a', heading: '#ece3c8',
   },
   groups: { Sailing: '#2a5d8f', Gunnery: '#c0601a', Shot: '#7a2f6a', Quarterdeck: '#2f6b3a' },
@@ -225,7 +249,12 @@ export function C(original: string, alpha?: number): string {
   const p = parse(original)
   if (!p) return original
   const role = ROLES[`${p[0]},${p[1]},${p[2]}`]
-  const a = alpha ?? p[3]
+  let a = alpha ?? p[3]
+  // On a pale panel the faint inks the HUD was built with (55% labels, 70%
+  // secondary text) are washed out: light-on-dark tolerates low alpha far
+  // better than dark-on-light. Anything meant to be read is lifted; tracks
+  // and hairlines, below 30%, are left nearly as they were.
+  if (role && paleTheme()) a = a >= 0.3 ? 0.62 + 0.38 * a : a * 1.25
   const target = role ? parse(active.ink[role]) : p
   if (!target) return original
   if (a >= 1) return `rgb(${target[0]},${target[1]},${target[2]})`
@@ -233,6 +262,12 @@ export function C(original: string, alpha?: number): string {
 }
 
 // --- Type --------------------------------------------------------------------
+
+/** A title in the heading face, which may be decorative. */
+export function Fh(px: number): string {
+  const f = active.font
+  return `${(px * (f.heading === f.display ? f.displayScale : 1.12)).toFixed(1)}px ${f.heading}`
+}
 
 /** A canvas font string: bold is the display face, regular is the body face. */
 export function F(px: number, bold = false): string {
@@ -252,6 +287,7 @@ export function loadUiFonts(): Promise<unknown> {
   const f = active.font
   return Promise.all([
     document.fonts.load(`20px ${f.display}`),
+    document.fonts.load(`20px ${f.heading}`),
     document.fonts.load(`${f.displayWeight === 'bold' ? 'bold ' : ''}20px ${f.display}`),
     document.fonts.load(`14px ${f.body}`),
   ]).catch(() => undefined)
@@ -405,6 +441,12 @@ export function cardHoverCss(): string {
 /** CSS font-family for menu body text. */
 export function bodyFamily(): string { return active.font.body }
 export function displayFamily(): string { return active.font.display }
+export function headingFamily(): string { return active.font.heading }
+
+function paleTheme(): boolean {
+  const p = parse(active.panel.fill)
+  return !!p && (0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]) > 140
+}
 
 /** Ink for text on a card, from the menus' original light-on-dark colour. */
 export function cardInk(original: string): string { return C(original) }
@@ -429,4 +471,116 @@ export function isCel(): boolean { return active.id !== MODERN.id }
 export function panelIsLight(): boolean {
   const p = parse(active.panel.fill)
   return !!p && (0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]) > 140
+}
+
+// --- Canvas pieces shared by the HUD -------------------------------------------
+
+/**
+ * A section label. Modern draws it as it always did; the period themes draw
+ * small spaced capitals in the rubric ink, the same treatment the draft
+ * cards give their group names, so a label is never mistaken for a value.
+ */
+export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number) {
+  ctx.save()
+  ctx.fillStyle = active.rubric
+  if (active.id === MODERN.id) {
+    ctx.font = F(12)
+  } else {
+    ctx.font = F(10.5, true)
+    ctx.letterSpacing = '1.4px'
+  }
+  ctx.fillText(text, x, y)
+  ctx.restore()
+}
+
+/**
+ * A gauge: track, fill and — in a cel theme — an ink outline, so bars belong
+ * to the same inked world as the panels they sit on.
+ */
+export function bar(
+  ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
+  value: number, color: string,
+) {
+  ctx.save()
+  ctx.fillStyle = C('rgba(255,255,255,0.14)')
+  ctx.fillRect(x, y, w, h)
+  ctx.fillStyle = color
+  ctx.fillRect(x, y, w * Math.max(0, Math.min(1, value)), h)
+  if (active.id !== MODERN.id) {
+    ctx.strokeStyle = active.panel.ink
+    ctx.lineWidth = 1.2
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
+  }
+  ctx.restore()
+}
+
+/**
+ * The speed ramp, in this theme's inks. The rose's rim is the polar curve
+ * drawn in colour; on paper the original neon green-to-red was the loudest
+ * thing on screen and the only colour that belonged to no ink.
+ */
+export function ramp(mult: number, neon: (m: number) => string): string {
+  if (!paleTheme()) return neon(mult)
+  const stops = [parse(active.ink.bad)!, parse(active.ink.warn)!, parse(active.ink.good)!]
+  const m = Math.max(0, Math.min(1, mult)) * 2
+  const i = Math.min(1, Math.floor(m))
+  const t = m - i
+  const a = stops[i], b = stops[i + 1]
+  const mix = (k: number) => Math.round(a[k] + (b[k] - a[k]) * t)
+  return `rgb(${mix(0)},${mix(1)},${mix(2)})`
+}
+
+/**
+ * A key hint — "C  continue" — with the key drawn as a small inked cap in the
+ * period themes, centred as a unit on `cx`. Modern keeps its "C — continue".
+ */
+export function keyHint(ctx: CanvasRenderingContext2D, key: string, text: string, cx: number, y: number) {
+  ctx.save()
+  ctx.textBaseline = 'middle'
+  if (active.id === MODERN.id) {
+    ctx.textAlign = 'center'
+    ctx.fillText(`${key} — ${text}`, cx, y)
+    ctx.restore()
+    return
+  }
+  const color = ctx.fillStyle
+  ctx.textAlign = 'left'
+  const kw = Math.max(20, ctx.measureText(key).width + 12)
+  const tw = ctx.measureText(text).width
+  const total = kw + 10 + tw
+  const x = cx - total / 2
+  ctx.fillStyle = active.panel.ink
+  ctx.fillRect(x + 2, y - 10, kw, 20)
+  ctx.fillStyle = active.panel.fill
+  ctx.fillRect(x, y - 12, kw, 20)
+  ctx.strokeStyle = active.panel.ink
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(x, y - 12, kw, 20)
+  ctx.fillStyle = active.panel.ink
+  ctx.textAlign = 'center'
+  ctx.fillText(key, x + kw / 2, y - 2)
+  ctx.textAlign = 'left'
+  ctx.fillStyle = color
+  ctx.fillText(text, x + kw + 10, y)
+  ctx.restore()
+}
+
+/** Text over the open sea with no panel: a pale fill inside a dark ink halo, as a chart labels water. */
+export function seaLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string) {
+  ctx.save()
+  if (active.id !== MODERN.id) {
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 3
+    ctx.strokeStyle = active.panel.ink
+    ctx.strokeText(text, x, y)
+  }
+  ctx.fillStyle = color
+  ctx.fillText(text, x, y)
+  ctx.restore()
+}
+
+/** Sentence case for the period themes: blackletter in all capitals is unreadable. */
+export function titleCase(text: string): string {
+  if (active.id === MODERN.id) return text
+  return text.charAt(0) + text.slice(1).toLowerCase()
 }

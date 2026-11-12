@@ -162,7 +162,7 @@ style: `?ui=` or `\` in game, defined in `src/ui/theme.ts`.
 
 | Theme | Look |
 |---|---|
-| `log` (default) | Ink on aged paper. Pirata One heads, IM Fell English body |
+| `log` (default) | Ink on paper. Pirata One titles, Old Standard TT for everything read |
 | `cabin` | Dark wood trimmed in brass, cream lettering. Pirata One, Alegreya |
 | `chart` | Navy ink on chart paper, ruled borders. Cinzel, EB Garamond |
 | `modern` | The original dark glass and monospace, kept as the control |
@@ -174,8 +174,30 @@ on water. The HUD's original colours are remapped by hue per theme, keeping thei
 its 55% labels and 14% tracks keep their hierarchy as dark ink on paper. Fonts are bundled
 through `@fontsource`, not fetched from a CDN.
 
-Not themed: the tuning panel and key legend (developer chrome), and everything drawn on the
-water itself — enemy labels and bars, gun arcs, pickup colours.
+Not themed: the tuning panel itself (developer chrome), gun arcs and pickup colours.
 
-IM Fell English has old-style figures, so `0` and `1` in the log theme look like `o` and
-`I`. That is period-correct and the first thing to change if it reads badly in play.
+### Captain's log: the rules
+
+The default theme, after a critique pass. These are what keep it one thing:
+
+- **Two faces, two jobs.** Blackletter (Pirata One) only for titles with room: the end
+  card, announcements, "In port", "Choose an upgrade". Never in capitals, which in
+  blackletter is unreadable. Everything that must be read at 11–16px is Old Standard TT, a
+  19th-century serif with lining figures. It replaced IM Fell English, whose thin strokes and
+  old-style figures (`0` and `1` as `o` and `I`) were the main readability complaint.
+- **Rubrication.** Section labels (SAILS, CONDITION, REMAINING) and eyebrows (PIRATES,
+  LEVEL) are small spaced capitals in red ink, as a log book rubricated its headings. The
+  draft cards' group labels already worked this way, so the HUD now matches them.
+- **Everything inked.** Panels, cards, bars, key caps and compass all carry the same dark
+  ink outline and hard offset shadow. A bare rectangle anywhere reads as a mistake.
+- **Inks, not colours.** Iron-gall brown for text, red for danger and rubrics, navy, green
+  and ochre for meaning. The compass's speed ramp runs red-ochre-green in those inks rather
+  than neon.
+- **Paper is pale, so ink is dark.** Faint inks the HUD was built with (55% labels) are lifted
+  on paper (`C()` raises any alpha over 0.3), since dark-on-light tolerates far less
+  transparency than light-on-dark.
+- **The sea is lettered like a chart.** Text drawn on the water with no panel behind it
+  (enemy names) is pale type in a dark ink halo.
+- **Menus are pages.** Port and the draft sit on a near-opaque backdrop, and banners and the
+  key legend are hidden under them rather than bleeding through.
+- **Locked is unprinted, not transparent.** A hull out of reach is faded and desaturated.

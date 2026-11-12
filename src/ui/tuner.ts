@@ -8,7 +8,7 @@ import { freshCareer, owns, priceOf, type Ledger } from '../meta/career'
 import { FEATS } from '../meta/feats'
 import { P } from '../render/palette'
 import { H } from '../render/hullStyle'
-import { ui } from './theme'
+import { C, bodyFamily, cardCss, isCel, ui } from './theme'
 
 const STORAGE_KEY = 'pirates2d.tuning.v2'
 const TAB_KEY = 'pirates2d.tuning.tab'
@@ -111,20 +111,27 @@ export class Tuner {
     // The three look switches name what they switch and what is showing,
     // since a key labelled only "style" says nothing about which style.
     const look = (key: string, what: string, name: string) =>
-      `${key} ${what}: <span style="color:rgba(207,230,245,0.95)">${name}</span>`
+      `${key} ${what}: <span style="color:${isCel() ? ui().panel.ink : 'rgba(207,230,245,0.95)'};font-weight:bold">${name}</span>`
     legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ' +
       `${look(']', 'sea', P().name)} &middot; ${look('[', 'hull', H().name)} &middot; ${look('U', 'ui', ui().name)} &middot; ` +
       'P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
     const toggle = document.createElement('button')
     toggle.innerHTML = '&#9881; Tune <span style="opacity:0.55">(`)</span>'
-    toggle.style.cssText = `
-      background: rgba(6,18,30,0.92); color: #9fe8ff;
-      border: 1px solid rgba(159,232,255,0.4); border-radius: 4px;
-      padding: 6px 11px; cursor: pointer; font: inherit; white-space: nowrap;
-    `
+    // The strip along the bottom is on screen the whole time, so in a period
+    // theme it is a paper label like every other panel rather than a lone
+    // piece of dark glass in monospace.
+    const cel = isCel()
+    toggle.style.cssText = cel
+      ? `${cardCss()} color: ${ui().panel.ink}; padding: 5px 11px; cursor: pointer;
+         font: 13px ${bodyFamily()}; white-space: nowrap;`
+      : `background: rgba(6,18,30,0.92); color: #9fe8ff;
+         border: 1px solid rgba(159,232,255,0.4); border-radius: 4px;
+         padding: 6px 11px; cursor: pointer; font: inherit; white-space: nowrap;`
     toggle.onclick = () => this.toggle()
     // Backed, because over a pale sea (the ink palette) bare text vanished.
-    legend.style.cssText = 'background:rgba(6,18,30,0.72);padding:4px 9px;border-radius:4px'
+    legend.style.cssText = cel
+      ? `${cardCss()} color: ${C('rgba(255,255,255,0.75)')}; padding: 4px 10px; font: 12.5px ${bodyFamily()};`
+      : 'background:rgba(6,18,30,0.72);padding:4px 9px;border-radius:4px'
     this.launcher.append(legend, toggle)
     document.body.appendChild(this.launcher)
 
@@ -178,6 +185,12 @@ export class Tuner {
     this.refreshBench()
     this.refreshCareer()
     this.root.scrollTop = 0
+  }
+
+  /** The key legend is for play; over port or the draft it only covers the cards. */
+  set legendVisible(on: boolean) {
+    const legend = this.launcher.firstElementChild as HTMLElement | null
+    if (legend) legend.style.visibility = on ? 'visible' : 'hidden'
   }
 
   toggle() {

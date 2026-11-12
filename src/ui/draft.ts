@@ -1,4 +1,4 @@
-import { C, bodyFamily, cardCss, cardHoverCss, displayFamily, isCel, ui } from './theme'
+import { C, bodyFamily, cardCss, cardHoverCss, displayFamily, headingFamily, isCel, ui } from './theme'
 import { isCommitting, type Upgrade } from '../sim/upgrades'
 import { describeStats, type Stat, type StatGroup } from '../sim/stats'
 import type { Ship } from '../sim/ship'
@@ -84,8 +84,8 @@ export class DraftUI {
 
     const heading = document.createElement('div')
     heading.innerHTML = `
-      <div style="color:${M.heading};font-size:${isCel() ? 16 : 13}px;letter-spacing:3px;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
-      <div style="color:${M.text};font-size:${isCel() ? 32 : 20}px;margin:6px 0 26px;text-align:center;font-family:${displayFamily()}">Choose an upgrade</div>`
+      <div style="color:${M.heading};font-size:${isCel() ? 16 : 13}px;letter-spacing:3px;font-weight:bold;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
+      <div style="color:${M.text};font-size:${isCel() ? 32 : 20}px;margin:6px 0 26px;text-align:center;font-family:${headingFamily()}">Choose an upgrade</div>`
     this.root.appendChild(heading)
 
     const row = document.createElement('div')
@@ -172,7 +172,7 @@ export class DraftUI {
         <span style="color:${color};font-size:10px;letter-spacing:1.5px">${u.group.toUpperCase()}</span>
         <span style="opacity:0.4;font-size:10px">${i + 1}</span>
       </div>
-      <div style="font-size:${isCel() ? 21 : 16}px;font-weight:${isCel() ? 'normal' : 'bold'};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
+      <div style="font-size:${isCel() ? 21 : 16}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
       <div style="font-size:12px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
       ${footer}
       <div style="font-size:10px;opacity:0.5">
