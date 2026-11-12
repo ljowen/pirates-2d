@@ -194,6 +194,11 @@ export class Tuner {
     this.root.scrollTop = 0
   }
 
+  /** The key legend and the Tune button. Hidden for players, who are not shown developer tools. */
+  set launcherVisible(on: boolean) {
+    this.launcher.style.display = on ? 'flex' : 'none'
+  }
+
   /** The palette changed with the location: name the new one in the key legend. */
   themeChanged() {
     const name = this.launcher.querySelector('[data-look="sea"]')

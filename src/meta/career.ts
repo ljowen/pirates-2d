@@ -6,6 +6,7 @@ import {
   type Refit, type Voyage,
 } from '../sim/voyage'
 import { FEATS, FEATS_BY_ID, type Feat } from './feats'
+import { LEVELS, LEVELS_BY_ID, type Level } from '../sim/levels'
 
 /**
  * What outlives a voyage.
@@ -46,6 +47,12 @@ export interface Career {
   beaten: number
   /** The hull last taken to sea, so the quayside can offer her again. */
   lastHull: string
+  /** The chart the next voyage will be sailed on, by level id. */
+  chart: string
+  /** The most doubloons one voyage has banked on each chart. The thing to beat. */
+  best: Record<string, number>
+  /** What each hull was christened, by hull id. Given the first time she is sailed. */
+  names: Record<string, string>
 }
 
 /** Doubloons paid per point of plunder hauled aboard. */
@@ -62,10 +69,37 @@ export function freshCareer(): Career {
     doubloons: 0, lifetime: 0, hulls: [SLOOP.id], refits: {}, feats: [],
     notoriety: 0, notorietyMax: 0,
     voyages: 0, completed: 0, bestSeconds: 0, beaten: 0, lastHull: SLOOP.id,
+    chart: LEVELS[0].id, best: {}, names: {},
   }
 }
 
 // --- Reading a career ---------------------------------------------------------
+
+/** Charts are earned by what a captain has banked over the whole career, never spent. */
+export function chartOpen(career: Career, level: Level): boolean {
+  return career.lifetime >= level.unlock
+}
+
+/** The chart the next voyage is on: the one chosen, if it is still open, else the first. */
+export function chartOf(career: Career): Level {
+  const chosen = LEVELS_BY_ID.get(career.chart)
+  return chosen && chartOpen(career, chosen) ? chosen : LEVELS[0]
+}
+
+const NAME_FIRST = [
+  'Saucy', 'Merry', 'Black', 'Salty', 'Lucky', 'Bonny', 'Rusty', 'Grey', 'Jolly', 'Bold',
+  'Wicked', 'Golden', 'Crimson', 'Idle', 'Drunken', 'Royal', 'Sly', 'Storm', 'Sea', 'Lady',
+]
+const NAME_SECOND = [
+  'Gull', 'Marlin', 'Widow', 'Rose', 'Kraken', 'Pelican', 'Wench', 'Fortune', 'Revenge',
+  'Dolphin', 'Otter', 'Magpie', 'Heron', 'Tide', 'Lark', 'Cutlass', 'Nancy', 'Mermaid',
+]
+
+/** A name for a new ship. Two short words, so it fits a panel and sticks in the head. */
+export function christen(): string {
+  const pick = (from: string[]) => from[Math.floor(Math.random() * from.length)]
+  return `${pick(NAME_FIRST)} ${pick(NAME_SECOND)}`
+}
 
 export function hasFeat(career: Career, id: string | undefined): boolean {
   return id === undefined || career.feats.includes(id)
@@ -177,6 +211,9 @@ export class Ledger {
   readonly news: Feat[] = []
   /** Set when the voyage in progress opened a new rung of notoriety. */
   rung = 0
+  /** The best this chart had seen when the voyage began, and whether this one beat it. */
+  mark = 0
+  bestBeaten = false
 
   constructor(readonly career: Career, private readonly persist: (c: Career) => void) {}
 
@@ -192,8 +229,14 @@ export class Ledger {
     this.finished = false
     this.news.length = 0
     this.rung = 0
+    this.mark = this.career.best[chartOf(this.career).id] ?? 0
+    this.bestBeaten = false
     if (this.career.lastHull !== cls.id) {
       this.career.lastHull = cls.id
+      this.persist(this.career)
+    }
+    if (!this.career.names[cls.id]) {
+      this.career.names[cls.id] = christen()
       this.persist(this.career)
     }
   }
@@ -246,8 +289,30 @@ export class Ledger {
       career.lifetime += gained
       dirty = true
     }
+    // The best single voyage on this chart, which is the figure a returning
+    // captain is asked to beat.
+    const chart = chartOf(career).id
+    if (this.paid > 0 && this.paid > (career.best[chart] ?? 0)) {
+      career.best[chart] = this.paid
+      // Only a best if there was one to beat: a first voyage just sets the mark.
+      this.bestBeaten = this.mark > 0
+      dirty = true
+    }
     if (dirty) this.persist(career)
     return gained
+  }
+
+  /** The chart to sail next. Ignored if the captain has not earned it. */
+  setChart(id: string) {
+    const level = LEVELS_BY_ID.get(id)
+    if (!level || !chartOpen(this.career, level) || this.career.chart === id) return
+    this.career.chart = id
+    this.persist(this.career)
+  }
+
+  /** What the hull about to be sailed, or being sailed, is called. */
+  shipName(cls: ShipClass): string {
+    return this.career.names[cls.id] ?? cls.name
   }
 
   /** Pay for a hull. Returns false, and changes nothing, if she cannot be had. */
@@ -338,6 +403,17 @@ export function loadCareer(): Career {
     }
     if (typeof saved.lastHull === 'string' && career.hulls.includes(saved.lastHull)) {
       career.lastHull = saved.lastHull
+    }
+    if (typeof saved.chart === 'string' && LEVELS_BY_ID.has(saved.chart)) career.chart = saved.chart
+    if (saved.best && typeof saved.best === 'object') {
+      for (const [id, haul] of Object.entries(saved.best)) {
+        if (LEVELS_BY_ID.has(id)) career.best[id] = count(haul)
+      }
+    }
+    if (saved.names && typeof saved.names === 'object') {
+      for (const [id, name] of Object.entries(saved.names)) {
+        if (hulls.has(id) && typeof name === 'string' && name.length <= 24) career.names[id] = name
+      }
     }
   } catch {
     // Unreadable storage is the same as none: start a new career.

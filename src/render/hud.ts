@@ -11,6 +11,7 @@ import { draughtDepth } from '../sim/terrain'
 import { outmatches, toKnots } from '../sim/stats'
 import { iconImage } from '../ui/icons'
 import { Minimap } from './minimap'
+import { Coach } from '../ui/coach'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
 import {
@@ -35,6 +36,10 @@ const ROW = 22
 
 export class Hud {
   private readonly minimap = new Minimap()
+  private readonly coach = new Coach()
+  /** What the player's ship is called, when the career has named her. */
+  private shipName: string | null = null
+  private lastDraw = 0
 
   constructor(private readonly ctx: CanvasRenderingContext2D) {}
 
@@ -47,6 +52,7 @@ export class Hud {
     const ctx = this.ctx
     const w = ctx.canvas.clientWidth
     const player = world.player
+    this.shipName = ledger ? ledger.shipName(player.cls) : null
 
     this.drawGunArcs(world, camera)
     this.drawEnemyMarkers(world, camera)
@@ -82,8 +88,24 @@ export class Hud {
     if (world.run.state === 'won') this.endCard(world, true, ledger)
     else if (world.run.state === 'lost') this.endCard(world, false, ledger)
     else if (menu) { /* nothing over a menu */ }
-    else if (paused) this.banner('PAUSED', C('#ffd27f'), 150)
+    else if (paused) this.pausePanel(w)
     else if (turbo) this.banner('TURBO', C('#7fe0a0'), 150)
+
+    // Sailing orders: one line under the clock, when there is something a new
+    // captain needs to hear. Not while paused, when the panel says it all.
+    const now = performance.now()
+    const dt = Math.min(0.1, (now - this.lastDraw) / 1000)
+    this.lastDraw = now
+    const order = menu || paused ? null : this.coach.update(world, dt)
+    if (order && world.director.announcementTime <= 0) {
+      ctx.save()
+      ctx.globalAlpha = order.alpha
+      ctx.font = F(15, true)
+      ctx.textAlign = 'center'
+      ctx.fillStyle = ui().panel.ink
+      plaque(ctx, order.text, w / 2, 126)
+      ctx.restore()
+    }
 
     // Boss waves get called out, because three Brigantines appearing over the
     // horizon with no warning is just a sudden death.
@@ -539,7 +561,7 @@ export class Hud {
     label(ctx, 'CONDITION', IN, 12)
     ctx.textAlign = 'right'
     ctx.fillStyle = C('rgba(255,217,138,0.8)')
-    ctx.fillText(ship.cls.name, PW - IN, 10)
+    ctx.fillText(this.shipName ?? ship.cls.name, PW - IN, 10)
     ctx.textAlign = 'left'
 
     const bars: [string, number, string][] = [
@@ -674,6 +696,30 @@ export class Hud {
     ctx.restore()
   }
 
+  /** Paused: the word, and under it every key a player has, since this is where they look for them. */
+  private pausePanel(w: number) {
+    const ctx = this.ctx
+    const rows: [string, string][] = [
+      ['← →', 'steer'], ['↑ ↓', 'make or shorten sail'], ['+ −', 'zoom, or the mouse wheel'],
+      ['M', 'sound on or off'], ['P', 'carry on'], ['R', 'give up the voyage and make port'],
+    ]
+    const top = 150
+    const height = 74 + rows.length * 30
+    ctx.save()
+    ctx.fillStyle = ui().overlay
+    ctx.fillRect(0, 0, w, ctx.canvas.clientHeight)
+    panel(ctx, w / 2 - 220, top, 440, height)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = Fh(38)
+    ctx.fillStyle = ui().panel.ink
+    ctx.fillText('Paused', w / 2, top + 38)
+    ctx.font = F(14)
+    ctx.fillStyle = C('rgba(255,255,255,0.85)')
+    rows.forEach(([key, what], i) => keyHint(ctx, key, what, w / 2, top + 84 + i * 30))
+    ctx.restore()
+  }
+
   private banner(text: string, color: string, y = 56) {
     const ctx = this.ctx
     ctx.save()
@@ -766,6 +812,13 @@ export class Hud {
     const gap = (height: number) => lines.push({ text: '', font: '', color: '', height })
 
     add(titleCase(won ? 'VOYAGE COMPLETE' : 'SUNK'), Fh(46), won ? C('#7fe0a0') : C('#ff7a6b'), 60)
+    if (ledger) {
+      // A line for the ship herself. Chosen from what the voyage was, so it
+      // is the same line for as long as the card is up.
+      const said = won ? HOMECOMINGS : EPITAPHS
+      const pick = said[(Math.floor(run.elapsed) + run.shipsSunk * 7 + run.level * 3) % said.length]
+      add(pick.replace('%s', `The ${ledger.shipName(world.player.cls)}`), F(15), C('rgba(255,255,255,0.75)'), 28)
+    }
     add(
       `survived ${stamp(run.elapsed)}   ·   ${run.shipsSunk} sunk   ·   ` +
         `${run.shipsTaken} taken   ·   level ${run.level}`,
@@ -788,6 +841,11 @@ export class Hud {
       const feats = ledger.news.reduce((sum, f) => sum + f.bounty, 0)
       if (feats > 0) parts.push(`${feats.toLocaleString()} feats`)
       add(`+${ledger.earned.toLocaleString()} doubloons`, F(20, true), C('#f0c14b'), 28)
+      if (ledger.bestBeaten) {
+        add(`A new best for ${world.level.name}, up from ${ledger.mark.toLocaleString()}`, F(14, true), C('#7fe0a0'), 22)
+      } else if (ledger.mark > 0) {
+        add(`best on ${world.level.name}: ${ledger.mark.toLocaleString()}`, F(14), C('rgba(255,255,255,0.6)'), 22)
+      }
       if (parts.length > 1) add(parts.join('  +  '), F(13), C('rgba(255,255,255,0.7)'), 22)
       for (const feat of ledger.news) {
         add(
@@ -839,16 +897,35 @@ export class Hud {
     ctx.fillStyle = C('rgba(255,255,255,0.85)')
     const ky = y + keysHeight / 2
     if (won) {
-      keyHint(ctx, 'C', 'sail on, endless', cx - 120, ky)
-      keyHint(ctx, 'R', 'make port', cx + 120, ky)
+      keyHint(ctx, 'C', 'sail on, endless', cx - 130, ky)
+      keyHint(ctx, 'Enter', 'make port', cx + 130, ky)
     } else {
-      keyHint(ctx, 'R', 'make port', cx, ky)
+      keyHint(ctx, 'Enter', 'make port', cx, ky)
     }
     ctx.restore()
   }
 }
 
 /** Keep names inside the panel; the pips carry the rest of the meaning. */
+/** Said of a ship that did not come back. `%s` is her name. */
+const EPITAPHS = [
+  '%s went down with her colours flying.',
+  '%s is on the bottom, and the fish have her biscuit.',
+  '%s was a good ship, mostly.',
+  'They will say %s gave as good as she got. They were not there.',
+  '%s is lost. The purse, happily, floats.',
+  'No more of %s. The crew swam; the captain was last off, eventually.',
+  '%s sank as she lived: on fire and arguing.',
+]
+
+/** Said of one that did. */
+const HOMECOMINGS = [
+  '%s is home, low in the water and loud about it.',
+  '%s came in under full sail with nothing left to prove.',
+  'Every hand aboard %s will be drinking on this for a year.',
+  '%s made port. Somebody else did not.',
+]
+
 function shortName(name: string): string {
   const trimmed = name.replace(/^(Another|Ship's)\s+/, (m) => m.trim() === 'Another' ? '+1 ' : '')
   return trimmed.length > 14 ? `${trimmed.slice(0, 13)}…` : trimmed

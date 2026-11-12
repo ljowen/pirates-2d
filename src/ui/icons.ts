@@ -168,6 +168,10 @@ const SHAPES: Record<string, string> = {
     `<path d="M16.2 19V3" stroke-width="2.4"/>` +
     `<path d="M3 20h26l-4.5 7.500h-17z" fill="${WOOD}"/>`,
   refit: hammer,
+  chart:
+    `<path d="M3 7.5l8.5-3 9 3 8.5-3v20l-8.5 3-9-3-8.5 3z" fill="${CANVAS}"/>` +
+    `<path d="M11.5 4.500v20M20.5 7.500v20" stroke-width="1.4"/>` +
+    `<path d="M13.5 12.500l4 4M17.5 12.500l-4 4" stroke="${RED}" stroke-width="2.2"/>`,
   log:
     `<path d="M16 8C12 5 8 5 3.5 6v19.500c4.5-1 8.5-1 12.5 2 4-3 8-3 12.5-2V6C24 5 20 5 16 8z" fill="${CANVAS}"/>` +
     `<path d="M16 8v19.5" /><path d="M7 11.500c2-.4 4-.2 6 .6M7 16c2-.4 4-.2 6 .6M19 12.100c2-.8 4-1 6-.6M19 16.600c2-.8 4-1 6-.6" stroke-width="1.3"/>`,

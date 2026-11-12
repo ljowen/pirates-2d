@@ -104,7 +104,7 @@ export class Minimap {
 }
 
 /** The land of a map, once, at `px` pixels a side. */
-function paintChart(map: TerrainMap, size: number, px: number): HTMLCanvasElement {
+export function paintChart(map: TerrainMap, size: number, px: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = px
   const ctx = canvas.getContext('2d')!

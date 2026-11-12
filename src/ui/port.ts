@@ -4,16 +4,21 @@ import { PLAYER_CLASSES, type ShipClass } from '../sim/shipClasses'
 import {
   difficultyFor, notorietyName, refitCost, REFITS, type Refit,
 } from '../sim/voyage'
-import { canAfford, owns, permitted, priceOf, type Ledger } from '../meta/career'
+import { canAfford, chartOf, chartOpen, owns, permitted, priceOf, type Ledger } from '../meta/career'
+import { LEVELS, type Level } from '../sim/levels'
+import { paintChart } from '../render/minimap'
+import { PALETTES } from '../render/palette'
+import { SLOOP } from '../sim/shipClasses'
 import { FEATS, FEATS_BY_ID } from '../meta/feats'
 import {
   C, bodyFamily, callCss, cardPressedCss, keyCss, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, quietCss, ui,
 } from './theme'
 
-type Tab = 'yard' | 'refit' | 'log'
+type Tab = 'yard' | 'refit' | 'chart' | 'log'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'yard', label: 'Shipyard' },
   { id: 'refit', label: 'Refits' },
+  { id: 'chart', label: 'Charts' },
   { id: 'log', label: "Captain's log" },
 ]
 
@@ -79,6 +84,17 @@ export class PortUI {
         this.render()
         return
       }
+      if (this.welcoming) {
+        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.hullAction(SLOOP) }
+        return
+      }
+      // Enter sails the hull last taken out, so going again is one key.
+      if (e.code === 'Enter') {
+        e.preventDefault()
+        const last = PLAYER_CLASSES.find((c) => c.id === this.ledger.career.lastHull)
+        if (last && owns(this.ledger.career, last)) this.hullAction(last)
+        return
+      }
       const digit = /^Digit([1-9])$/.exec(e.code)
       if (!digit) return
       e.preventDefault()
@@ -92,6 +108,9 @@ export class PortUI {
       } else if (this.tab === 'refit') {
         const refit = REFITS[index]
         if (refit) this.buyRefit(refit)
+      } else if (this.tab === 'chart') {
+        const level = LEVELS[index]
+        if (level) this.chooseChart(level)
       }
     })
   }
@@ -141,10 +160,114 @@ export class PortUI {
     }
   }
 
+  /** A captain who has never sailed is shown the welcome, until they sail or ask for the port. */
+  private skippedWelcome = false
+  private get welcoming(): boolean {
+    return this.ledger.career.voyages === 0 && !this.skippedWelcome
+  }
+
+  /**
+   * The first thing a new player sees: what the game is, the three things
+   * about sailing that are not obvious, and one key to be at sea. The port
+   * proper, with its seven hulls and their prices, means nothing to someone
+   * who has not yet sailed, so it waits until they have.
+   */
+  private renderWelcome() {
+    const key = (k: string) => `<span style="${keyCss()};color:${ui().panel.ink};display:inline-block;padding:1px 8px;margin:0 2px;font-weight:bold">${k}</span>`
+    const order = (head: string, body: string) => `
+      <div style="display:flex;gap:14px;align-items:baseline;margin:10px 0">
+        <span style="color:${ui().rubric};letter-spacing:1.5px;font-size:14px;width:128px;flex:none">${head}</span>
+        <span style="font-size:15px;line-height:1.55">${body}</span>
+      </div>`
+    const sheet = el('div', `${cardCss()} color:${INK}; width:min(640px, calc(100% - 40px)); box-sizing:border-box;
+      padding:30px 34px 26px; margin:auto 0; text-align:left`)
+    sheet.innerHTML = `
+      <div style="text-align:center">
+        <div style="font-family:${headingFamily()};font-size:64px;line-height:1;color:${INK}">Pirates</div>
+        <div style="font-size:15px;opacity:0.75;margin:10px 0 20px">
+          Five minutes of sea, a small ship, and everyone else has more guns than you.
+        </div>
+      </div>
+      ${order('THE WIND', `You cannot sail straight into it. ${key('&larr;')}${key('&rarr;')} steer; keep the wind on your side or behind you.`)}
+      ${order('THE SAILS', `${key('&uarr;')} makes sail, ${key('&darr;')} takes it in. With every sail furled you stop, and the crew mends the ship.`)}
+      ${order('THE GUNS', 'They fire by themselves. Turn side-on to an enemy and the broadside goes when she is in the arc.')}
+      ${order('THE PLUNDER', 'Sail over what a beaten ship leaves behind. It is banked as doubloons even if you sink.')}
+      <div style="text-align:center;margin-top:22px">
+        <button data-sail style="${callCss()};font:inherit;font-size:17px;font-weight:bold;cursor:pointer;padding:9px 26px;border-radius:5px">
+          Set sail &nbsp;${key('Enter')}
+        </button>
+        <div style="margin-top:14px"><button data-port style="background:none;border:none;font:inherit;font-size:14px;
+          color:${INK};opacity:0.6;cursor:pointer;text-decoration:underline">or look round the port first</button></div>
+      </div>`
+    ;(sheet.querySelector('[data-sail]') as HTMLButtonElement).onclick = () => this.hullAction(SLOOP)
+    ;(sheet.querySelector('[data-port]') as HTMLButtonElement).onclick = () => { this.skippedWelcome = true; this.render() }
+    this.root.appendChild(sheet)
+  }
+
+  private chooseChart(level: Level) {
+    if (!chartOpen(this.ledger.career, level)) { this.onSound('refuse'); return }
+    this.ledger.setChart(level.id)
+    this.onSound('flick')
+    this.render()
+  }
+
+  /** A location: its chart, what it is like, the best haul there, or what earns it. */
+  private chartCard(level: Level, index: number): HTMLButtonElement {
+    const career = this.ledger.career
+    const open = chartOpen(career, level)
+    const chosen = chartOf(career).id === level.id
+    const card = cardShell('#f0c14b', open)
+    card.dataset.chart = level.id
+    card.dataset.state = chosen ? 'chosen' : open ? 'open' : 'locked'
+    card.style.width = '216px'
+    if (chosen) card.style.outline = `3px solid ${ui().ink.accent}`
+    if (!open) card.style.filter = 'saturate(0.4) brightness(0.86)'
+    card.onclick = () => this.chooseChart(level)
+
+    const theme = PALETTES.find((p) => p.id === level.theme)?.name ?? ''
+    const best = career.best[level.id] ?? 0
+    const footer = chosen
+      ? `<div style="margin-top:6px;font-size:14px;color:${GOOD};text-align:center;font-weight:bold">sailing here next</div>`
+      : open
+        ? plate('Sail here', true)
+        : plate(`${level.unlock.toLocaleString()} doubloons banked, ever<br>
+            <span style="opacity:0.7">${(level.unlock - career.lifetime).toLocaleString()} to go</span>` +
+            progress(career.lifetime / level.unlock), false)
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:24px;line-height:1;font-family:${headingFamily()};color:${WHITE}">${level.name}</span>
+        <span style="opacity:0.4;font-size:14px">${index + 1}</span>
+      </div>
+      <div data-chart-art style="border:2px solid ${ui().panel.ink};border-radius:4px;overflow:hidden;height:184px;
+        display:flex;align-items:center;justify-content:center;background:#b9cfd0;color:${INK};font-size:14px"></div>
+      <div style="font-size:14px;line-height:1.5;opacity:0.78;min-height:63px">${level.blurb}</div>
+      <div style="font-size:14px;display:flex;justify-content:space-between;gap:8px">
+        <span style="color:${DIM}">${theme}</span>
+        <span style="white-space:nowrap">${best > 0 ? `best ${best.toLocaleString()}` : open ? 'new' : ''}</span>
+      </div>${footer}`
+    const art = card.querySelector('[data-chart-art]') as HTMLElement
+    if (level.map) {
+      let canvas = chartArt.get(level.id)
+      if (!canvas) {
+        canvas = paintChart(level.map, level.size, 368)
+        chartArt.set(level.id, canvas)
+      }
+      // A canvas can only be in one place, and the cards are rebuilt on every change.
+      const img = document.createElement('img')
+      img.src = canvas.toDataURL()
+      img.style.cssText = 'width:184px;height:184px;display:block'
+      art.appendChild(img)
+    } else {
+      art.innerHTML = '<span style="opacity:0.6;text-align:center;line-height:1.6">uncharted<br>different every voyage</span>'
+    }
+    return card
+  }
+
   /** Rebuilt whole after any change: a screenful of cards is cheaper to redraw than to patch. */
   private render() {
     const career = this.ledger.career
     this.root.innerHTML = ''
+    if (this.welcoming) { this.renderWelcome(); return }
 
     const earned = this.ledger.earned
     const head = el('div', 'text-align:center')
@@ -193,6 +316,8 @@ export class PortUI {
       for (const [i, cls] of PLAYER_CLASSES.entries()) body.appendChild(this.hullCard(cls, i))
     } else if (this.tab === 'refit') {
       for (const [i, refit] of REFITS.entries()) body.appendChild(this.refitCard(refit, i))
+    } else if (this.tab === 'chart') {
+      for (const [i, level] of LEVELS.entries()) body.appendChild(this.chartCard(level, i))
     } else {
       body.style.flexDirection = 'column'
       body.style.gap = '6px'
@@ -206,7 +331,9 @@ export class PortUI {
       ? 'click or press 1–7 to sail or buy  ·  Tab changes page'
       : this.tab === 'refit'
         ? 'click or press 1–9 to buy a rank  ·  refits apply to every hull  ·  Tab changes page'
-        : 'Tab changes page'
+        : this.tab === 'chart'
+          ? 'click or press 1–5 to choose where to sail  ·  charts are earned by doubloons banked, ever  ·  Tab changes page'
+          : 'Tab changes page'
     this.root.appendChild(hint)
   }
 
@@ -221,6 +348,8 @@ export class PortUI {
         return held < r.maxRank && career.doubloons >= refitCost(r, held)
       }).length
     }
+    // A chart earned and never yet sailed is worth a nudge too.
+    if (tab === 'chart') n = LEVELS.filter((l) => chartOpen(career, l) && !(career.best[l.id] > 0) && chartOf(career).id !== l.id).length
     return n > 0 ? `  (${n})` : ''
   }
 
@@ -334,7 +463,8 @@ export class PortUI {
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span style="font-size:26px;line-height:1;font-family:${headingFamily()};color:${WHITE}">${cls.name}</span>
         <span style="opacity:0.4;font-size:14px">${index + 1}</span>
-      </div>
+      </div>${career.names[cls.id]
+        ? `<div style="font-size:14px;margin-top:-4px;color:${DIM}">the <i>${career.names[cls.id]}</i></div>` : ''}
       <div style="border:2px solid ${ui().panel.ink};border-radius:4px;overflow:hidden">${shipPortrait(cls, 204, 92)}</div>
       <div style="font-size:14px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:2px">
@@ -402,6 +532,9 @@ export class PortUI {
     return row
   }
 }
+
+/** Each chart, painted once and kept. */
+const chartArt = new Map<string, HTMLCanvasElement>()
 
 function el(tag: string, css: string): HTMLElement {
   const node = document.createElement(tag)

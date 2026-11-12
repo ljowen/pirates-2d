@@ -74,6 +74,7 @@ export class Input {
       case 'BracketLeft': return 'hullNext'
       case 'KeyM': return 'mute'
       case 'KeyC': return 'continue'
+      case 'Enter': return 'confirm'
       default: return null
     }
   }

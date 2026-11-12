@@ -28,17 +28,13 @@ import { benchmark, simulateRun, autoPilot } from './dev/testPilot'
 import { Audio } from './audio/audio'
 import { AudioDirector } from './audio/director'
 import { T } from './sim/tuning'
-import { Ledger, loadCareer, saveCareer, freshCareer, voyageOf } from './meta/career'
+import { Ledger, chartOf, loadCareer, saveCareer, freshCareer, voyageOf } from './meta/career'
 
-const LEVEL_KEY = 'pirates2d.level'
-
-/** The location to sail: `?level=` in the address, else the last one chosen, else the first. */
-function chosenLevel() {
-  const asked = /[?&]level=([\w-]+)/.exec(window.location.search)?.[1]
-  let saved: string | null = null
-  try { saved = localStorage.getItem(LEVEL_KEY) } catch { /* no storage */ }
-  return LEVELS_BY_ID.get(asked ?? '') ?? LEVELS_BY_ID.get(saved ?? '')
-}
+/**
+ * Developer tools: the tuning panel, the debug overlay, the keys that spawn
+ * things and switch looks. On with `?dev` in the address, off for players.
+ */
+const DEV = /[?&]dev\b/.test(window.location.search)
 
 async function main() {
   const host = document.getElementById('app')!
@@ -68,10 +64,6 @@ async function main() {
   const hullStyle = hullStyleFromLocation(window.location.search)
 
   const world = new World()
-  const level = chosenLevel()
-  if (level) world.level = level
-  // Before the water is built, so its first textures are already the right sea.
-  if (!forcedStyle) setPalette(world.level.theme)
   const camera = new Camera()
   const input = new Input(app.canvas)
 
@@ -143,6 +135,14 @@ async function main() {
   // starts a clean one, which is the only way to see the opening again.
   if (/[?&]career=new\b/.test(window.location.search)) saveCareer(freshCareer())
   const ledger = new Ledger(loadCareer(), saveCareer)
+  // `?level=` picks a chart for this visit without touching the career.
+  const askedLevel = LEVELS_BY_ID.get(/[?&]level=([\w-]+)/.exec(window.location.search)?.[1] ?? '')
+  const levelToSail = () => askedLevel ?? chartOf(ledger.career)
+  world.level = levelToSail()
+  if (!forcedStyle && P().id !== world.level.theme) {
+    setPalette(world.level.theme)
+    water.retheme()
+  }
   const port = new PortUI(ledger)
   port.onSound = draft.onSound = (id) => audio.play(id)
   /** False until a hull has been chosen, so the idle sea behind the first quayside is never paid. */
@@ -162,6 +162,7 @@ async function main() {
     atSea = true
     // The career is boiled down to a voyage here and not looked at again
     // until the run is over.
+    world.level = levelToSail()
     // The location's colours, before anything that keeps colour is rebuilt.
     if (!forcedStyle && P().id !== world.level.theme) {
       setPalette(world.level.theme)
@@ -193,13 +194,16 @@ async function main() {
     careerChanged: () => port.refresh(),
     audio,
     setLevel: (id) => {
-      const level = LEVELS_BY_ID.get(id)
-      if (!level) return
-      world.level = level
-      try { localStorage.setItem(LEVEL_KEY, id) } catch { /* no storage */ }
+      // The developer's choice is written straight into the career, earned or not.
+      if (!LEVELS_BY_ID.has(id)) return
+      ledger.career.chart = id
+      ledger.career.lifetime = Math.max(ledger.career.lifetime, LEVELS_BY_ID.get(id)!.unlock)
+      ledger.commit()
       startVoyage(world.player.cls)
     },
   })
+
+  tuner.launcherVisible = DEV
 
   let showDebug = false
   let paused = false
@@ -229,28 +233,28 @@ async function main() {
     },
     (alpha, frameDt) => {
       if (input.consumePress('pause')) paused = !paused
-      if (input.consumePress('turbo')) turbo = !turbo
-      if (input.consumePress('debug')) showDebug = !showDebug
-      if (input.consumePress('tuner')) tuner.toggle()
+      if (DEV && input.consumePress('turbo')) turbo = !turbo
+      if (DEV && input.consumePress('debug')) showDebug = !showDebug
+      if (DEV && input.consumePress('tuner')) tuner.toggle()
       if (input.consumePress('sailUp')) world.player.trimSails(1)
       if (input.consumePress('sailDown')) world.player.trimSails(-1)
-      if (input.consumePress('spawnEnemy')) world.spawnWave(1)
+      if (DEV && input.consumePress('spawnEnemy')) world.spawnWave(1)
       // Weather on demand. A squall arrives every forty-odd seconds on its
       // own, which is far too slow to judge how one looks or handles.
       // Cycle the look. A reload rather than a live swap: the water's
       // textures and every cached outline are built from the palette, and
       // rebuilding all of it is a lot of machinery for a comparison made once.
-      if (input.consumePress('styleNext')) {
+      if (DEV && input.consumePress('styleNext')) {
         const i = PALETTES.findIndex((p) => p.id === P().id)
         const next = PALETTES[(i + 1) % PALETTES.length]
         window.location.search = `?style=${next.id}&hull=${hullStyle.id}`
       }
-      if (input.consumePress('hullNext')) {
+      if (DEV && input.consumePress('hullNext')) {
         const i = HULL_STYLES.findIndex((h) => h.id === hullStyle.id)
         const next = HULL_STYLES[(i + 1) % HULL_STYLES.length]
         window.location.search = `?${forcedStyle ? `style=${forcedStyle.id}&` : ''}hull=${next.id}`
       }
-      if (input.consumePress('spawnSquall')) {
+      if (DEV && input.consumePress('spawnSquall')) {
         world.wind.weather.spawn(world.wind.from, world.player.pos)
       }
       if (input.consumePress('mute')) audio.muted = !audio.muted
@@ -258,7 +262,13 @@ async function main() {
       if (input.consumePress('continue')) world.run.continueEndless()
       // R returns to the quayside rather than restarting the same hull, so
       // trying a different ship never means reloading the page.
-      if (input.consumePress('reset') && !port.open) {
+      // Only once the voyage is over, or from the pause panel: R in the
+      // middle of a fight used to throw the whole run away on one stray key.
+      const ended = world.run.state === 'won' || world.run.state === 'lost'
+      const leave = input.consumePress('reset')
+      const confirm = input.consumePress('confirm')
+      if (!port.open && ((leave && (ended || paused || DEV)) || (confirm && ended))) {
+        paused = false
         draft.hide()
         chooseShip()
       }
