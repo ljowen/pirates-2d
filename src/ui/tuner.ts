@@ -105,7 +105,7 @@ export class Tuner {
       color: rgba(207,230,245,0.65); transition: right 0.18s ease;
     `
     const legend = document.createElement('span')
-    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ] style &middot; [ hull &middot; P pause &middot; T turbo &middot; M mute &middot; R reset &middot; F1 debug'
+    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ] style &middot; [ hull &middot; P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
     const toggle = document.createElement('button')
     toggle.innerHTML = '&#9881; Tune <span style="opacity:0.55">(`)</span>'
     toggle.style.cssText = `
@@ -364,8 +364,8 @@ export class Tuner {
 
     const note = document.createElement('div')
     note.textContent =
-      'Edits the saved career. Hulls, refits, feats and notoriety are read when a voyage ' +
-      'starts, so use Sail (or R and port) to feel a change. Feats are not paid out when set here.'
+      'Edits the saved career. Changes apply from the next voyage — use Sail to start one. ' +
+      'Feats set here pay no bounty.'
     note.style.cssText = 'opacity:0.45;margin:10px 0 0;line-height:1.4'
     this.pane.appendChild(note)
   }
@@ -388,7 +388,7 @@ export class Tuner {
    */
   private buildBench() {
     const label = document.createElement('div')
-    label.textContent = 'UPGRADES — grant draft cards to the voyage at sea'
+    label.textContent = 'UPGRADES — add cards to the current voyage'
     label.style.cssText = 'color:#9fe8ff;opacity:0.8;margin:6px 0 4px;letter-spacing:0.5px'
     this.pane.appendChild(label)
 
@@ -405,8 +405,7 @@ export class Tuner {
 
     const note = document.createElement('div')
     note.textContent =
-      'The bench ignores shot exclusivity so types can be compared directly — but ' +
-      'opposing types cancel, and holding one still locks the draft.'
+      'Shot types can be mixed here; opposing types cancel out. Holding one still locks the draft.'
     note.style.cssText = 'opacity:0.45;margin:0 0 6px;line-height:1.4'
     this.pane.appendChild(note)
 
@@ -524,7 +523,7 @@ export class Tuner {
     this.pane.appendChild(c)
 
     const hint = document.createElement('div')
-    hint.textContent = 'Vertical only — angles stay fixed so the shape stays readable.'
+    hint.textContent = 'Drag points up or down.'
     hint.style.cssText = 'opacity:0.45;margin:4px 0 14px;line-height:1.4'
     this.pane.appendChild(hint)
 

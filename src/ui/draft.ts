@@ -221,7 +221,7 @@ export class DraftUI {
 
     const foot = document.createElement('div')
     foot.textContent =
-      'Under full sail in a steady breeze; mending quoted hove to. Broadside and weight of fire vs a standard hull.'
+      'Full sail, steady breeze. Repair while furled. Broadside and weight of fire vs a standard hull.'
     foot.style.cssText = 'font-size:9.5px;color:rgba(207,230,245,0.3);line-height:1.5'
     panel.appendChild(foot)
 

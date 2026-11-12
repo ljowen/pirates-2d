@@ -37,13 +37,13 @@ const home = (run: Run) => run.endless || run.state === 'won'
 export const FEATS: Feat[] = [
   {
     id: 'struck-colours', name: 'Struck Colours',
-    how: 'Take a ship whole: cut up her rigging or her crew, then come alongside.',
+    how: 'Capture a ship: wreck her rigging or crew, then come alongside.',
     opens: 'Prize Crews in the draft', bounty: 100,
     done: (run) => run.shipsTaken > 0,
   },
   {
     id: 'slipped-the-noose', name: 'Slipped the Noose',
-    how: "Stay afloat until the Man-o'-War gives up the chase.",
+    how: "Outlast the Man-o'-War.",
     opens: 'Storm Canvas in the draft', bounty: 150,
     done: (run) => run.huntersSlipped > 0,
   },
@@ -56,24 +56,24 @@ export const FEATS: Feat[] = [
   {
     id: 'home-and-dry', name: 'Home and Dry',
     how: 'Complete a voyage.',
-    opens: 'Letters of Marque in the draft, and the notoriety ladder', bounty: 300,
+    opens: 'Letters of Marque in the draft, and notoriety', bounty: 300,
     done: home,
   },
   {
     id: 'scourge', name: 'Scourge',
-    how: 'Sink or take 60 ships across your career.',
+    how: 'Sink or capture 60 ships in total.',
     opens: 'Iron Knees in the draft', bounty: 300,
     done: (_run, career) => career.beaten >= 60,
   },
   {
     id: 'cutting-out', name: 'Cutting Out',
-    how: 'Take a Frigate as a prize.',
+    how: 'Capture a Frigate.',
     opens: 'the Frigate at the yard', bounty: 400,
     done: (run) => (run.takenBy.get('frigate') ?? 0) > 0,
   },
   {
     id: 'treasure-fleet', name: 'Treasure Fleet',
-    how: 'Sink or take a Galleon.',
+    how: 'Sink or capture a Galleon.',
     opens: 'the Galleon at the yard', bounty: 500,
     done: (run) => beat(run, 'galleon') > 0,
   },
@@ -85,13 +85,13 @@ export const FEATS: Feat[] = [
   },
   {
     id: 'turnabout', name: 'Turnabout',
-    how: "Sink or take the Man-o'-War that hunts you.",
+    how: "Sink or capture the Man-o'-War.",
     opens: "the Man-o'-War at the yard", bounty: 1500,
     done: (run) => run.huntersBeaten > 0,
   },
   {
     id: 'sailed-on', name: 'Sailed On',
-    how: 'Reach the fourth wave after a completed voyage.',
+    how: 'Reach endless wave 4.',
     opens: 'a bounty', bounty: 1200,
     done: (run) => run.wave >= 4,
   },
@@ -104,7 +104,7 @@ export const FEATS: Feat[] = [
   {
     id: 'myth', name: 'Myth',
     how: 'Complete a voyage at notoriety 10.',
-    opens: 'nothing. There is nothing left.', bounty: 10000,
+    opens: 'a bounty', bounty: 10000,
     done: (run) => home(run) && run.voyage.notoriety >= 10,
   },
 ]

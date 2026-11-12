@@ -20,9 +20,9 @@ export interface BossWave { at: number; hulls: ShipClass[]; label: string }
  * practice meant two Brigantines plus whatever was already in pursuit.
  */
 export const BOSS_WAVES: BossWave[] = [
-  { at: 0.34, hulls: [BRIGANTINE], label: 'A Brigantine stands out to meet you' },
-  { at: 0.60, hulls: [FRIGATE, BARQUE, BARQUE], label: 'A Frigate and her escorts' },
-  { at: 0.88, hulls: [GALLEON, FRIGATE, BARQUE, BARQUE], label: 'A Galleon, and the squadron with her' },
+  { at: 0.34, hulls: [BRIGANTINE], label: 'Brigantine sighted' },
+  { at: 0.60, hulls: [FRIGATE, BARQUE, BARQUE], label: 'Frigate and escorts sighted' },
+  { at: 0.88, hulls: [GALLEON, FRIGATE, BARQUE, BARQUE], label: 'Galleon squadron sighted' },
 ]
 
 /**
@@ -143,7 +143,7 @@ export class Director {
     if (wave === 0 && this.firedHunts < this.difficulty.hunterVisits &&
         progress >= HUNTER_VISITS[this.firedHunts]) {
       this.firedHunts++
-      this.announcement = "A Man-o'-War has your scent — run for the shoals"
+      this.announcement = "Man-o'-War hunting you — run, or lose her in the shoals"
       this.announcementTime = 6
       return { hulls: [MAN_OF_WAR], boss: false, hunter: true }
     }
@@ -152,8 +152,8 @@ export class Director {
     if (wave > 0 && wave !== this.lastEndlessWave) {
       this.lastEndlessWave = wave
       this.announcement = wave === 1
-        ? 'You sail on. They are still coming.'
-        : `Wave ${wave} — the sea closes in`
+        ? 'Endless — wave 1'
+        : `Wave ${wave}`
       this.announcementTime = 4
       this.cooldown = Math.max(this.cooldown, T.bossLull * 0.5)
       return { hulls: this.endlessSquadron(wave), boss: true, hunter: false }

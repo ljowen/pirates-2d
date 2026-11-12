@@ -19,14 +19,13 @@ npm run bench   # headless balance run: scripted pilot, every hull, 16 seeds
 
 ## The career
 
-You start in a Sloop, and a minute into your first voyage a Man-o'-War comes for you.
-Run. Anything marked **☠ RUN** is not a fight yet.
+You start in a Sloop. About a minute into each voyage a Man-o'-War hunts you; ships
+marked **☠ RUN** are too strong to fight yet.
 
-Plunder is banked as doubloons when a voyage ends — sunk or not — and spent in port on
-hulls and permanent refits. Things done at sea (take a prize, beat a Galleon, outlast the
-hunter) open new cards and the bigger hulls. Complete a voyage and the notoriety ladder
-opens: ten rungs of a harder sea that pays more. Eventually the Man-o'-War is the one
-running.
+Plunder is banked as doubloons when a voyage ends, even if you sink, and spent in port on
+hulls and permanent refits. Feats (capture a ship, sink a Galleon, outlast the
+Man-o'-War) unlock new cards and bigger hulls. Completing a voyage unlocks notoriety: ten
+levels of harder enemies and higher pay.
 
 The career is kept in `localStorage`; add `?career=new` to the URL to start over.
 `npm run bench` measures the whole arc, from a first voyage to the top of the ladder.

@@ -335,7 +335,7 @@ export const SLOOP: ShipClass = {
   // know her. Without something of her own she was the only hull with no
   // identity, which is a poor reward for picking the honest option.
   playerMods: { crewSpeed: 1.15, reload: 0.93 },
-  blurb: 'The baseline. +15% sail handling, -7% reload.',
+  blurb: 'Baseline. +15% sail handling, -7% reload.',
 }
 
 /**
@@ -353,7 +353,7 @@ export const PLAYER_PINNACE: ShipClass = {
   look: LOOK_PINNACE_ARMED,
   scale: 0.74,
   colors: { hull: 0x7a6a3f, deck: 0xbda95f, trim: 0x332c17, canvas: 0xf4efd8 },
-  blurb: '+50% turn rate, +20% sail handling. -22% guns, -22% timbers. Draws 0.22: crosses bars that strand everything else.',
+  blurb: '+50% turn rate, +20% sail handling. -22% guns, -22% timbers. Crosses most shoals.',
   price: 400,
 }
 
@@ -374,7 +374,7 @@ export const PLAYER_BRIGANTINE: ShipClass = {
   look: LOOK_BRIGANTINE,
   scale: 1.15,
   colors: { hull: 0x58323c, deck: 0x90616a, trim: 0x29161b, canvas: 0xf0e4e4 },
-  blurb: '+10% guns, +15% timbers, +5% damage. -32% turn rate, +14% reload. Draws 1.0: no shallows to run to.',
+  blurb: '+10% guns, +15% timbers, +5% damage. -32% turn rate, +14% reload. Deep draught.',
   price: 1600,
 }
 
@@ -395,7 +395,7 @@ export const PLAYER_FLUYT: ShipClass = {
   // Her hold is the point: plunder from much further out, so she out-levels
   // every other hull and wins on upgrades rather than gunnery.
   playerMods: { pickupRadius: 2.1 },
-  blurb: '+30% timbers, x2.1 plunder reach. -38% guns, -15% damage. Out-levels rather than out-shoots.',
+  blurb: '+30% timbers, x2.1 plunder reach. -38% guns, -15% damage.',
   price: 900,
 }
 
@@ -422,7 +422,7 @@ export const PLAYER_FRIGATE: ShipClass = {
   look: LOOK_FRIGATE,
   scale: 1.08,
   colors: { hull: 0x2f4a5c, deck: 0x6f95ad, trim: 0x15232c, canvas: 0xf4f1e6 },
-  blurb: '+17% guns, +16% range, +6% speed, +25% timbers. Chooses her own range.',
+  blurb: '+17% guns, +16% range, +6% speed, +25% timbers.',
   price: 4500,
   requires: 'cutting-out',
 }
@@ -441,7 +441,7 @@ export const PLAYER_GALLEON: ShipClass = {
   look: LOOK_GALLEON,
   scale: 1.3,
   colors: { hull: 0x6b2f2a, deck: 0xb0705a, trim: 0x2c1210, canvas: 0xf6edd6 },
-  blurb: '+67% guns, +20% damage, +95% timbers. -36% turn rate. Draws 1.0. Nothing small can hurt her.',
+  blurb: '+67% guns, +20% damage, +95% timbers. -36% turn rate. Deep draught.',
   price: 8000,
   requires: 'treasure-fleet',
 }
@@ -460,7 +460,7 @@ export const PLAYER_MAN_OF_WAR: ShipClass = {
   look: LOOK_MAN_OF_WAR,
   scale: 1.45,
   colors: { hull: 0x23232b, deck: 0x8c7a4a, trim: 0x0e0e12, canvas: 0xf2ecd8 },
-  blurb: 'x2 guns, +25% damage, +18% range, x2.5 timbers. -40% turn rate. Draws 1.0. The hunter, hunting.',
+  blurb: 'x2 guns, +25% damage, +18% range, x2.5 timbers. -40% turn rate. Deep draught.',
   price: 16000,
   requires: 'turnabout',
 }

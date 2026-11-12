@@ -67,7 +67,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'veteran-topmen', name: 'Veteran Topmen', group: 'Sailing',
-    text: '+18% sail handling. +4.8%/s crew repair, hove to.',
+    text: '+18% sail handling. +4.8%/s crew repair while furled.',
     maxStacks: 3, weight: 0.9,
     // Deliberately no reload bonus: that is Powder Monkeys' job, and two cards
     // quietly doing the same thing made both harder to read.
@@ -114,7 +114,7 @@ export const UPGRADES: Upgrade[] = [
   // loadout silently wasted draft picks.
   {
     id: 'chain-shot', exclusive: 'shot', name: 'Chain Shot', group: 'Shot',
-    text: '+82% into rigging, -29% into hull. Catches runners.',
+    text: '+82% into rigging, -29% into hull.',
     maxStacks: 3, weight: 0.8,
     apply: (m) => { m.shotSails *= 2.1; m.shotHull *= 0.82 },
   },
@@ -126,7 +126,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'round-shot', exclusive: 'shot', name: 'Double-Shotted', group: 'Shot',
-    text: '+32% into hull, -53% into rigging and crew. Sinks fastest.',
+    text: '+32% into hull, -53% into rigging and crew.',
     maxStacks: 3, weight: 0.8,
     // Has to be a harder shove than it was. Once chain and grape led to a
     // prize worth more than a wreck, merely sinking things a little faster was
@@ -138,13 +138,13 @@ export const UPGRADES: Upgrade[] = [
   // --- Quarterdeck ---------------------------------------------------------
   {
     id: 'ships-carpenter', name: "Ship's Carpenter", group: 'Quarterdeck',
-    text: '+3.6%/s hull repair, hove to.',
+    text: '+3.6%/s hull repair while furled.',
     maxStacks: 3, weight: 0.95,
     apply: (m) => { m.hullRepair += 0.006 },
   },
   {
     id: 'sailmaker', name: 'Sailmaker', group: 'Quarterdeck',
-    text: '+7.2%/s rigging repair, hove to.',
+    text: '+7.2%/s rigging repair while furled.',
     maxStacks: 3, weight: 0.95,
     apply: (m) => { m.sailRepair += 0.012 },
   },
@@ -191,7 +191,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'boarding-axes', name: 'Boarding Axes', group: 'Quarterdeck', requires: 'wanted',
-    text: '+45% boarding range: a beaten ship strikes sooner.',
+    text: '+45% boarding range.',
     maxStacks: 2, weight: 0.75,
     apply: (m) => { m.boarding *= 1.45 },
   },

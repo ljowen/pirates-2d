@@ -131,9 +131,9 @@ export class PortUI {
       </div>
       <div style="color:${DIM};font-size:11px;margin-top:6px">${
         career.voyages === 0
-          ? 'Plunder hauled aboard is banked when a voyage ends — sunk or not — and is spent here.'
+          ? 'Plunder is banked as doubloons when a voyage ends, even if you sink.'
           : `${career.voyages} voyage${career.voyages === 1 ? '' : 's'} &nbsp;·&nbsp; ` +
-            `${career.completed} completed &nbsp;·&nbsp; ${career.beaten} ships beaten &nbsp;·&nbsp; ` +
+            `${career.completed} completed &nbsp;·&nbsp; ${career.beaten} ship${career.beaten === 1 ? '' : 's'} beaten &nbsp;·&nbsp; ` +
             `${career.feats.length}/${FEATS.length} feats`
       }</div>`
     this.root.appendChild(head)
@@ -172,9 +172,9 @@ export class PortUI {
 
     const hint = el('div', `color:rgba(207,230,245,0.4);font-size:11px;margin-top:22px;text-align:center;padding:0 20px`)
     hint.textContent = this.tab === 'yard'
-      ? 'click or press 1–7: an owned hull puts to sea, a locked one is bought first  ·  Tab changes page'
+      ? 'click or press 1–7 to sail or buy  ·  Tab changes page'
       : this.tab === 'refit'
-        ? 'click or press 1–9 to buy a rank  ·  refits are carried on every hull, every voyage  ·  Tab changes page'
+        ? 'click or press 1–9 to buy a rank  ·  refits apply to every hull  ·  Tab changes page'
         : 'Tab changes page'
     this.root.appendChild(hint)
   }
@@ -210,7 +210,7 @@ export class PortUI {
 
     if (career.notorietyMax === 0) {
       box.innerHTML = `<span style="color:${DIM}">Notoriety: <b style="color:${INK}">Unknown</b>
-        &nbsp;·&nbsp; complete a voyage and the Crown will start to take an interest</span>`
+        &nbsp;·&nbsp; complete a voyage to unlock</span>`
       return box
     }
 
@@ -230,7 +230,7 @@ export class PortUI {
     }
     const label = el('span', 'min-width:300px;text-align:center')
     label.innerHTML = level === 0
-      ? `Notoriety 0 · <b>Unknown</b> <span style="color:${DIM}">— the sea as you first met it</span>`
+      ? `Notoriety 0 · <b>Unknown</b> <span style="color:${DIM}">— base difficulty</span>`
       : `Notoriety ${level} · <b style="color:#ff9a8a">${notorietyName(level)}</b>
          <span style="color:${DIM}"> — hulls ×${d.enemyArmour.toFixed(2)}, shot ×${d.enemyDamage.toFixed(2)},</span>
          <span style="color:${GOLD}">pay ×${d.payout.toFixed(1)}</span>`
@@ -239,8 +239,8 @@ export class PortUI {
     top.textContent = career.notorietyMax >= 10 && level === 10
       ? 'the top'
       : level === career.notorietyMax
-        ? 'complete a voyage here to open the next'
-        : `open to ${career.notorietyMax}  ·  , and . to change`
+        ? 'complete a voyage here to unlock the next'
+        : `unlocked to ${career.notorietyMax}  ·  keys , .`
     box.appendChild(top)
     return box
   }
@@ -279,9 +279,9 @@ export class PortUI {
 
     const feat = cls.requires ? FEATS_BY_ID.get(cls.requires) : undefined
     const footer = owned
-      ? (last ? `<div style="margin-top:6px;font-size:10px;color:${DIM};text-align:center">your last command</div>` : '')
+      ? (last ? `<div style="margin-top:6px;font-size:10px;color:${DIM};text-align:center">last sailed</div>` : '')
       : !allowed && feat
-        ? plate(`The yard will not build her yet.<br><b style="color:${INK}">${feat.name}</b>: ${feat.how}<br>
+        ? plate(`Locked. <b style="color:${INK}">${feat.name}</b>: ${feat.how}<br>
             <span style="opacity:0.7">then ${price.toLocaleString()} doubloons</span>`, false)
         : affordable
           ? plate(`Buy for ${price.toLocaleString()}`, true)
@@ -330,7 +330,7 @@ export class PortUI {
         ${refit.text}<span style="opacity:0.55"> &nbsp;Per rank.</span>
       </div>
       ${maxed
-        ? `<div style="margin-top:4px;font-size:11px;color:${GOOD};text-align:center">fully fitted</div>`
+        ? `<div style="margin-top:4px;font-size:11px;color:${GOOD};text-align:center">max rank</div>`
         : affordable
           ? plate(`Rank ${held + 1} for ${cost.toLocaleString()}`, true)
           : plate(`rank ${held + 1} · ${cost.toLocaleString()} &nbsp;·&nbsp; ${(cost - career.doubloons).toLocaleString()} short`, false)}`

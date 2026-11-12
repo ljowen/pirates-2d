@@ -80,7 +80,7 @@ export const REFITS: Refit[] = [
   },
   {
     id: 'shipwrights', name: 'Shipwrights Aboard',
-    text: '+15% mending of hull, rigging and crew, hove to.', maxRank: 4, baseCost: 200,
+    text: '+15% repair while furled.', maxRank: 4, baseCost: 200,
     apply: (m) => { m.hullRepair *= 1.15; m.sailRepair *= 1.15; m.crewRepair *= 1.15 },
   },
   {
@@ -90,15 +90,15 @@ export const REFITS: Refit[] = [
   },
   {
     id: 'deeper-hold', name: 'Deeper Hold',
-    text: '+10% doubloons banked from every voyage.', maxRank: 5, baseCost: 250,
+    text: '+10% doubloons per voyage.', maxRank: 5, baseCost: 250,
   },
   {
     id: 'quartermaster', name: 'Quartermaster',
-    text: '+1 redraw of a draft hand each voyage.', maxRank: 3, baseCost: 350,
+    text: '+1 draft redraw per voyage.', maxRank: 3, baseCost: 350,
   },
   {
     id: 'old-hands', name: 'Old Hands',
-    text: 'Put to sea one level up, with the draft that comes with it.', maxRank: 2, baseCost: 900,
+    text: 'Start each voyage one level up.', maxRank: 2, baseCost: 900,
   },
 ]
 

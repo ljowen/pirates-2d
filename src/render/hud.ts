@@ -769,7 +769,7 @@ export class Hud {
       ctx.font = '15px ui-monospace, monospace'
       ctx.fillStyle = '#ff9ad5'
       ctx.fillText(
-        `sailed on ${stamp(run.overtime)} past the voyage   ·   reached wave ${run.wave}`,
+        `endless: ${stamp(run.overtime)}   ·   wave ${run.wave}`,
         w / 2, h / 2 + 12,
       )
     }
@@ -798,7 +798,7 @@ export class Hud {
       ctx.fillStyle = '#7fe0a0'
       for (const feat of ledger.news) {
         ctx.fillText(
-          feat.opens === 'a bounty' ? `✓ ${feat.name}` : `✓ ${feat.name} — opens ${feat.opens}`,
+          feat.opens === 'a bounty' ? `✓ ${feat.name}` : `✓ ${feat.name} — unlocks ${feat.opens}`,
           w / 2, y,
         )
         y += 20
@@ -806,7 +806,7 @@ export class Hud {
       if (ledger.rung > 0) {
         ctx.fillStyle = '#ff9a8a'
         ctx.fillText(
-          `Notoriety ${ledger.rung} · ${notorietyName(ledger.rung)} is open — a harder sea that pays more`,
+          `Notoriety ${ledger.rung} · ${notorietyName(ledger.rung)} unlocked`,
           w / 2, y,
         )
         y += 20
@@ -829,7 +829,7 @@ export class Hud {
     ctx.font = '13px ui-monospace, monospace'
     if (won) {
       ctx.fillStyle = '#ff9ad5'
-      ctx.fillText('C — sail on into endless waves', w / 2, y)
+      ctx.fillText('C — continue in endless mode', w / 2, y)
       ctx.fillStyle = 'rgba(207,230,245,0.5)'
       ctx.fillText('R — make port', w / 2, y + 24)
     } else {

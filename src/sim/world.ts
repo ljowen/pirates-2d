@@ -506,7 +506,7 @@ export class World {
       // the only plunder in the game that is not fished out of the water,
       // and the reason is that there is nobody left to sink.
       this.run.collect(SLIPPED_PLUNDER)
-      this.director.announce("The Man-o'-War hauls her wind. You have slipped her.", 5)
+      this.director.announce("The Man-o'-War has given up the chase", 5)
     }
   }
 
