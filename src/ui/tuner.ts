@@ -6,6 +6,9 @@ import { PLAYER_CLASSES, type ShipClass } from '../sim/shipClasses'
 import { MAX_NOTORIETY, notorietyName, REFITS } from '../sim/voyage'
 import { freshCareer, owns, priceOf, type Ledger } from '../meta/career'
 import { FEATS } from '../meta/feats'
+import { P } from '../render/palette'
+import { H } from '../render/hullStyle'
+import { ui } from './theme'
 
 const STORAGE_KEY = 'pirates2d.tuning.v2'
 const TAB_KEY = 'pirates2d.tuning.tab'
@@ -105,7 +108,13 @@ export class Tuner {
       color: rgba(207,230,245,0.65); transition: right 0.18s ease;
     `
     const legend = document.createElement('span')
-    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ] style &middot; [ hull &middot; \\ ui &middot; P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
+    // The three look switches name what they switch and what is showing,
+    // since a key labelled only "style" says nothing about which style.
+    const look = (key: string, what: string, name: string) =>
+      `${key} ${what}: <span style="color:rgba(207,230,245,0.95)">${name}</span>`
+    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ' +
+      `${look(']', 'sea', P().name)} &middot; ${look('[', 'hull', H().name)} &middot; ${look('U', 'ui', ui().name)} &middot; ` +
+      'P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
     const toggle = document.createElement('button')
     toggle.innerHTML = '&#9881; Tune <span style="opacity:0.55">(`)</span>'
     toggle.style.cssText = `
@@ -114,6 +123,8 @@ export class Tuner {
       padding: 6px 11px; cursor: pointer; font: inherit; white-space: nowrap;
     `
     toggle.onclick = () => this.toggle()
+    // Backed, because over a pale sea (the ink palette) bare text vanished.
+    legend.style.cssText = 'background:rgba(6,18,30,0.72);padding:4px 9px;border-radius:4px'
     this.launcher.append(legend, toggle)
     document.body.appendChild(this.launcher)
 

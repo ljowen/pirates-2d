@@ -60,7 +60,7 @@ export class Input {
       case 'KeyQ': return 'spawnSquall'
       case 'BracketRight': return 'styleNext'
       case 'BracketLeft': return 'hullNext'
-      case 'Backslash': return 'uiNext'
+      case 'Backslash': case 'KeyU': return 'uiNext'
       case 'KeyM': return 'mute'
       case 'KeyC': return 'continue'
       default: return null
