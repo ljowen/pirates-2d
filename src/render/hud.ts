@@ -561,7 +561,11 @@ export class Hud {
     label(ctx, 'CONDITION', IN, 12)
     ctx.textAlign = 'right'
     ctx.fillStyle = C('rgba(255,217,138,0.8)')
-    ctx.fillText(this.shipName ?? ship.cls.name, PW - IN, 10)
+    // Her name, or just the second word of it where the whole will not fit
+    // beside the label.
+    let name = this.shipName ?? ship.cls.name
+    if (ctx.measureText(name).width > PW - IN * 2 - 96) name = name.split(' ').pop()!
+    ctx.fillText(name, PW - IN, 10)
     ctx.textAlign = 'left'
 
     const bars: [string, number, string][] = [

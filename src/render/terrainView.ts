@@ -234,12 +234,14 @@ export class TerrainView {
   private drawIslands(islands: Island[]) {
     const g = this.g
     const land = (island: Island) => (a: number) => landRadius(island, a)
-    const shoal = (island: Island) => (a: number) => shoalRadius(island, a)
     const each = (paint: (island: Island) => void) => { for (const island of islands) paint(island) }
 
     // Shoal: lighter water, the visible warning that the bottom is coming up.
-    each((i) => g.poly(this.ring(i, shoal(i))).fill({ color: P().shoal.outer, alpha: 0.55 }))
-    each((i) => g.poly(this.ring(i, shoal(i), 0.82)).fill({ color: P().shoal.inner, alpha: 0.5 }))
+    // Drawn as one shape for the whole group, not a ring per island: rings
+    // are translucent, so where two overlapped the water showed a lens of a
+    // different blue with a hard edge through it.
+    this.shoalBand(islands, 1, P().shoal.outer, 0.55)
+    this.shoalBand(islands, 0.82, P().shoal.inner, 0.5)
 
     // Surf breaking on the shore.
     each((i) => g.poly(this.ring(i, land(i), 1.16)).fill({ color: P().shoal.surfOuter, alpha: 0.55 }))
@@ -261,6 +263,96 @@ export class TerrainView {
     each((i) => this.drawCliffs(i, islands))
     each((i) => this.drawRocks(i))
     each((i) => this.drawTrees(i))
+  }
+
+  /**
+   * The shallows of a group of islands as a single shape.
+   *
+   * The shape is where a field goes negative: at each point, how far outside
+   * the nearest island's shoal ring it is, with neighbouring rings blended
+   * a little so that two which nearly touch run together instead of meeting
+   * at a crease. It is found on a grid and filled cell by cell (marching
+   * squares). The cells share their edges exactly and never overlap, so
+   * however many islands contribute there is one even wash of colour.
+   *
+   * The blend makes the drawn shallows very slightly wider than the real
+   * ones in the neck between two islands. That errs toward caution, and it
+   * is a few units at most.
+   */
+  private shoalBand(islands: Island[], scale: number, color: number, alpha: number) {
+    if (islands.length === 0) return
+    const CELL = 18
+    const BLEND = 46
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const i of islands) {
+      const r = i.shoalRadius * 1.12 * scale + BLEND
+      minX = Math.min(minX, i.x - r); maxX = Math.max(maxX, i.x + r)
+      minY = Math.min(minY, i.y - r); maxY = Math.max(maxY, i.y + r)
+    }
+    const cols = Math.ceil((maxX - minX) / CELL) + 1
+    const rows = Math.ceil((maxY - minY) / CELL) + 1
+
+    // The field at every grid point. Positive is open water.
+    const field = new Float32Array((cols + 1) * (rows + 1))
+    for (let r = 0; r <= rows; r++) {
+      const y = minY + r * CELL
+      for (let c = 0; c <= cols; c++) {
+        const x = minX + c * CELL
+        let f = BLEND * 4
+        for (const i of islands) {
+          const dx = x - i.x
+          const dy = y - i.y
+          const d = Math.hypot(dx, dy)
+          // Too far for this island to matter here: skip the trigonometry.
+          if (d > i.shoalRadius * 1.12 * scale + BLEND) continue
+          const here = d - shoalRadius(i, Math.atan2(dy, dx)) * scale
+          // A smooth minimum: the nearer ring wins, eased where two are close.
+          const h = Math.max(0, Math.min(1, 0.5 + (f - here) / (2 * BLEND)))
+          f = f + (here - f) * h - BLEND * h * (1 - h)
+        }
+        field[r * (cols + 1) + c] = f
+      }
+    }
+
+    const g = this.g
+    const corner: [number, number][] = [[0, 0], [1, 0], [1, 1], [0, 1]]
+    for (let r = 0; r < rows; r++) {
+      const y = minY + r * CELL
+      // Cells wholly inside are joined along the row into one rectangle.
+      let runFrom = -1
+      const flush = (to: number) => {
+        if (runFrom < 0) return
+        g.rect(minX + runFrom * CELL, y, (to - runFrom) * CELL, CELL)
+        runFrom = -1
+      }
+      for (let c = 0; c < cols; c++) {
+        const v = corner.map(([cx, cy]) => field[(r + cy) * (cols + 1) + c + cx])
+        const inside = v.map((f) => f < 0)
+        const count = inside.filter(Boolean).length
+        if (count === 4) { if (runFrom < 0) runFrom = c; continue }
+        flush(c)
+        if (count === 0) continue
+        // Clip the cell to the shape: keep the corners inside, and add the
+        // point on each edge where the field crosses zero.
+        const pts: number[] = []
+        for (let n = 0; n < 4; n++) {
+          const m = (n + 1) % 4
+          const ax = minX + (c + corner[n][0]) * CELL
+          const ay = y + corner[n][1] * CELL
+          if (inside[n]) pts.push(ax, ay)
+          if (inside[n] !== inside[m]) {
+            const t = v[n] / (v[n] - v[m])
+            pts.push(
+              ax + (corner[m][0] - corner[n][0]) * CELL * t,
+              ay + (corner[m][1] - corner[n][1]) * CELL * t,
+            )
+          }
+        }
+        if (pts.length >= 6) g.poly(pts)
+      }
+      flush(cols)
+    }
+    g.fill({ color, alpha })
   }
 
   /**
