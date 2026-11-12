@@ -12,6 +12,7 @@ import { draughtDepth, Terrain } from './terrain'
 import { makeRng } from '../core/rng'
 import { angleDiff, wrapAngle, type Vec2 } from '../core/math'
 import { T } from './tuning'
+import { LEVELS, type Level } from './levels'
 import { Wind, type WindSample } from './wind'
 import { PolarCurve } from './polar'
 import { CaptainAI } from './ai'
@@ -44,6 +45,8 @@ export class World {
   readonly captains = new Map<number, CaptainAI>()
 
   readonly terrain = new Terrain()
+  /** The location being sailed. Read when a voyage starts. */
+  level: Level = LEVELS[0]
   readonly director = new Director()
   private rand = makeRng(0xc0ffee)
   /**
@@ -89,6 +92,7 @@ export class World {
   private difficulty: Difficulty = difficultyFor(0)
 
   constructor() {
+    this.terrain.load(this.level.map, this.level.size)
     this.placePlayerClearOfLand()
     this.run.grantStarting(this.player)
   }
@@ -109,10 +113,15 @@ export class World {
     const needs = draughtDepth(ship.cls.draught)
     let best = { pos: { ...ship.pos }, ways: -1 }
 
+    // On a fixed map she opens somewhere different each voyage, anywhere on
+    // it, or every run would begin at the same rock.
+    const span = this.level.map ? this.level.size : 0
+    const ox = (this.rand() - 0.5) * span
+    const oy = (this.rand() - 0.5) * span
     for (let i = 0; i < 96; i++) {
       const a = i * 2.39996
       const r = i === 0 ? 0 : 120 * Math.sqrt(i)
-      const pos = { x: Math.cos(a) * r, y: Math.sin(a) * r }
+      const pos = { x: ox + Math.cos(a) * r, y: oy + Math.sin(a) * r }
       if (this.terrain.probe(pos).depth < 1) continue
       // Four courses clear to sea is plenty of sea room, and asking for more
       // walks a long way for no gain on a crowded seed.
@@ -265,9 +274,11 @@ export class World {
     if (T.windShadowStrength <= 0) return sample
 
     let shadow = 0
-    for (const island of this.terrain.near(p)) {
-      const dx = p.x - island.x
-      const dy = p.y - island.y
+    // In the map's own tile, which is where its quick lookup answers.
+    const q = this.terrain.local(p)
+    for (const island of this.terrain.near(q)) {
+      const dx = q.x - island.x
+      const dy = q.y - island.y
       const dist = Math.hypot(dx, dy)
       const reach = island.radius * T.windShadowLength
       if (dist > reach || dist < 1e-3) continue
@@ -695,6 +706,7 @@ export class World {
     // voyage met the identical archipelago under the identical wind pattern —
     // a large loss of variety, and it made seeded benchmarks far less
     // representative than they appeared.
+    if (this.terrain.map !== this.level.map) this.terrain.load(this.level.map, this.level.size)
     this.terrain.reseed(seed ^ 0x5eed)
     this.wind.reseed(seed ^ 0x1234567)
     this.wind.reset()

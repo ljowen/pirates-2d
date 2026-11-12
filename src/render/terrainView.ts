@@ -17,28 +17,73 @@ export class TerrainView {
   private readonly g = new Graphics()
   private lastKey = ''
 
+  /**
+   * Three more views of the same drawing, for a map that wraps. The screen
+   * can straddle an edge in both directions at once, so up to four repeats
+   * of the map are in sight; they share one set of shapes and differ only in
+   * where they are put.
+   */
+  private readonly repeats: Graphics[] = []
+
   constructor() {
     this.view.addChild(this.g)
+    for (let i = 0; i < 3; i++) {
+      const copy = new Graphics(this.g.context)
+      copy.visible = false
+      this.repeats.push(copy)
+      this.view.addChild(copy)
+    }
+  }
+
+  /** Put the map's repeats under the camera: the tile it is over and the three nearest. */
+  private place(size: number, camera: Camera) {
+    if (size <= 0) {
+      this.g.position.set(0, 0)
+      for (const copy of this.repeats) copy.visible = false
+      return
+    }
+    const tx = Math.round(camera.pos.x / size)
+    const ty = Math.round(camera.pos.y / size)
+    const sx = camera.pos.x >= tx * size ? 1 : -1
+    const sy = camera.pos.y >= ty * size ? 1 : -1
+    this.g.position.set(tx * size, ty * size)
+    const others: [number, number][] = [[tx + sx, ty], [tx, ty + sy], [tx + sx, ty + sy]]
+    others.forEach(([x, y], i) => {
+      this.repeats[i].visible = true
+      this.repeats[i].position.set(x * size, y * size)
+    })
   }
 
   update(terrain: Terrain, camera: Camera) {
-    // Generous margin so islands are built before they scroll into view.
-    const reach = Math.max(camera.viewW, camera.viewH) / camera.zoom
-    const visible = terrain.near(camera.pos, reach)
-    const reefs = terrain.reefsNear(camera.pos, reach)
-
-    const key = [
-      ...visible.map((i) => `${i.x.toFixed(0)},${i.y.toFixed(0)}`),
-      ...reefs.map((r) => `r${r.x.toFixed(0)},${r.y.toFixed(0)}`),
-    ].join('|')
-    if (key === this.lastKey) return
+    this.place(terrain.size, camera)
+    let visible: Island[]
+    let reefs: Reef[]
+    let key: string
+    const map = terrain.map
+    if (map) {
+      // A fixed map is drawn once, whole, and left alone until it changes.
+      key = `map${terrain.version}`
+      if (key === this.lastKey) return
+      visible = map.islands
+      reefs = map.reefs
+    } else {
+      // Generous margin so islands are built before they scroll into view.
+      const reach = Math.max(camera.viewW, camera.viewH) / camera.zoom
+      visible = terrain.near(camera.pos, reach)
+      reefs = terrain.reefsNear(camera.pos, reach)
+      key = [
+        ...visible.map((i) => `${i.x.toFixed(0)},${i.y.toFixed(0)}`),
+        ...reefs.map((r) => `r${r.x.toFixed(0)},${r.y.toFixed(0)}`),
+      ].join('|')
+      if (key === this.lastKey) return
+    }
     this.lastKey = key
 
     this.g.clear()
     // Bars first, so a fringing reef runs under the island it belongs to
     // rather than being painted over its beach.
     for (const reef of reefs) this.drawReef(reef)
-    for (const island of visible) this.draw(island)
+    this.drawIslands(visible)
   }
 
   /**
@@ -60,11 +105,15 @@ export class TerrainView {
     const g = this.g
     const shallow = 1 - reef.least / 0.4
 
+    // A flat-topped bar is shallowest all the way out to its plateau's edge,
+    // so its palest contour is drawn there and the others crowd outside it.
+    const top = reef.flat ?? 0.24
+    const at = (k: number) => 1 - (1 - top) * (k / 3)
     const bands: [number, number, number][] = [
-      [1.0, P().reef[0], 0.3 + 0.16 * shallow],
-      [0.74, P().reef[1], 0.32 + 0.2 * shallow],
-      [0.48, P().reef[2], 0.28 + 0.32 * shallow],
-      [0.24, P().reef[3], 0.18 + 0.42 * shallow],
+      [at(0), P().reef[0], 0.3 + 0.16 * shallow],
+      [at(1), P().reef[1], 0.32 + 0.2 * shallow],
+      [at(2), P().reef[2], 0.28 + 0.32 * shallow],
+      [at(3), P().reef[3], 0.18 + 0.42 * shallow],
     ]
     for (const [at, color, alpha] of bands) {
       g.poly(this.reefRing(reef, at)).fill({ color, alpha })
@@ -111,27 +160,39 @@ export class TerrainView {
     return pts
   }
 
-  private draw(island: Island) {
+  /**
+   * Every island, one layer at a time: all the shallows, then all the surf,
+   * then all the beaches, and so on inland.
+   *
+   * Islands may overlap now, which is how a hook of land or a long shore is
+   * made. Painted one whole island after another, each one's shallows would
+   * lie across its neighbour's beach. Painted by layer, overlapping islands
+   * simply merge, and the contours run round the lot as one piece of land.
+   */
+  private drawIslands(islands: Island[]) {
     const g = this.g
-    const land = (a: number) => landRadius(island, a)
-    const shoal = (a: number) => shoalRadius(island, a)
+    const land = (island: Island) => (a: number) => landRadius(island, a)
+    const shoal = (island: Island) => (a: number) => shoalRadius(island, a)
+    const each = (paint: (island: Island) => void) => { for (const island of islands) paint(island) }
 
     // Shoal: lighter water, the visible warning that the bottom is coming up.
-    g.poly(this.ring(island, shoal)).fill({ color: P().shoal.outer, alpha: 0.55 })
-    g.poly(this.ring(island, shoal, 0.82)).fill({ color: P().shoal.inner, alpha: 0.5 })
+    each((i) => g.poly(this.ring(i, shoal(i))).fill({ color: P().shoal.outer, alpha: 0.55 }))
+    each((i) => g.poly(this.ring(i, shoal(i), 0.82)).fill({ color: P().shoal.inner, alpha: 0.5 }))
 
     // Surf breaking on the shore.
-    g.poly(this.ring(island, land, 1.16)).fill({ color: P().shoal.surfOuter, alpha: 0.55 })
-    g.poly(this.ring(island, land, 1.07)).fill({ color: P().shoal.surfInner, alpha: 0.75 })
+    each((i) => g.poly(this.ring(i, land(i), 1.16)).fill({ color: P().shoal.surfOuter, alpha: 0.55 }))
+    each((i) => g.poly(this.ring(i, land(i), 1.07)).fill({ color: P().shoal.surfInner, alpha: 0.75 }))
+
+    // The shoreline, before the land that covers its inner half: where two
+    // islands overlap, each one's beach paints out the other's line.
+    each((i) => g.poly(this.ring(i, land(i))).stroke({ width: 4, color: P().land.edge, alpha: 0.9 }))
 
     // Beach, then scrub, then a little relief inland so it reads as solid.
-    g.poly(this.ring(island, land)).fill({ color: P().land.beach })
-    g.poly(this.ring(island, land, 0.86)).fill({ color: P().land.sand })
-    g.poly(this.ring(island, land, 0.68)).fill({ color: P().land.scrub })
-    g.poly(this.ring(island, land, 0.4)).fill({ color: P().land.scrubDark })
-    g.poly(this.ring(island, land, 0.18)).fill({ color: P().land.inland })
-
-    g.poly(this.ring(island, land)).stroke({ width: 2, color: P().land.edge, alpha: 0.9 })
+    each((i) => g.poly(this.ring(i, land(i))).fill({ color: P().land.beach }))
+    each((i) => g.poly(this.ring(i, land(i), 0.86)).fill({ color: P().land.sand }))
+    each((i) => g.poly(this.ring(i, land(i), 0.68)).fill({ color: P().land.scrub }))
+    each((i) => g.poly(this.ring(i, land(i), 0.4)).fill({ color: P().land.scrubDark }))
+    each((i) => g.poly(this.ring(i, land(i), 0.18)).fill({ color: P().land.inland }))
   }
 
   clear() {

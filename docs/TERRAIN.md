@@ -4,6 +4,41 @@ Islands, shoals and the things they make possible. Built following the sequencin
 [plans/scenario.md](plans/scenario.md): obstacles and collision first, so the question
 "does terrain make this game better?" got answered before paying for coastlines.
 
+## Locations
+
+A voyage is sailed on a **level**: a fixed map, defined in `src/sim/levels.ts`. The first is
+Windward Cays. The endless hashed sea described under *Generation* below is kept as a second
+level, Open Sea, and is what every figure further down this page was measured on.
+
+A level is written as a recipe and expanded once, when the module loads, into a plain list of
+islands and bars. The recipe is an authoring tool; nothing is generated while you sail.
+
+| Place | Built from | What it is for |
+|---|---|---|
+| Chain | Islets along a bowed line, shallows mostly run together | Gaps: some anyone may use, some only a shallow hull can thread |
+| Atoll | A ring of flat-topped bars with a few cays on it | A lagoon with two deep passes, and one stretch only the shallowest hulls can cross |
+| Crescent | Rounds overlapping along a hook | A harbour: shelter from shot, and from the wind |
+| Large island | Big rounds along a wandering spine, with headlands | Bays, capes, and a long shore to be caught against |
+| Scatter | Lone islets and sandbars in the sea left over | Texture between the places |
+
+Three things changed underneath to allow it:
+
+- **Islands may overlap.** Grounding, shot and the captains' avoidance already took the worst
+  of several islands, so joined-up land needed no new physics. The renderer paints all islands
+  one layer at a time (all shallows, all surf, all beaches, and so on) so that overlapping
+  islands merge instead of one's shallows lying across another's beach.
+- **Bars may be flat-topped** (`Reef.flat`). A lone sandbar rises smoothly to its middle; laid
+  end to end those leave a soft joint every hull can cross. A plateau makes a wall.
+- **A fixed map is indexed once** into 700-unit buckets, each listing what can affect a point
+  inside it, so `probe` is one lookup. The endless sea hashes a block of cells per query.
+
+**The map wraps by repeating.** `Level.size` is the side of one tile; `Terrain.local(p)` folds a
+point into it, and anything reaching over an edge is listed again on the far side. Positions
+in the sim are never folded, so nothing sees a seam: sail off one edge and the same land comes
+round again. `terrain.near(p)` answers in the tile's own frame, so pass it `local(p)`; `probe`
+does this itself and hands any island back where it was asked. The terrain view draws up to
+four repeats of one shared drawing, and the HUD's chart shows the whole tile.
+
 ## Generation
 
 The arena is unbounded — you can sail in one direction forever — so terrain cannot be a

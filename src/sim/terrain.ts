@@ -51,6 +51,13 @@ export interface Reef {
   /** Least depth over it: 0 dries at low water, 1 is no obstruction at all. */
   least: number
   seed: number
+  /**
+   * How much of the bar is flat-topped, 0 to 1. Unset, the bottom rises
+   * smoothly from the edge to the middle, which suits a lone sandbar. A
+   * barrier reef wants a plateau: the same least depth most of the way out,
+   * so that bars laid end to end make a wall with no soft joints in it.
+   */
+  flat?: number
 }
 
 /** One value in [0,1) per (cell, salt). Deterministic and cheap. */
@@ -106,7 +113,7 @@ export function reefField(reef: Reef, p: Vec2): number {
 export function reefDepth(reef: Reef, p: Vec2): number {
   const q = reefField(reef, p)
   if (q >= 1) return 1
-  return reef.least + (1 - reef.least) * smoothstep(0, 1, q)
+  return reef.least + (1 - reef.least) * smoothstep(reef.flat ?? 0, 1, q)
 }
 
 /** Unit vector from a point on a bar toward open water, by the shortest way off. */
@@ -144,8 +151,150 @@ export interface Probe {
   escape: Vec2 | null
 }
 
+/** A fixed map: every island and bar of one location, listed. */
+export interface TerrainMap {
+  islands: Island[]
+  reefs: Reef[]
+}
+
+const NO_ISLANDS: Island[] = []
+const NO_REEFS: Reef[] = []
+/** Side of one bucket of the index, in world units. */
+const BUCKET = 700
+/** The furthest an island reaches, in radii: its lee, at the top of the tuning slider. */
+const LEE_REACH = 6
+
+/**
+ * A fixed map, sorted into a grid of buckets once when it is loaded.
+ *
+ * Each bucket lists everything that can affect a point inside it, so asking
+ * what is under a keel is one array lookup and a walk over the two or three
+ * features that could matter. The endless sea has to hash a block of cells to
+ * answer the same question, every time it is asked.
+ */
+class MapIndex {
+  private readonly minX: number
+  private readonly minY: number
+  private readonly cols: number
+  private readonly rows: number
+  private readonly islands: Island[][]
+  private readonly reefs: Reef[][]
+
+  constructor(readonly map: TerrainMap, size: number) {
+    let minX = 0, minY = 0, maxX = 0, maxY = 0
+    if (size > 0) {
+      // A wrapping map is exactly one tile, and anything that reaches over an
+      // edge is listed again on the far side, shifted by a tile, so a point
+      // near the edge finds it without knowing the map wraps.
+      minX = minY = -size / 2
+      maxX = maxY = size / 2
+    } else {
+      const grow = (x: number, y: number, r: number) => {
+        minX = Math.min(minX, x - r); maxX = Math.max(maxX, x + r)
+        minY = Math.min(minY, y - r); maxY = Math.max(maxY, y + r)
+      }
+      for (const i of map.islands) grow(i.x, i.y, MapIndex.islandReach(i))
+      for (const r of map.reefs) grow(r.x, r.y, MapIndex.reefReach(r))
+    }
+    this.minX = minX
+    this.minY = minY
+    this.cols = Math.max(1, Math.ceil((maxX - minX) / BUCKET))
+    this.rows = Math.max(1, Math.ceil((maxY - minY) / BUCKET))
+    this.islands = Array.from({ length: this.cols * this.rows }, () => [])
+    this.reefs = Array.from({ length: this.cols * this.rows }, () => [])
+    const shifts = size > 0 ? [-size, 0, size] : [0]
+    for (const ox of shifts) {
+      for (const oy of shifts) {
+        const here = ox === 0 && oy === 0
+        for (const i of map.islands) {
+          const reach = MapIndex.islandReach(i)
+          if (!this.touches(i.x + ox, i.y + oy, reach, maxX, maxY)) continue
+          this.insert(this.islands, here ? i : { ...i, x: i.x + ox, y: i.y + oy }, i.x + ox, i.y + oy, reach)
+        }
+        for (const r of map.reefs) {
+          const reach = MapIndex.reefReach(r)
+          if (!this.touches(r.x + ox, r.y + oy, reach, maxX, maxY)) continue
+          this.insert(this.reefs, here ? r : { ...r, x: r.x + ox, y: r.y + oy }, r.x + ox, r.y + oy, reach)
+        }
+      }
+    }
+  }
+
+  private touches(x: number, y: number, reach: number, maxX: number, maxY: number): boolean {
+    return x + reach >= this.minX && x - reach <= maxX && y + reach >= this.minY && y - reach <= maxY
+  }
+
+  private static islandReach(i: Island): number {
+    return Math.max(i.shoalRadius * 1.12, i.radius * LEE_REACH)
+  }
+
+  private static reefReach(r: Reef): number {
+    // The edge wobbles out to about 1.3 of the nominal ellipse.
+    return Math.max(r.length, r.width) * 1.35
+  }
+
+  private insert<F>(into: F[][], feature: F, x: number, y: number, reach: number) {
+    const x0 = Math.max(0, Math.floor((x - reach - this.minX) / BUCKET))
+    const x1 = Math.min(this.cols - 1, Math.floor((x + reach - this.minX) / BUCKET))
+    const y0 = Math.max(0, Math.floor((y - reach - this.minY) / BUCKET))
+    const y1 = Math.min(this.rows - 1, Math.floor((y + reach - this.minY) / BUCKET))
+    for (let by = y0; by <= y1; by++) {
+      for (let bx = x0; bx <= x1; bx++) into[by * this.cols + bx].push(feature)
+    }
+  }
+
+  private bucket(p: Vec2): number {
+    const bx = Math.floor((p.x - this.minX) / BUCKET)
+    const by = Math.floor((p.y - this.minY) / BUCKET)
+    if (bx < 0 || by < 0 || bx >= this.cols || by >= this.rows) return -1
+    return by * this.cols + bx
+  }
+
+  islandsAt(p: Vec2): Island[] {
+    const b = this.bucket(p)
+    return b < 0 ? NO_ISLANDS : this.islands[b]
+  }
+
+  reefsAt(p: Vec2): Reef[] {
+    const b = this.bucket(p)
+    return b < 0 ? NO_REEFS : this.reefs[b]
+  }
+}
+
 export class Terrain {
   constructor(private worldSeed = 0x5eed) {}
+
+  private index: MapIndex | null = null
+  /** Changes whenever the land does, so a view knows to redraw. */
+  version = 0
+
+  /**
+   * Use a fixed map, or pass null to go back to the endless hashed sea.
+   * Everything else on this class answers the same questions either way.
+   */
+  load(map: TerrainMap | null, size = 0) {
+    this.index = map ? new MapIndex(map, size) : null
+    this.size = map ? size : 0
+    this.version++
+  }
+
+  /**
+   * Side of the tile a fixed map repeats on, or 0 if it does not. The map
+   * wraps by repeating: positions are never folded, so nothing in the sim
+   * ever sees a seam, and sailing off one edge simply brings the same land
+   * round again from the other.
+   */
+  size = 0
+
+  /** A point brought into the map's own tile. The point itself where nothing wraps. */
+  local(p: Vec2): Vec2 {
+    const s = this.size
+    if (s <= 0) return p
+    return { x: p.x - s * Math.round(p.x / s), y: p.y - s * Math.round(p.y / s) }
+  }
+
+  /** The fixed map in use, if there is one. */
+  get map(): TerrainMap | null { return this.index?.map ?? null }
 
   /**
    * Lay out a fresh archipelago. Terrain is a pure function of this seed, so
@@ -153,10 +302,29 @@ export class Terrain {
    */
   reseed(seed: number) {
     this.worldSeed = seed >>> 0
+    if (!this.index) this.version++
   }
 
   /** Islands whose influence could reach a point, cheaply. */
   near(p: Vec2, extra = 0): Island[] {
+    if (this.index) {
+      // The quick lookup answers in the map's own tile: pass it `local(p)`
+      // and measure from that, as `probe` and the wind's lee do.
+      if (extra <= 0) return this.index.islandsAt(p)
+      // A wider look is rare (a pilot choosing a refuge), and a fixed map is
+      // short enough to walk. These come back where the asker is, whichever
+      // repeat of the map that happens to be.
+      const out: Island[] = []
+      const s = this.size
+      for (const i of this.index.map.islands) {
+        let dx = i.x - p.x
+        let dy = i.y - p.y
+        if (s > 0) { dx -= s * Math.round(dx / s); dy -= s * Math.round(dy / s) }
+        if (Math.hypot(dx, dy) > extra + Math.max(i.shoalRadius, i.radius * LEE_REACH)) continue
+        out.push(s > 0 ? { ...i, x: p.x + dx, y: p.y + dy } : i)
+      }
+      return out
+    }
     const reach = T.islandMaxRadius * 2 * T.shoalScale + extra
     const out: Island[] = []
     this.forCells(p, reach, (cx, cy) => {
@@ -168,6 +336,19 @@ export class Terrain {
 
   /** Bars whose influence could reach a point. */
   reefsNear(p: Vec2, extra = 0): Reef[] {
+    if (this.index) {
+      if (extra <= 0) return this.index.reefsAt(p)
+      const out: Reef[] = []
+      const s = this.size
+      for (const r of this.index.map.reefs) {
+        let dx = r.x - p.x
+        let dy = r.y - p.y
+        if (s > 0) { dx -= s * Math.round(dx / s); dy -= s * Math.round(dy / s) }
+        if (Math.hypot(dx, dy) > extra + Math.max(r.length, r.width) * 1.35) continue
+        out.push(s > 0 ? { ...r, x: p.x + dx, y: p.y + dy } : r)
+      }
+      return out
+    }
     const out: Reef[] = []
     this.forCells(p, this.reefReach() + extra, (cx, cy) => {
       const reef = this.cellReef(cx, cy)
@@ -307,7 +488,9 @@ export class Terrain {
    * Signed distance to the nearest dry land, the depth of water here, and
    * which way deeper water lies.
    */
-  probe(p: Vec2): Probe {
+  probe(at: Vec2): Probe {
+    // Worked out in the map's own tile, then handed back where it was asked.
+    const p = this.local(at)
     let best: Island | null = null
     let bestDist = Infinity
     let depth = 1
@@ -344,6 +527,7 @@ export class Terrain {
       }
     }
 
+    if (best && (p.x !== at.x || p.y !== at.y)) best = { ...best, x: best.x + at.x - p.x, y: best.y + at.y - p.y }
     return { island: best, distance: bestDist, depth, escape }
   }
 

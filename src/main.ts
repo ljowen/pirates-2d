@@ -17,6 +17,7 @@ import { SquallView } from './render/squallView'
 import { PALETTES, paletteFromLocation } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
+import { LEVELS_BY_ID } from './sim/levels'
 import { PortUI } from './ui/port'
 import type { ShipClass } from './sim/shipClasses'
 import { Hud } from './render/hud'
@@ -28,6 +29,16 @@ import { Audio } from './audio/audio'
 import { AudioDirector } from './audio/director'
 import { T } from './sim/tuning'
 import { Ledger, loadCareer, saveCareer, freshCareer, voyageOf } from './meta/career'
+
+const LEVEL_KEY = 'pirates2d.level'
+
+/** The location to sail: `?level=` in the address, else the last one chosen, else the first. */
+function chosenLevel() {
+  const asked = /[?&]level=([\w-]+)/.exec(window.location.search)?.[1]
+  let saved: string | null = null
+  try { saved = localStorage.getItem(LEVEL_KEY) } catch { /* no storage */ }
+  return LEVELS_BY_ID.get(asked ?? '') ?? LEVELS_BY_ID.get(saved ?? '')
+}
 
 async function main() {
   const host = document.getElementById('app')!
@@ -57,6 +68,8 @@ async function main() {
   const hullStyle = hullStyleFromLocation(window.location.search)
 
   const world = new World()
+  const level = chosenLevel()
+  if (level) world.level = level
   const camera = new Camera()
   const input = new Input(app.canvas)
 
@@ -171,6 +184,13 @@ async function main() {
     sail: startVoyage,
     careerChanged: () => port.refresh(),
     audio,
+    setLevel: (id) => {
+      const level = LEVELS_BY_ID.get(id)
+      if (!level) return
+      world.level = level
+      try { localStorage.setItem(LEVEL_KEY, id) } catch { /* no storage */ }
+      startVoyage(world.player.cls)
+    },
   })
 
   let showDebug = false

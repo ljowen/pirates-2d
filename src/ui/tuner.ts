@@ -10,6 +10,7 @@ import { P } from '../render/palette'
 import { H } from '../render/hullStyle'
 import { C, bodyFamily, cardCss, ui } from './theme'
 import type { Audio } from '../audio/audio'
+import { LEVELS } from '../sim/levels'
 
 const STORAGE_KEY = 'pirates2d.tuning.v2'
 const TAB_KEY = 'pirates2d.tuning.tab'
@@ -45,6 +46,8 @@ export interface TunerHooks {
   careerChanged: () => void
   /** For the Sounds tab, which plays each one on its own. */
   audio: Audio
+  /** Sail a different location, starting a fresh voyage there. */
+  setLevel: (id: string) => void
 }
 
 /**
@@ -147,6 +150,7 @@ export class Tuner {
     this.pane = this.panes.get('sailing')!
     this.buildCurveEditor()
     this.buildSliders()
+    this.buildLevels()
     this.load()
     let saved: string | null = null
     try { saved = localStorage.getItem(TAB_KEY) } catch { /* no storage */ }
@@ -532,6 +536,42 @@ export class Tuner {
     `
     b.onclick = onClick
     return b
+  }
+
+  // --- Locations -------------------------------------------------------------
+
+  /** Which map to sail, at the top of the World tab. Picking one starts a voyage there. */
+  private buildLevels() {
+    const pane = this.panes.get('world')!
+    const box = document.createElement('div')
+    box.style.cssText = 'margin:0 0 12px'
+    const title = document.createElement('div')
+    title.textContent = 'MAP'
+    title.style.cssText = 'color:#9fe8ff;letter-spacing:1.5px;margin:0 0 6px'
+    const row = document.createElement('div')
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px'
+    const note = document.createElement('div')
+    note.style.cssText = 'opacity:0.6;margin:6px 0 0;line-height:1.5'
+    const buttons: [string, HTMLButtonElement][] = []
+    const mark = () => {
+      const current = this.world.level
+      note.textContent = current.blurb +
+        (current.map ? ' The Land sliders below do not change a fixed map.' : '')
+      for (const [id, b] of buttons) {
+        const on = id === current.id
+        b.style.background = on ? 'rgba(159,232,255,0.3)' : 'rgba(159,232,255,0.12)'
+        b.style.fontWeight = on ? 'bold' : ''
+      }
+    }
+    for (const level of LEVELS) {
+      const b = this.button(level.name, () => { this.hooks.setLevel(level.id); mark() })
+      b.dataset.level = level.id
+      buttons.push([level.id, b])
+      row.appendChild(b)
+    }
+    box.append(title, row, note)
+    pane.insertBefore(box, pane.firstChild)
+    mark()
   }
 
   // --- Sounds ----------------------------------------------------------------

@@ -10,6 +10,7 @@ import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 import { draughtDepth } from '../sim/terrain'
 import { outmatches, toKnots } from '../sim/stats'
 import { iconImage } from '../ui/icons'
+import { Minimap } from './minimap'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
 import {
@@ -33,6 +34,8 @@ const IN = 14
 const ROW = 22
 
 export class Hud {
+  private readonly minimap = new Minimap()
+
   constructor(private readonly ctx: CanvasRenderingContext2D) {}
 
   draw(
@@ -53,6 +56,8 @@ export class Hud {
     // average — otherwise local weather would be invisible to them.
     const localWind = world.windAt(player.pos)
     this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 100, 100, 62)
+    // The chart sits under the rose, clear of the wind's label.
+    this.minimap.draw(ctx, world, w - 20 - 196, 216, 196)
     // Stacked by each panel's real height, so a panel can grow — the sails
     // panel gains a line while mending — without colliding with the next.
     let col = 20
