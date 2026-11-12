@@ -9,11 +9,12 @@ import { FEATS } from '../meta/feats'
 import { P } from '../render/palette'
 import { H } from '../render/hullStyle'
 import { C, bodyFamily, cardCss, ui } from './theme'
+import type { Audio } from '../audio/audio'
 
 const STORAGE_KEY = 'pirates2d.tuning.v2'
 const TAB_KEY = 'pirates2d.tuning.tab'
 
-type TabId = 'career' | 'upgrades' | 'sailing' | 'combat' | 'run' | 'world'
+type TabId = 'career' | 'upgrades' | 'sailing' | 'combat' | 'run' | 'world' | 'sounds'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'career', label: 'Career' },
@@ -22,6 +23,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'combat', label: 'Combat' },
   { id: 'run', label: 'Run' },
   { id: 'world', label: 'World' },
+  { id: 'sounds', label: 'Sounds' },
 ]
 
 /** Which tab each schema group's sliders live on. Unlisted groups go to World. */
@@ -41,6 +43,8 @@ export interface TunerHooks {
   sail: (cls: ShipClass) => void
   /** The career was edited; anything showing it should redraw. */
   careerChanged: () => void
+  /** For the Sounds tab, which plays each one on its own. */
+  audio: Audio
 }
 
 /**
@@ -138,6 +142,8 @@ export class Tuner {
     this.buildCareer()
     this.pane = this.panes.get('upgrades')!
     this.buildBench()
+    this.pane = this.panes.get('sounds')!
+    this.buildSounds()
     this.pane = this.panes.get('sailing')!
     this.buildCurveEditor()
     this.buildSliders()
@@ -526,6 +532,39 @@ export class Tuner {
     `
     b.onclick = onClick
     return b
+  }
+
+  // --- Sounds ----------------------------------------------------------------
+
+  /**
+   * Every sound the game makes, one button each, so any of them can be heard
+   * without arranging for it to happen. Sounds out in the world play at the
+   * listener, which is as loud as they get.
+   */
+  private buildSounds() {
+    const audio = this.hooks.audio
+    const note = document.createElement('div')
+    note.style.cssText = 'opacity:0.6;margin:0 0 8px;line-height:1.5'
+    note.textContent = 'Click to hear each sound. M mutes; master volume is on the World tab.'
+    this.pane.appendChild(note)
+
+    let group = ''
+    let row: HTMLDivElement | null = null
+    for (const entry of audio.catalogue) {
+      if (entry.group !== group) {
+        group = entry.group
+        const title = document.createElement('div')
+        title.textContent = group.toUpperCase()
+        title.style.cssText = 'color:#9fe8ff;letter-spacing:1.5px;margin:12px 0 6px'
+        this.pane.appendChild(title)
+        row = document.createElement('div')
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px'
+        this.pane.appendChild(row)
+      }
+      const b = this.button(entry.label, () => audio.play(entry.id))
+      b.dataset.sound = entry.id
+      row!.appendChild(b)
+    }
   }
 
   // --- Polar curve editor --------------------------------------------------

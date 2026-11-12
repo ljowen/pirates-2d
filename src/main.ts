@@ -129,6 +129,7 @@ async function main() {
   if (/[?&]career=new\b/.test(window.location.search)) saveCareer(freshCareer())
   const ledger = new Ledger(loadCareer(), saveCareer)
   const port = new PortUI(ledger)
+  port.onSound = draft.onSound = (id) => audio.play(id)
   /** False until a hull has been chosen, so the idle sea behind the first quayside is never paid. */
   let atSea = false
 
@@ -169,6 +170,7 @@ async function main() {
     ledger,
     sail: startVoyage,
     careerChanged: () => port.refresh(),
+    audio,
   })
 
   let showDebug = false

@@ -310,7 +310,11 @@ export class DraftUI {
     })
   }
 
+  /** Asked for by id; the game points this at the audio engine. */
+  onSound: (id: string) => void = () => {}
+
   private pick(u: Upgrade) {
+    this.onSound('flick')
     const cb = this.onPick
     this.hide()
     cb?.(u)

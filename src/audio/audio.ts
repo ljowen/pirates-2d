@@ -32,6 +32,7 @@ export class Audio {
   private seaFilter!: BiquadFilterNode
   private luffGain!: GainNode
   private luffDepth!: GainNode
+  private rainGain!: GainNode
 
   get ready() { return this.ctx !== null && this.ctx.state === 'running' }
 
@@ -90,6 +91,9 @@ export class Audio {
     this.seaFilter = sea.filter
     this.seaGain = sea.gain
 
+    // Rain: thin and bright, heard only inside a squall.
+    this.rainGain = bed('highpass', 3200, 0.4).gain
+
     const luff = bed('bandpass', 1400, 1.1)
     this.luffGain = luff.gain
 
@@ -107,8 +111,9 @@ export class Audio {
    * @param windStrength  wind.strength
    * @param speed01       hull speed as a fraction of a good turn of speed
    * @param luff01        how badly the sails are shivering, 0..1
+   * @param squall01      how deep in a squall the listener is, 0..1
    */
-  updateAmbience(windStrength: number, speed01: number, luff01: number) {
+  updateAmbience(windStrength: number, speed01: number, luff01: number, squall01 = 0) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
     const glide = 0.12
@@ -124,6 +129,8 @@ export class Audio {
     const l = clamp(luff01, 0, 1)
     this.luffGain.gain.setTargetAtTime(0.085 * l, t, glide)
     this.luffDepth.gain.setTargetAtTime(0.07 * l, t, glide)
+
+    this.rainGain.gain.setTargetAtTime(0.05 * clamp(squall01, 0, 1), t, 0.4)
   }
 
   setListener(x: number, y: number, halfWidth: number) {
@@ -344,5 +351,260 @@ export class Audio {
     v.gain.gain.setValueAtTime(0, t)
     v.gain.gain.linearRampToValueAtTime(0.14, t + 0.12)
     v.gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.7)
+  }
+
+  // --- Voices without a place -------------------------------------------------
+  // Everything below is about the player's own ship or the menus, so it is not
+  // panned or faded by distance.
+
+  /** One oscillator note with a fast attack and an exponential tail. */
+  private tone(
+    type: OscillatorType, from: number, when: number, dur: number, level: number,
+    to = from, lowpass = 0,
+  ) {
+    const ctx = this.ctx!
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = type
+    osc.frequency.setValueAtTime(from, when)
+    if (to !== from) osc.frequency.exponentialRampToValueAtTime(to, when + dur * 0.8)
+    gain.gain.setValueAtTime(0, when)
+    gain.gain.linearRampToValueAtTime(level, when + 0.008)
+    gain.gain.exponentialRampToValueAtTime(0.0008, when + dur)
+    if (lowpass > 0) {
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = lowpass
+      osc.connect(filter).connect(gain).connect(this.master)
+    } else {
+      osc.connect(gain).connect(this.master)
+    }
+    osc.start(when)
+    osc.stop(when + dur + 0.05)
+  }
+
+  /** A burst of filtered noise. */
+  private burst(
+    type: BiquadFilterType, from: number, to: number, q: number,
+    when: number, dur: number, level: number, attack = 0.005,
+  ) {
+    const v = this.voice(when, dur + 0.05, 0)
+    v.filter.type = type
+    v.filter.Q.value = q
+    v.filter.frequency.setValueAtTime(from, when)
+    if (to !== from) v.filter.frequency.exponentialRampToValueAtTime(to, when + dur * 0.8)
+    v.gain.gain.setValueAtTime(0, when)
+    v.gain.gain.linearRampToValueAtTime(level, when + attack)
+    v.gain.gain.exponentialRampToValueAtTime(0.0008, when + dur)
+  }
+
+  /** A struck bell: a few partials that are not quite in tune with each other. */
+  private bellAt(pitch: number, when: number, dur: number, level: number) {
+    const partials: [number, number, number][] = [[1, 1, 1], [2.0, 0.5, 0.7], [2.76, 0.35, 0.5], [5.4, 0.18, 0.25]]
+    for (const [ratio, amp, life] of partials) {
+      this.tone('sine', pitch * ratio, when, dur * life, level * amp)
+    }
+  }
+
+  /** A horn note: a sawtooth with the top taken off. */
+  private brass(pitch: number, when: number, dur: number, level: number) {
+    this.tone('sawtooth', pitch, when, dur, level, pitch, pitch * 3.2)
+  }
+
+  /** The keel striking: one heavy thud. */
+  aground() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.tone('sine', 85, t, 0.45, 0.55, 34)
+    this.burst('lowpass', 420, 160, 0.8, t, 0.35, 0.4)
+  }
+
+  /** Timber dragging over sand, repeated for as long as she is stuck. */
+  scrape() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.burst('bandpass', 380 + Math.random() * 120, 210, 3.5, t, 0.55, 0.3, 0.09)
+    this.burst('bandpass', 1500, 900, 1.2, t + 0.05, 0.4, 0.06, 0.08)
+  }
+
+  /** A prize taken: a short rising call on the horn. Stands in for a cheer. */
+  prize() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    const notes = [392, 523.25, 659.25, 783.99]
+    notes.forEach((f, i) => this.brass(f, t + i * 0.11, i === 3 ? 0.7 : 0.16, 0.085))
+    this.brass(523.25, t + 0.33, 0.7, 0.05)
+  }
+
+  /** An enemy giving up: her canvas coming down, and two falling notes. */
+  yielded() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.burst('bandpass', 1100, 380, 0.7, t, 0.6, 0.09, 0.1)
+    this.tone('triangle', 587.33, t, 0.22, 0.07)
+    this.tone('triangle', 440, t + 0.17, 0.4, 0.07)
+  }
+
+  /** A coin. `step` climbs through a quick run of them so a haul rings upward. */
+  coin(step = 0) {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    const pitch = 1900 * Math.pow(1.0595, Math.min(step, 12) * 2)
+    this.tone('sine', pitch, t, 0.16, 0.05)
+    this.tone('sine', pitch * 1.5, t + 0.012, 0.11, 0.035)
+  }
+
+  /** Level up: two strokes on the ship's bell. */
+  bell() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.bellAt(880, t, 0.9, 0.11)
+    this.bellAt(880, t + 0.26, 1.4, 0.11)
+  }
+
+  /** A card taken, a tab turned: a flick of paper. */
+  flick() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.burst('bandpass', 2600, 1500, 1.4, t, 0.08, 0.1, 0.004)
+  }
+
+  /** A hunter or a boss wave called out: two drum strokes and a low horn. */
+  alarm() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    for (const at of [0, 0.2]) {
+      this.tone('sine', 110, t + at, 0.3, 0.4, 48)
+      this.burst('lowpass', 500, 200, 0.7, t + at, 0.16, 0.14)
+    }
+    this.brass(110, t + 0.42, 1.1, 0.12)
+    this.brass(164.81, t + 0.42, 1.1, 0.06)
+  }
+
+  /** A battery loaded again: a knock of wood, quiet enough to ignore. */
+  reloaded() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.tone('triangle', 330, t, 0.07, 0.07, 190)
+    this.burst('bandpass', 1800, 1200, 2, t, 0.04, 0.05, 0.002)
+  }
+
+  /** The boom coming across as she tacks or gybes. */
+  gybe() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.burst('bandpass', 900, 1500, 0.8, t, 0.3, 0.07, 0.08)
+    this.burst('lowpass', 260, 120, 0.8, t + 0.16, 0.24, 0.2)
+  }
+
+  /** One pop of burning timber. Called many times a second while she is ablaze. */
+  crackle() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.burst('highpass', 2200 + Math.random() * 2500, 2200, 0.5, t, 0.025 + Math.random() * 0.04,
+      0.03 + Math.random() * 0.07, 0.002)
+  }
+
+  /** Doubloons counted out across a counter. */
+  purchase() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    for (let i = 0; i < 4; i++) {
+      const at = t + i * 0.07
+      const pitch = 1700 + Math.random() * 500
+      this.tone('sine', pitch, at, 0.14, 0.05)
+      this.tone('sine', pitch * 1.5, at + 0.01, 0.1, 0.03)
+    }
+    this.burst('lowpass', 300, 180, 0.8, t + 0.3, 0.12, 0.12)
+  }
+
+  /** A refit fitted: two strokes of a mallet. */
+  refit() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    for (const at of [0, 0.19]) {
+      this.tone('triangle', 210, t + at, 0.1, 0.16, 110)
+      this.burst('bandpass', 1400, 900, 1.5, t + at, 0.05, 0.1, 0.002)
+    }
+  }
+
+  /** Not enough in the purse, or not allowed. */
+  refuse() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.tone('triangle', 150, t, 0.16, 0.14, 105)
+  }
+
+  /** The voyage completed. */
+  won() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    const tune: [number, number, number][] = [[523.25, 0, 0.18], [523.25, 0.16, 0.14], [659.25, 0.3, 0.18], [783.99, 0.46, 0.2], [1046.5, 0.66, 1.2]]
+    for (const [f, at, dur] of tune) this.brass(f, t + at, dur, 0.08)
+    this.brass(659.25, t + 0.66, 1.2, 0.045)
+    this.brass(783.99, t + 0.66, 1.2, 0.045)
+  }
+
+  /** The player's ship lost: a slow, low bell. */
+  lost() {
+    if (!this.canPlay(8)) return
+    const t = this.ctx!.currentTime
+    this.bellAt(196, t + 0.5, 2.6, 0.16)
+    this.bellAt(196, t + 1.9, 3.2, 0.13)
+  }
+
+  /**
+   * Every sound, by name: what the menus ask for by id, and what the tuning
+   * panel lists so each can be heard on its own. World sounds are played at
+   * the listener, which is as loud as they ever get.
+   */
+  readonly catalogue: { id: string; label: string; group: string; play: () => void }[] = [
+    { group: 'Gunnery', id: 'cannon', label: 'Broadside', play: () => this.cannon(this.listenerX, this.listenerY, 6) },
+    { group: 'Gunnery', id: 'cannon-far', label: 'Broadside, distant', play: () => this.cannon(this.listenerX + 700, this.listenerY, 6) },
+    { group: 'Gunnery', id: 'hit', label: 'Hit on an enemy', play: () => this.hit(this.listenerX, this.listenerY, false) },
+    { group: 'Gunnery', id: 'hit-own', label: 'Hit on your hull', play: () => this.hit(this.listenerX, this.listenerY, true) },
+    { group: 'Gunnery', id: 'splash', label: 'Shot falling short', play: () => this.splash(this.listenerX, this.listenerY) },
+    { group: 'Gunnery', id: 'reloaded', label: 'Battery reloaded', play: () => this.reloaded() },
+    { group: 'Gunnery', id: 'sinking', label: 'Ship sinking', play: () => this.sinking(this.listenerX, this.listenerY) },
+    { group: 'Gunnery', id: 'yielded', label: 'Enemy yields', play: () => this.yielded() },
+    { group: 'Gunnery', id: 'prize', label: 'Prize taken', play: () => this.prize() },
+    { group: 'Ship', id: 'sail-up', label: 'Make sail', play: () => this.sailChange(true) },
+    { group: 'Ship', id: 'sail-down', label: 'Shorten sail', play: () => this.sailChange(false) },
+    { group: 'Ship', id: 'gybe', label: 'Tack or gybe', play: () => this.gybe() },
+    { group: 'Ship', id: 'aground', label: 'Run aground', play: () => this.aground() },
+    { group: 'Ship', id: 'scrape', label: 'Scraping, while aground', play: () => this.scrape() },
+    { group: 'Ship', id: 'crackle', label: 'Fire, one second', play: () => this.crackleFor(1) },
+    { group: 'Ship', id: 'rain', label: 'Squall rain, two seconds', play: () => this.rainFor(2) },
+    { group: 'Run', id: 'coin', label: 'Plunder, one piece', play: () => this.coin(0) },
+    { group: 'Run', id: 'coins', label: 'Plunder, a run of five', play: () => this.coinRun(5) },
+    { group: 'Run', id: 'bell', label: 'Level up', play: () => this.bell() },
+    { group: 'Run', id: 'flick', label: 'Card or tab picked', play: () => this.flick() },
+    { group: 'Run', id: 'alarm', label: 'Announcement', play: () => this.alarm() },
+    { group: 'Run', id: 'won', label: 'Voyage complete', play: () => this.won() },
+    { group: 'Run', id: 'lost', label: 'Sunk', play: () => this.lost() },
+    { group: 'Port', id: 'purchase', label: 'Hull bought', play: () => this.purchase() },
+    { group: 'Port', id: 'refit', label: 'Refit bought', play: () => this.refit() },
+    { group: 'Port', id: 'refuse', label: 'Cannot afford', play: () => this.refuse() },
+  ]
+
+  /** Play a catalogue sound by id. Unknown ids are ignored. */
+  play(id: string) {
+    this.resume()
+    this.catalogue.find((entry) => entry.id === id)?.play()
+  }
+
+  // Auditions for the continuous sounds, which the game drives every frame.
+  private crackleFor(seconds: number) {
+    for (let i = 0; i < seconds * 14; i++) window.setTimeout(() => this.crackle(), Math.random() * seconds * 1000)
+  }
+  private coinRun(n: number) {
+    for (let i = 0; i < n; i++) window.setTimeout(() => this.coin(i), i * 90)
+  }
+  private rainFor(seconds: number) {
+    if (!this.ctx) return
+    const t = this.ctx.currentTime
+    this.rainGain.gain.cancelScheduledValues(t)
+    this.rainGain.gain.setTargetAtTime(0.05, t, 0.2)
+    this.rainGain.gain.setTargetAtTime(0, t + seconds, 0.3)
   }
 }

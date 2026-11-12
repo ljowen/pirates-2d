@@ -69,6 +69,7 @@ export class PortUI {
         e.preventDefault()
         const i = TABS.findIndex((t) => t.id === this.tab)
         this.tab = TABS[(i + (e.shiftKey ? TABS.length - 1 : 1)) % TABS.length].id
+        this.onSound('flick')
         this.render()
         return
       }
@@ -90,7 +91,7 @@ export class PortUI {
         if (cls) this.hullAction(cls)
       } else if (this.tab === 'refit') {
         const refit = REFITS[index]
-        if (refit && this.ledger.buyRefit(refit)) this.render()
+        if (refit) this.buyRefit(refit)
       }
     })
   }
@@ -115,13 +116,28 @@ export class PortUI {
     this.root.style.display = 'none'
   }
 
+  /** Asked for by id; the game points this at the audio engine. */
+  onSound: (id: string) => void = () => {}
+
+  private buyRefit(refit: Refit) {
+    if (this.ledger.buyRefit(refit)) {
+      this.onSound('refit')
+      this.render()
+    } else {
+      this.onSound('refuse')
+    }
+  }
+
   private hullAction(cls: ShipClass) {
     if (owns(this.ledger.career, cls)) {
       const cb = this.onSail
       this.hide()
       cb?.(cls)
     } else if (this.ledger.buyHull(cls)) {
+      this.onSound('purchase')
       this.render()
+    } else {
+      this.onSound('refuse')
     }
   }
 
@@ -165,7 +181,7 @@ export class PortUI {
       b.style.alignItems = 'center'
       b.style.gap = '7px'
       b.innerHTML = `${icon(t.id, 20)}<span>${t.label}${this.badge(t.id)}</span>`
-      b.onclick = () => { this.tab = t.id; this.render() }
+      b.onclick = () => { this.tab = t.id; this.onSound('flick'); this.render() }
       tabs.appendChild(b)
     }
     this.root.appendChild(tabs)
@@ -342,7 +358,7 @@ export class PortUI {
     card.dataset.rank = String(held)
     card.dataset.state = maxed ? 'maxed' : affordable ? 'affordable' : 'locked'
     card.style.width = '228px'
-    card.onclick = () => { if (this.ledger.buyRefit(refit)) this.render() }
+    card.onclick = () => this.buyRefit(refit)
 
     const pips = Array.from({ length: refit.maxRank }, (_, i) =>
       `<span style="display:inline-block;width:14px;height:5px;border-radius:2px;margin-right:3px;
