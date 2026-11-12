@@ -276,11 +276,17 @@ export class PortUI {
     // A hull out of reach is dimmed but still fully legible: reading what she
     // does is what makes her worth saving for.
     if (!owned && !affordable) {
-      // Faded and drained of colour, like a page not yet inked, rather than
-      // simply see-through: transparency over the dark backdrop turned paper
-      // to mud.
-      card.style.opacity = isCel() ? (allowed ? '0.82' : '0.7') : allowed ? '0.66' : '0.5'
-      if (isCel()) card.style.filter = `saturate(${allowed ? 0.6 : 0.45})`
+      if (!isCel()) {
+        card.style.opacity = allowed ? '0.66' : '0.5'
+      } else if (!allowed) {
+        // Only a hull the yard will not build yet is faded and drained of
+        // colour. One that is merely too dear stays on full paper with its
+        // price and how close the purse is: on a new career that is every
+        // hull but the Sloop, and fading them all made the yard read as six
+        // dead cards instead of six things to save for.
+        card.style.opacity = '0.78'
+        card.style.filter = 'saturate(0.45)'
+      }
     }
 
     // Relative to the Sloop, which is the tuning baseline, so the bars read as
@@ -305,7 +311,8 @@ export class PortUI {
             <span style="opacity:0.7">then ${price.toLocaleString()} doubloons</span>`, false)
         : affordable
           ? plate(`Buy for ${price.toLocaleString()}`, true)
-          : plate(`${price.toLocaleString()} doubloons &nbsp;·&nbsp; ${(price - career.doubloons).toLocaleString()} short`, false)
+          : plate(`${price.toLocaleString()} doubloons &nbsp;·&nbsp; ${(price - career.doubloons).toLocaleString()} short` +
+              progress(career.doubloons / price), false)
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
@@ -353,7 +360,8 @@ export class PortUI {
         ? `<div style="margin-top:4px;font-size:11px;color:${GOOD};text-align:center">max rank</div>`
         : affordable
           ? plate(`Rank ${held + 1} for ${cost.toLocaleString()}`, true)
-          : plate(`rank ${held + 1} · ${cost.toLocaleString()} &nbsp;·&nbsp; ${(cost - career.doubloons).toLocaleString()} short`, false)}`
+          : plate(`rank ${held + 1} · ${cost.toLocaleString()} &nbsp;·&nbsp; ${(cost - career.doubloons).toLocaleString()} short` +
+              progress(career.doubloons / cost), false)}`
     return card
   }
 
@@ -410,6 +418,14 @@ function cardShell(accent: string, live: boolean): HTMLButtonElement {
     card.style.background = 'rgba(8,24,38,0.95)'
   }
   return card
+}
+
+/** How far the purse is toward a price: a thin inked gauge under the figure. */
+function progress(share: number): string {
+  const pct = Math.max(0, Math.min(1, share)) * 100
+  const edge = isCel() ? `border:1px solid ${ui().panel.ink};box-sizing:border-box;` : 'border-radius:2px;'
+  return `<div style="margin:6px auto 1px;width:80%;height:5px;background:${C('rgba(255,255,255,0.13)')};${edge}overflow:hidden">
+    <div style="height:100%;width:${pct}%;background:${GOLD}"></div></div>`
 }
 
 function plate(html: string, call: boolean): string {
