@@ -84,7 +84,7 @@ export class DraftUI {
 
     const heading = document.createElement('div')
     heading.innerHTML = `
-      <div style="color:${M.heading};font-size:${isCel() ? 16 : 13}px;letter-spacing:3px;font-weight:bold;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
+      <div style="color:${M.heading};font-size:${isCel() ? 16 : 14}px;letter-spacing:3px;font-weight:bold;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
       <div style="color:${M.text};font-size:${isCel() ? 32 : 20}px;margin:6px 0 26px;text-align:center;font-family:${headingFamily()}">Choose an upgrade</div>`
     this.root.appendChild(heading)
 
@@ -101,7 +101,7 @@ export class DraftUI {
       again.dataset.reroll = String(rerolls)
       again.textContent = `Redraw this hand  ·  ${rerolls} left  ·  0`
       again.style.cssText = `
-        margin-top: 16px; font: inherit; font-size: 13px; cursor: pointer; padding: 7px 16px;
+        margin-top: 16px; font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
         ${isCel() ? `${callCss()}; border-radius: 4px;`
           : `border-radius: 6px; color: ${M.gold}; border: 1px solid ${M.gold}; background: transparent;`}`
       again.onclick = () => this.onReroll?.()
@@ -113,7 +113,7 @@ export class DraftUI {
     const hint = document.createElement('div')
     hint.textContent =
       `click a card, or press ${upgrades.map((_, i) => i + 1).join(' / ')}`
-    hint.style.cssText = `color:${M.dim};font-size:12px;margin-top:18px`
+    hint.style.cssText = `color:${M.dim};font-size:14px;margin-top:18px`
     this.root.appendChild(hint)
   }
 
@@ -162,20 +162,20 @@ export class DraftUI {
     // say so plainly rather than letting the player discover it later.
     const commits = isCommitting(u, taken)
     const footer = commits
-      ? `<div style="font-size:10px;color:${color};opacity:0.95">
+      ? `<div style="font-size:14px;color:${color};opacity:0.95">
            ⚓ locks your shot type for this run
          </div>`
       : ''
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="color:${color};font-size:10px;letter-spacing:1.5px">${u.group.toUpperCase()}</span>
-        <span style="opacity:0.4;font-size:10px">${i + 1}</span>
+        <span style="color:${color};font-size:14px;letter-spacing:1.5px">${u.group.toUpperCase()}</span>
+        <span style="opacity:0.4;font-size:14px">${i + 1}</span>
       </div>
       <div style="font-size:${isCel() ? 21 : 16}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${C('#ffffff')}">${u.name}</div>
-      <div style="font-size:12px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
+      <div style="font-size:14px;line-height:1.55;opacity:0.78;flex:1">${u.text}</div>
       ${footer}
-      <div style="font-size:10px;opacity:0.5">
+      <div style="font-size:14px;opacity:0.5">
         ${stacks > 0 ? `owned ${stacks}/${u.maxStacks}` : `up to ${u.maxStacks}`}
       </div>`
     return card
@@ -193,7 +193,7 @@ export class DraftUI {
 
     const header = document.createElement('div')
     header.style.cssText =
-      'display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:1.5px'
+      'display:flex;justify-content:space-between;align-items:baseline;font-size:14px;letter-spacing:1.5px'
     const title = document.createElement('span')
     title.textContent = `${player.cls.name.toUpperCase()} — CURRENT`
     title.style.cssText = `color:${C('rgba(255,255,255,0.6)')}`
@@ -218,7 +218,7 @@ export class DraftUI {
       const label = document.createElement('div')
       label.textContent = group.toUpperCase()
       label.style.cssText =
-        `color:${GROUP_COLORS[group]};font-size:9.5px;letter-spacing:1.5px;margin-bottom:4px;opacity:0.9`
+        `color:${GROUP_COLORS[group]};font-size:14px;letter-spacing:1.5px;margin-bottom:4px;opacity:0.9`
       column.appendChild(label)
 
       for (const stat of stats) column.appendChild(this.statRow(stat))
@@ -229,7 +229,7 @@ export class DraftUI {
     const foot = document.createElement('div')
     foot.textContent =
       'Full sail, steady breeze. Repair while furled. Broadside and weight of fire vs a standard hull.'
-    foot.style.cssText = `font-size:10.5px;color:${C('rgba(207,230,245,0.5)')};line-height:1.5`
+    foot.style.cssText = `font-size:14px;color:${C('rgba(207,230,245,0.5)')};line-height:1.5`
     panel.appendChild(foot)
 
     return panel
@@ -239,7 +239,7 @@ export class DraftUI {
     const row = document.createElement('div')
     row.style.cssText = `
       display:flex;justify-content:space-between;align-items:baseline;gap:8px;
-      font-size:11px;padding:2px 4px;border-radius:3px;transition:background 0.1s ease;
+      font-size:14px;padding:2px 4px;border-radius:3px;transition:background 0.1s ease;
     `
     const label = document.createElement('span')
     label.textContent = stat.label

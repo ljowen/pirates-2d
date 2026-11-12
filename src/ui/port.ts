@@ -131,13 +131,13 @@ export class PortUI {
     const earned = this.ledger.earned
     const head = el('div', 'text-align:center')
     head.innerHTML = `
-      <div style="color:${M.heading};font-size:${isCel() ? 15 : 13}px;letter-spacing:4px;font-weight:bold;font-family:${displayFamily()}">PIRATES</div>
+      <div style="color:${M.heading};font-size:${isCel() ? 15 : 14}px;letter-spacing:4px;font-weight:bold;font-family:${displayFamily()}">PIRATES</div>
       <div style="font-size:${isCel() ? 34 : 21}px;margin:8px 0 10px;font-family:${headingFamily()}">In port</div>
       <div data-purse style="color:${M.gold};font-size:16px">
         ${career.doubloons.toLocaleString()} doubloons${
           earned > 0 ? `<span style="color:${M.good}"> &nbsp;+${earned.toLocaleString()} last voyage</span>` : ''}
       </div>
-      <div style="color:${M.dim};font-size:12px;margin-top:6px">${
+      <div style="color:${M.dim};font-size:14px;margin-top:6px">${
         career.voyages === 0
           ? 'Plunder is banked as doubloons when a voyage ends, even if you sink.'
           : `${career.voyages} voyage${career.voyages === 1 ? '' : 's'} &nbsp;·&nbsp; ` +
@@ -152,7 +152,7 @@ export class PortUI {
     for (const t of TABS) {
       const active = t.id === this.tab
       const b = el('button', `
-        font: inherit; font-size: 13px; cursor: pointer; padding: 7px 16px;
+        font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
         ${isCel()
           // Every tab is the same paper card; the selected one is pressed
           // into the page, which reads as a state rather than a colour.
@@ -183,7 +183,7 @@ export class PortUI {
     }
     this.root.appendChild(body)
 
-    const hint = el('div', `color:${M.dim};font-size:12px;margin-top:22px;text-align:center;padding:0 20px`)
+    const hint = el('div', `color:${M.dim};font-size:14px;margin-top:22px;text-align:center;padding:0 20px`)
     hint.textContent = this.tab === 'yard'
       ? 'click or press 1–7 to sail or buy  ·  Tab changes page'
       : this.tab === 'refit'
@@ -216,7 +216,7 @@ export class PortUI {
   private notoriety(): HTMLElement {
     const career = this.ledger.career
     const box = el('div', `
-      margin-top:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:${INK};
+      margin-top:14px;display:flex;align-items:center;gap:10px;font-size:14px;color:${INK};
       padding:7px 12px;${isCel() ? cardCss()
         : 'border-radius:6px;border:1px solid rgba(255,122,107,0.25);background:rgba(255,122,107,0.06)'}`)
     box.dataset.notoriety = String(career.notoriety)
@@ -248,7 +248,7 @@ export class PortUI {
          <span style="color:${DIM}"> — hulls ×${d.enemyArmour.toFixed(2)}, shot ×${d.enemyDamage.toFixed(2)},</span>
          <span style="color:${GOLD}">pay ×${d.payout.toFixed(1)}</span>`
     box.append(step(-1, '◀'), label, step(1, '▶'))
-    const top = el('span', `color:${DIM};font-size:10.5px`)
+    const top = el('span', `color:${DIM};font-size:14px`)
     top.textContent = career.notorietyMax >= 10 && level === 10
       ? 'the top'
       : level === career.notorietyMax
@@ -297,8 +297,8 @@ export class PortUI {
     const bar = (label: string, value: number, top: number, invert = false) => {
       const scaled = Math.max(0, Math.min(1, invert ? (top - value) / top : value / top))
       return `
-        <div style="display:flex;align-items:center;gap:7px;font-size:10px">
-          <span style="color:${DIM};width:58px">${label}</span>
+        <div style="display:flex;align-items:center;gap:7px;font-size:14px">
+          <span style="color:${DIM};width:74px">${label}</span>
           <span style="flex:1;height:${isCel() ? 6 : 5}px;background:${C('rgba(255,255,255,0.13)')};border-radius:${isCel() ? 0 : 3}px;overflow:hidden;${isCel() ? `border:1px solid ${ui().panel.ink};box-sizing:border-box` : ''}">
             <span style="display:block;height:100%;width:${scaled * 100}%;background:${accent}"></span>
           </span>
@@ -307,7 +307,7 @@ export class PortUI {
 
     const feat = cls.requires ? FEATS_BY_ID.get(cls.requires) : undefined
     const footer = owned
-      ? (last ? `<div style="margin-top:6px;font-size:10px;color:${DIM};text-align:center">last sailed</div>` : '')
+      ? (last ? `<div style="margin-top:6px;font-size:14px;color:${DIM};text-align:center">last sailed</div>` : '')
       : !allowed && feat
         ? plate(`Locked. <b style="color:${INK}">${feat.name}</b>: ${feat.how}<br>
             <span style="opacity:0.7">then ${price.toLocaleString()} doubloons</span>`, false)
@@ -319,9 +319,9 @@ export class PortUI {
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span style="font-size:${isCel() ? 21 : 17}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${cls.name}</span>
-        <span style="opacity:0.4;font-size:10px">${index + 1}</span>
+        <span style="opacity:0.4;font-size:14px">${index + 1}</span>
       </div>
-      <div style="font-size:11.5px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
+      <div style="font-size:14px;line-height:1.55;opacity:0.78;min-height:62px">${cls.blurb ?? ''}</div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:2px">
         ${bar('guns', cls.guns, 2.1)}
         ${bar('timbers', cls.hullStrength, 2.6)}
@@ -352,14 +352,14 @@ export class PortUI {
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span style="font-size:${isCel() ? 18 : 15}px;font-weight:${ui().font.displayWeight};font-family:${displayFamily()};color:${WHITE}">${refit.name}</span>
-        <span style="opacity:0.4;font-size:10px">${index < 9 ? index + 1 : ''}</span>
+        <span style="opacity:0.4;font-size:14px">${index < 9 ? index + 1 : ''}</span>
       </div>
       <div>${pips}</div>
-      <div style="font-size:11.5px;line-height:1.5;opacity:0.78;min-height:50px">
+      <div style="font-size:14px;line-height:1.5;opacity:0.78;min-height:50px">
         ${refit.text}<span style="opacity:0.55"> &nbsp;Per rank.</span>
       </div>
       ${maxed
-        ? `<div style="margin-top:4px;font-size:11px;color:${GOOD};text-align:center">max rank</div>`
+        ? `<div style="margin-top:4px;font-size:14px;color:${GOOD};text-align:center">max rank</div>`
         : affordable
           ? plate(`Rank ${held + 1} for ${cost.toLocaleString()}`, true)
           : plate(`rank ${held + 1} · ${cost.toLocaleString()} &nbsp;·&nbsp; ${(cost - career.doubloons).toLocaleString()} short` +
@@ -371,7 +371,7 @@ export class PortUI {
     const feat = FEATS_BY_ID.get(id)!
     const done = this.ledger.career.feats.includes(id)
     const row = el('div', `
-      display:flex;gap:12px;align-items:baseline;padding:9px 12px;font-size:13px;color:${INK};
+      display:flex;gap:12px;align-items:baseline;padding:9px 12px;font-size:14px;color:${INK};
       ${isCel() ? cardCss()
         : `border-radius:6px;background:rgba(8,24,38,0.9);border:1px solid ${done ? 'rgba(127,224,160,0.35)' : 'rgba(207,230,245,0.12)'}`}`)
     row.dataset.feat = id
@@ -432,6 +432,6 @@ function progress(share: number): string {
 
 function plate(html: string, call: boolean): string {
   return `
-    <div style="margin-top:6px;padding:7px 9px;border-radius:4px;font-size:11px;text-align:center;line-height:1.5;
+    <div style="margin-top:6px;padding:7px 9px;border-radius:4px;font-size:14px;text-align:center;line-height:1.5;
       ${call ? callCss() : quietCss()}">${html}</div>`
 }

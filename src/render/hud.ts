@@ -21,6 +21,16 @@ import {
  * around its rim so you can see where you *could* go, and the gun arcs show
  * where your broadside actually bears so positioning is legible.
  */
+/**
+ * The left column's measure. Sized for 14px text, the smallest the HUD sets:
+ * it was 186 wide with 11–12px type, which was too small to read in play.
+ */
+const PW = 236
+/** Inset from a panel's edge to its text. */
+const IN = 14
+/** One row of a list: a 14px label beside a gauge. */
+const ROW = 22
+
 export class Hud {
   constructor(private readonly ctx: CanvasRenderingContext2D) {}
 
@@ -42,13 +52,16 @@ export class Hud {
     // average — otherwise local weather would be invisible to them.
     const localWind = world.windAt(player.pos)
     this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 100, 100, 62)
-    this.drawSailIndicator(player, 24, 24)
-    this.drawReadouts(player, 24, 128)
-    this.drawCondition(player, 24, 246)
+    // Stacked by each panel's real height, so a panel can grow — the sails
+    // panel gains a line while mending — without colliding with the next.
+    let col = 20
+    col += this.drawSailIndicator(player, 20, col) + 10
+    col += this.drawReadouts(player, 20, col) + 10
+    col += this.drawCondition(player, 20, col) + 10
+    col += this.drawBroadsides(player, world, 20, col) + 10
+    this.drawUpgrades(world, 20, col)
     this.drawShoalWarning(player)
     this.drawSquallWarning(world, player)
-    this.drawBroadsides(player, world, 24, 336)
-    this.drawUpgrades(world, 24, 412)
 
     if (silent) {
       ctx.save()
@@ -290,28 +303,27 @@ export class Hud {
     plaque(ctx, `${label} from ${compassName(wind.from)}`, cx, cy + r + 32)
   }
 
-  private drawSailIndicator(ship: Ship, x: number, y: number) {
+  private drawSailIndicator(ship: Ship, x: number, y: number): number {
     const ctx = this.ctx
     // The panel grows a line when she is lying to, because the repair rate is
     // the whole reason a captain would ever choose to be stopped.
     const mending = ship.mending > 1.02
     ctx.save()
     ctx.translate(x, y)
-    panel(ctx, 0, 0, 186, mending ? 104 : 86)
+    const height = mending ? 114 : 92
+    panel(ctx, 0, 0, PW, height)
 
-    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    label(ctx, 'SAILS', 12, 11)
+    label(ctx, 'SAILS', IN, 12)
     ctx.fillStyle = C('#ffd98a')
-    ctx.font = F(15, true)
-    ctx.fillText(ship.sailName, 12, 28)
+    ctx.font = F(18, true)
+    ctx.fillText(ship.sailName, IN, 32)
 
     if (mending) {
-      ctx.font = F(11)
+      ctx.font = F(14)
       ctx.fillStyle = C('#7fe0a0')
-      ctx.fillText(`⚒ mending  ×${ship.mending.toFixed(1)}`, 12, 84)
+      ctx.fillText(`⚒ mending  ×${ship.mending.toFixed(1)}`, IN, 86)
     }
 
     // The sail plan, drawn as the mast it is: yards crossed from the deck up,
@@ -322,9 +334,9 @@ export class Hud {
     // set but never *which* — and the whole point of ordering courses rather
     // than topsails is which.
     const set = ship.yardsSet
-    const MAST_X = 142
-    const FOOT = 74
-    const STEP = 13
+    const MAST_X = PW - 46
+    const FOOT = 76
+    const STEP = 17
     ctx.strokeStyle = C('rgba(255,255,255,0.3)')
     ctx.lineWidth = 1.6
     ctx.beginPath()
@@ -333,49 +345,49 @@ export class Hud {
     ctx.stroke()
 
     for (let i = 0; i < MAX_YARDS; i++) {
-      const half = 17 - i * 4.5
-      const y = FOOT - i * STEP - 7
+      const half = 21 - i * 5.5
+      const y = FOOT - i * STEP - 8
       const ordered = i < SAIL_STATES[ship.sailOrder].yards
       if (i < set) {
         ctx.fillStyle = C('#ffd98a')
-        ctx.fillRect(MAST_X - half, y, half * 2, 5)
+        ctx.fillRect(MAST_X - half, y, half * 2, 6)
       } else if (ordered) {
         ctx.strokeStyle = C('rgba(255,217,138,0.55)')
         ctx.lineWidth = 1
-        ctx.strokeRect(MAST_X - half + 0.5, y + 0.5, half * 2 - 1, 4)
+        ctx.strokeRect(MAST_X - half + 0.5, y + 0.5, half * 2 - 1, 5)
       } else {
         ctx.fillStyle = C('rgba(255,255,255,0.14)')
         ctx.fillRect(MAST_X - half, y + 1.5, half * 2, 2)
       }
     }
 
-    bar(ctx, 12, 65, 104, 5, ship.canvas, C('#9fe8ff'))
+    bar(ctx, IN, 66, 130, 7, ship.canvas, C('#9fe8ff'))
     ctx.restore()
+    return height
   }
 
-  private drawReadouts(ship: Ship, x: number, y: number) {
+  private drawReadouts(ship: Ship, x: number, y: number): number {
     const ctx = this.ctx
     const pos = ship.pointOfSail
     const inIrons = pos === 'In Irons'
 
     ctx.save()
     ctx.translate(x, y)
-    panel(ctx, 0, 0, 186, 110)
+    const height = 136
+    panel(ctx, 0, 0, PW, height)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.font = F(12)
-    ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    label(ctx, 'POINT OF SAIL', 12, 11)
-    ctx.font = F(15, true)
+    label(ctx, 'POINT OF SAIL', IN, 12)
+    ctx.font = F(18, true)
     // The speed ramp is bright on purpose — it is drawn on the rose's dark
     // rim — and pale green on paper is barely there, so a light panel gets
     // the same three bands in the theme's own inks.
     ctx.fillStyle = inIrons ? C('#ff7a6b') : ramp(ship.polarMult, speedColor)
-    ctx.fillText(pos, 12, 28)
-    ctx.font = F(12)
+    ctx.fillText(pos, IN, 32)
+    ctx.font = F(14)
     ctx.fillStyle = C('rgba(255,255,255,0.7)')
-    ctx.fillText(`${ship.speed.toFixed(0)} kn   ${deg(ship.awa).toFixed(0)}° off wind`, 12, 52)
-    this.drawLeadline(ship, 12, 74)
+    ctx.fillText(`${ship.speed.toFixed(0)} kn   ${deg(ship.awa).toFixed(0)}° off wind`, IN, 58)
+    this.drawLeadline(ship, IN, 86)
     ctx.restore()
 
     if (inIrons && ship.canvas > 0.1 && !ship.sunk) {
@@ -387,6 +399,7 @@ export class Hud {
         ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 64)
       ctx.restore()
     }
+    return 136
   }
 
   /**
@@ -489,7 +502,7 @@ export class Hud {
     const touching = ship.aground || depth <= needs
     const color = touching ? C('#ff7a6b') : margin < 1 ? C('#ffd27f') : C('#9fe8ff')
 
-    ctx.font = F(12)
+    ctx.font = F(14)
     ctx.fillStyle = C('rgba(255,255,255,0.55)')
     label(ctx, 'SOUNDING', x, y)
 
@@ -497,36 +510,36 @@ export class Hud {
     ctx.fillStyle = color
     ctx.fillText(
       depth >= 1 ? 'no bottom' : `${(depth * FATHOMS).toFixed(1)} fm`,
-      x + 162, y,
+      x + (PW - IN * 2), y,
     )
     ctx.textAlign = 'left'
 
-    const barW = 162
-    bar(ctx, x, y + 17, barW, 8, scale(depth), color)
+    const barW = PW - IN * 2
+    bar(ctx, x, y + 22, barW, 9, scale(depth), color)
 
     // The mark she draws. Everything to the left of it is bottom.
     const markX = x + barW * scale(needs)
     ctx.fillStyle = C('rgba(8,20,30,0.9)')
-    ctx.fillRect(markX - 1.5, y + 15, 3, 12)
+    ctx.fillRect(markX - 1.5, y + 20, 3, 13)
     ctx.fillStyle = touching ? C('#ff7a6b') : C('rgba(255,255,255,0.8)')
-    ctx.fillRect(markX - 0.5, y + 13, 1, 16)
+    ctx.fillRect(markX - 0.5, y + 18, 1, 17)
   }
 
   /** Hull, rigging and crew. Rigging is the one that changes how you sail. */
-  private drawCondition(ship: Ship, x: number, y: number) {
+  private drawCondition(ship: Ship, x: number, y: number): number {
     const ctx = this.ctx
+    const height = 40 + 3 * ROW + 6
     ctx.save()
     ctx.translate(x, y)
-    panel(ctx, 0, 0, 186, 80)
+    panel(ctx, 0, 0, PW, height)
 
-    ctx.font = F(12)
+    ctx.font = F(14)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    label(ctx, 'CONDITION', 12, 10)
+    label(ctx, 'CONDITION', IN, 12)
     ctx.textAlign = 'right'
     ctx.fillStyle = C('rgba(255,217,138,0.8)')
-    ctx.fillText(ship.cls.name, 174, 10)
+    ctx.fillText(ship.cls.name, PW - IN, 10)
     ctx.textAlign = 'left'
 
     const bars: [string, number, string][] = [
@@ -536,41 +549,43 @@ export class Hud {
     ]
     const repair: number[] = [ship.mods.hullRepair, ship.mods.sailRepair, ship.mods.crewRepair]
     bars.forEach(([label, value, color], i) => {
-      const by = 28 + i * 17
+      const by = 40 + i * ROW
+      const bx = 88
+      const bw = PW - bx - IN
       ctx.fillStyle = C('rgba(255,255,255,0.5)')
-      ctx.font = F(11)
-      ctx.fillText(label, 12, by)
-      bar(ctx, 72, by, 102, 8, value, color)
+      ctx.font = F(14)
+      ctx.fillText(label, IN, by)
+      bar(ctx, bx, by + 3, bw, 9, value, color)
       // A pale ghost ahead of the bar showing the next ten seconds of mending,
       // so repair is something you can watch happening rather than infer.
       const gain = repair[i] * ship.mending * 10
       if (gain > 0.004 && value < 1) {
         const ahead = Math.min(1 - value, gain)
         ctx.fillStyle = C('rgba(255,255,255,0.3)')
-        ctx.fillRect(72 + 102 * value, by, 102 * ahead, 8)
+        ctx.fillRect(bx + bw * value, by + 3, bw * ahead, 9)
       }
     })
     ctx.restore()
+    return height
   }
 
   /** Reload state per battery, and whether anything is actually in the arc. */
-  private drawBroadsides(ship: Ship, world: World, x: number, y: number) {
+  private drawBroadsides(ship: Ship, world: World, x: number, y: number): number {
     const ctx = this.ctx
     const arc = (T.gunArcDegrees * Math.PI) / 180
 
     ctx.save()
     ctx.translate(x, y)
-    panel(ctx, 0, 0, 186, 66)
+    const height = 40 + 2 * ROW + 6
+    panel(ctx, 0, 0, PW, height)
 
-    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    label(ctx, 'BROADSIDES', 12, 10)
+    label(ctx, 'BROADSIDES', IN, 12)
 
     const names = ['Port', 'Starboard']
     for (const battery of [0, 1] as const) {
-      const by = 28 + battery * 17
+      const by = 40 + battery * ROW
       const loaded = 1 - Math.min(1, ship.reload[battery] / T.gunReload)
       const bearing = batteryBearing(ship, battery)
       const bears = world.enemies.some((e) => {
@@ -581,12 +596,13 @@ export class Hud {
       })
 
       ctx.fillStyle = bears ? C('#ffbe6e') : C('rgba(255,255,255,0.5)')
-      ctx.font = F(11)
-      ctx.fillText(names[battery], 12, by)
-      bar(ctx, 84, by, 90, 8, loaded,
+      ctx.font = F(14)
+      ctx.fillText(names[battery], IN, by)
+      bar(ctx, 110, by + 3, PW - 110 - IN, 9, loaded,
         loaded >= 1 ? (bears ? C('#ffbe6e') : C('#7fe0a0')) : C('rgba(159,232,255,0.6)'))
     }
     ctx.restore()
+    return height
   }
 
   /**
@@ -608,45 +624,43 @@ export class Hud {
         order.indexOf(a.upgrade.group) - order.indexOf(b.upgrade.group) ||
         a.upgrade.name.localeCompare(b.upgrade.name))
 
-    const rowH = 15
-    const height = 26 + owned.length * rowH
+    const rowH = 21
+    const height = 38 + owned.length * rowH + 4
 
     ctx.save()
     ctx.translate(x, y)
-    panel(ctx, 0, 0, 186, height)
+    panel(ctx, 0, 0, PW, height)
 
-    ctx.font = F(12)
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillStyle = C('rgba(255,255,255,0.55)')
-    label(ctx, 'REFIT', 12, 9)
+    label(ctx, 'REFIT', IN, 12)
 
     owned.forEach(({ upgrade, stacks }, i) => {
-      const ry = 26 + i * rowH
+      const ry = 38 + i * rowH
       const color = ui().groups[upgrade.group]
 
       // A colour tab keeps the groups scannable without repeating the label.
       ctx.fillStyle = color
-      ctx.fillRect(12, ry + 1, 3, 10)
+      ctx.fillRect(IN, ry + 2, 3, 13)
 
-      ctx.font = F(11)
+      ctx.font = F(14)
       ctx.fillStyle = C('rgba(255,255,255,0.82)')
-      ctx.fillText(shortName(upgrade.name), 20, ry)
+      ctx.fillText(shortName(upgrade.name), IN + 9, ry)
 
       // Pips: filled for what you hold, hollow for what is still available.
-      const pipR = 3
-      const gap = 7.5
-      const right = 174
+      const pipR = 3.6
+      const gap = 9.5
+      const right = PW - IN - 2
       for (let p = 0; p < upgrade.maxStacks; p++) {
         const px = right - (upgrade.maxStacks - 1 - p) * gap
         ctx.beginPath()
-        ctx.arc(px, ry + 5.5, pipR, 0, Math.PI * 2)
+        ctx.arc(px, ry + 8, pipR, 0, Math.PI * 2)
         if (p < stacks) {
           ctx.fillStyle = color
           ctx.fill()
         } else {
-          ctx.strokeStyle = C('rgba(255,255,255,0.32)')
-          ctx.lineWidth = 1
+          ctx.strokeStyle = C('rgba(255,255,255,0.4)')
+          ctx.lineWidth = 1.2
           ctx.stroke()
         }
       }
@@ -671,7 +685,7 @@ export class Hud {
     const cx = w / 2
 
     ctx.save()
-    panel(ctx, cx - 180, 14, 360, 62)
+    panel(ctx, cx - 200, 14, 400, 76)
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
@@ -681,48 +695,48 @@ export class Hud {
       const over = run.overtime
       const mins = Math.floor(over / 60)
       const secs = Math.floor(over % 60)
-      ctx.font = F(22, true)
+      ctx.font = F(26, true)
       ctx.fillStyle = C('#ff9ad5')
       ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, cx, 22)
-      ctx.font = F(10)
+      ctx.font = F(14)
       ctx.fillStyle = C('rgba(255,154,213,0.75)')
-      ctx.fillText(`SAILING ON  ·  WAVE ${run.wave}`, cx, 48)
+      ctx.fillText(`SAILING ON  ·  WAVE ${run.wave}`, cx, 56)
     } else {
       // Time remaining, which is the actual win condition.
       const left = run.remaining
       const mins = Math.floor(left / 60)
       const secs = Math.floor(left % 60)
-      ctx.font = F(22, true)
+      ctx.font = F(26, true)
       ctx.fillStyle = left < 30 ? C('#ff7a6b') : C('#cfe6f5')
       ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, cx, 22)
       ctx.font = F(10)
       ctx.fillStyle = C('rgba(255,255,255,0.45)')
-      label(ctx, 'REMAINING', cx, 48)
+      label(ctx, 'REMAINING', cx, 56)
     }
 
     // Level and the plunder bar filling toward the next draft.
     ctx.textAlign = 'left'
-    ctx.font = F(13, true)
+    ctx.font = F(16, true)
     ctx.fillStyle = C('#ffd98a')
-    ctx.fillText(`Lv ${run.level}`, cx - 166, 24)
+    ctx.fillText(`Lv ${run.level}`, cx - 184, 24)
 
-    const barW = 96
-    bar(ctx, cx - 166, 44, barW, 7, run.plunder / run.plunderNeeded, C('#f0c14b'))
+    const barW = 116
+    bar(ctx, cx - 184, 52, barW, 9, run.plunder / run.plunderNeeded, C('#f0c14b'))
 
     ctx.textAlign = 'right'
-    ctx.font = F(12)
+    ctx.font = F(14)
     ctx.fillStyle = C('rgba(255,255,255,0.7)')
     ctx.fillText(
       run.shipsTaken > 0 ? `${run.shipsSunk} sunk · ${run.shipsTaken} taken` : `${run.shipsSunk} sunk`,
-      cx + 166, 24,
+      cx + 184, 24,
     )
     ctx.fillStyle = C('rgba(240,193,75,0.8)')
-    ctx.fillText(`${Math.floor(run.totalPlunder)} plunder`, cx + 166, 44)
+    ctx.fillText(`${Math.floor(run.totalPlunder)} plunder`, cx + 184, 50)
 
     // A thin progress line along the bottom edge of the panel: progress through
     // the voyage, or through the current wave once endless.
     ctx.fillStyle = run.endless ? C('rgba(255,154,213,0.6)') : C('rgba(159,232,255,0.5)')
-    ctx.fillRect(cx - 180, 73, 360 * run.waveProgress, 2)
+    ctx.fillRect(cx - 200, 87, 400 * run.waveProgress, 2)
     ctx.restore()
   }
 

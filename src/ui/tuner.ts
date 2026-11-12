@@ -104,7 +104,8 @@ export class Tuner {
     this.launcher.style.cssText = `
       position: fixed; bottom: 14px; right: 14px; z-index: 41;
       display: flex; align-items: center; gap: 10px;
-      font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+      font: 14px ui-monospace, SFMono-Regular, Menlo, monospace;
+      max-width: calc(100vw - 28px); justify-content: flex-end;
       color: rgba(207,230,245,0.65); transition: right 0.18s ease;
     `
     const legend = document.createElement('span')
@@ -112,9 +113,12 @@ export class Tuner {
     // since a key labelled only "style" says nothing about which style.
     const look = (key: string, what: string, name: string) =>
       `${key} ${what}: <span style="color:${isCel() ? ui().panel.ink : 'rgba(207,230,245,0.95)'};font-weight:bold">${name}</span>`
-    legend.innerHTML = '&larr;&rarr; steer &middot; &uarr;&darr; sails &middot; E spawn enemy &middot; Q squall &middot; ' +
-      `${look(']', 'sea', P().name)} &middot; ${look('[', 'hull', H().name)} &middot; ${look('U', 'ui', ui().name)} &middot; ` +
-      'P pause &middot; T turbo &middot; M mute &middot; R port &middot; F1 debug'
+    // Each key stays on one line with its action, so a wrap never strands one.
+    legend.innerHTML = [
+      '&larr;&rarr; steer', '&uarr;&darr; sails', 'E spawn enemy', 'Q squall',
+      look(']', 'sea', P().name), look('[', 'hull', H().name), look('U', 'ui', ui().name),
+      'P pause', 'T turbo', 'M mute', 'R port', 'F1 debug',
+    ].map((item) => `<span style="white-space:nowrap">${item}</span>`).join(' &middot; ')
     const toggle = document.createElement('button')
     toggle.innerHTML = '&#9881; Tune <span style="opacity:0.55">(`)</span>'
     // The strip along the bottom is on screen the whole time, so in a period
@@ -123,15 +127,17 @@ export class Tuner {
     const cel = isCel()
     toggle.style.cssText = cel
       ? `${cardCss()} color: ${ui().panel.ink}; padding: 5px 11px; cursor: pointer;
-         font: 13px ${bodyFamily()}; white-space: nowrap;`
+         font: 14px ${bodyFamily()}; white-space: nowrap;`
       : `background: rgba(6,18,30,0.92); color: #9fe8ff;
          border: 1px solid rgba(159,232,255,0.4); border-radius: 4px;
          padding: 6px 11px; cursor: pointer; font: inherit; white-space: nowrap;`
     toggle.onclick = () => this.toggle()
     // Backed, because over a pale sea (the ink palette) bare text vanished.
     legend.style.cssText = cel
-      ? `${cardCss()} color: ${C('rgba(255,255,255,0.75)')}; padding: 4px 10px; font: 12.5px ${bodyFamily()};`
+      ? `${cardCss()} color: ${C('rgba(255,255,255,0.75)')}; padding: 4px 10px; font: 14px ${bodyFamily()};`
       : 'background:rgba(6,18,30,0.72);padding:4px 9px;border-radius:4px'
+    // At 14px the legend outgrows a narrow window: let it wrap, right-aligned.
+    legend.style.cssText += ';text-align:right;line-height:1.5'
     this.launcher.append(legend, toggle)
     document.body.appendChild(this.launcher)
 

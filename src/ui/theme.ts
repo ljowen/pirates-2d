@@ -266,15 +266,25 @@ export function C(original: string, alpha?: number): string {
 /** A title in the heading face, which may be decorative. */
 export function Fh(px: number): string {
   const f = active.font
-  return `${(px * (f.heading === f.display ? f.displayScale : 1.12)).toFixed(1)}px ${f.heading}`
+  return `${size(px * (f.heading === f.display ? f.displayScale : 1.12))}px ${f.heading}`
 }
 
 /** A canvas font string: bold is the display face, regular is the body face. */
 export function F(px: number, bold = false): string {
   const f = active.font
   return bold
-    ? `${f.displayWeight === 'bold' ? 'bold ' : ''}${(px * f.displayScale).toFixed(1)}px ${f.display}`
-    : `${(px * f.bodyScale).toFixed(1)}px ${f.body}`
+    ? `${f.displayWeight === 'bold' ? 'bold ' : ''}${size(px * f.displayScale)}px ${f.display}`
+    : `${size(px * f.bodyScale)}px ${f.body}`
+}
+
+/**
+ * Nothing the game sets is smaller than this. Anything asked for below it
+ * is raised to it, so a stray 10px label cannot creep back in.
+ */
+export const MIN_FONT = 14
+
+function size(px: number): string {
+  return Math.max(MIN_FONT, px).toFixed(1)
 }
 
 /**
@@ -517,8 +527,10 @@ export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y:
   if (active.id === MODERN.id) {
     ctx.font = F(12)
   } else {
-    ctx.font = F(10.5, true)
-    ctx.letterSpacing = '1.4px'
+    // Small capitals at the floor size: spaced and rubricated rather than
+    // shrunk, which is what made them hard to read at 10.5px.
+    ctx.font = F(MIN_FONT, true)
+    ctx.letterSpacing = '1.2px'
   }
   ctx.fillText(text, x, y)
   ctx.restore()
