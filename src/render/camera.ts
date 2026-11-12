@@ -15,6 +15,21 @@ export class Camera {
 
   private targetZoom = T.cameraZoom
 
+  /**
+   * The player's own zoom, multiplied onto the tuned one. Limited at both
+   * ends: further in and the next sail is off screen before it can be
+   * answered, further out and hulls are specks.
+   */
+  userZoom = 1
+  static readonly USER_ZOOM_MIN = 0.5
+  static readonly USER_ZOOM_MAX = 2
+
+  /** Zoom by a factor: above 1 moves in, below 1 moves out. */
+  zoomBy(factor: number) {
+    this.userZoom = Math.min(Camera.USER_ZOOM_MAX,
+      Math.max(Camera.USER_ZOOM_MIN, this.userZoom * factor))
+  }
+
   resize(w: number, h: number) {
     this.viewW = w
     this.viewH = h
@@ -31,8 +46,10 @@ export class Camera {
     this.pos.x = damp(this.pos.x, target.x, T.cameraSmoothing, dt)
     this.pos.y = damp(this.pos.y, target.y, T.cameraSmoothing, dt)
 
-    this.targetZoom = T.cameraZoom / (1 + (speed / 220) * T.cameraZoomOut)
-    this.zoom = damp(this.zoom, this.targetZoom, 2, dt)
+    this.targetZoom = T.cameraZoom * this.userZoom / (1 + (speed / 220) * T.cameraZoomOut)
+    // The player's zoom answers quickly; the speed zoom-out drifts.
+    const settled = Math.abs(Math.log(this.zoom / this.targetZoom)) < 0.08
+    this.zoom = damp(this.zoom, this.targetZoom, settled ? 2 : 9, dt)
   }
 
   snapTo(p: Vec2) {

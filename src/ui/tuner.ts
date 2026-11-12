@@ -115,7 +115,7 @@ export class Tuner {
       `${key} ${what}: <span style="color:${ui().panel.ink};font-weight:bold">${name}</span>`
     // Each key stays on one line with its action, so a wrap never strands one.
     legend.innerHTML = [
-      '&larr;&rarr; steer', '&uarr;&darr; sails', 'E spawn enemy', 'Q squall',
+      '&larr;&rarr; steer', '&uarr;&darr; sails', '+/&minus; zoom', 'E spawn enemy', 'Q squall',
       look(']', 'sea', P().name), look('[', 'hull', H().name),
       'P pause', 'T turbo', 'M mute', 'R port', 'F1 debug',
     ].map((item) => `<span style="white-space:nowrap">${item}</span>`).join(' &middot; ')

@@ -73,6 +73,11 @@ export class World {
 
   /** Player steering input for this step, in [-1, 1]. */
   steerInput = 0
+  /**
+   * How much further than usual the player can see, 1 or more. Set from the
+   * camera's zoom so hulls are still raised beyond the edge of the view.
+   */
+  viewReach = 1
 
   /** Which enemy class the next manual spawn will use. */
   private spawnCursor = 0
@@ -340,7 +345,7 @@ export class World {
       // the announcement has to be worth something: at the ordinary radius a
       // captain caught on the wrong tack had her alongside before the sails
       // were up.
-      r = T.spawnRadius * (0.92 + this.rand() * 0.22) * (isHunter ? 1.35 : 1)
+      r = T.spawnRadius * this.viewReach * (0.92 + this.rand() * 0.22) * (isHunter ? 1.35 : 1)
       x = p.pos.x + Math.cos(a) * r
       y = p.pos.y + Math.sin(a) * r
       if (this.terrain.probe({ x, y }).depth > Math.max(0.9, draughtDepth(cls.draught) * 1.5)) break
@@ -448,7 +453,7 @@ export class World {
       this.ships.splice(i, 1)
     }
 
-    const escapeRange = T.spawnRadius * 1.6
+    const escapeRange = T.spawnRadius * this.viewReach * 1.6
     for (let i = this.ships.length - 1; i > 0; i--) {
       const ship = this.ships[i]
       // A beaten ship left far astern is as good as escaped: she no longer
