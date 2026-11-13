@@ -42,8 +42,8 @@ export class DraftUI {
     this.root = document.createElement('div')
     this.root.style.cssText = `
       position: fixed; inset: 0; z-index: 20; display: none;
-      align-items: center; justify-content: center; flex-direction: column;
-      overflow-y: auto; padding: 28px 0;
+      align-items: center; justify-content: safe center; flex-direction: column;
+      overflow-y: auto; padding: 16px 0; box-sizing: border-box;
       background: ${M.backdrop}; 
       font-family: ${bodyFamily()};
     `
@@ -84,14 +84,16 @@ export class DraftUI {
     this.root.innerHTML = ''
     this.root.style.display = 'flex'
 
+    // A phone has room for the cards and nothing else.
+    const small = window.innerWidth < 760 || window.innerHeight < 560
     const heading = document.createElement('div')
     heading.innerHTML = `
       <div style="color:${M.heading};font-size:16px;letter-spacing:3px;font-weight:bold;text-align:center;font-family:${displayFamily()}">LEVEL ${level}</div>
-      <div style="color:${M.text};font-size:32px;margin:6px 0 26px;text-align:center;font-family:${headingFamily()}">Choose an upgrade</div>`
+      <div style="color:${M.text};font-size:32px;margin:6px 0 ${small ? 12 : 26}px;text-align:center;font-family:${headingFamily()}">Choose an upgrade</div>`
     this.root.appendChild(heading)
 
     const row = document.createElement('div')
-    row.style.cssText = 'display:flex;gap:18px;flex-wrap:wrap;justify-content:center;padding:0 20px'
+    row.style.cssText = `display:flex;gap:${small ? 10 : 18}px;flex-wrap:wrap;justify-content:center;padding:0 ${small ? 12 : 20}px;width:100%;box-sizing:border-box`
     upgrades.forEach((u, i) => row.appendChild(this.card(u, i, taken)))
     this.root.appendChild(row)
 
@@ -109,11 +111,14 @@ export class DraftUI {
       this.root.appendChild(again)
     }
 
-    this.root.appendChild(this.statPanel(player))
+    // The full table of the ship's numbers needs a wide screen. Without it
+    // the card's own line still says what it does.
+    if (!small) this.root.appendChild(this.statPanel(player))
 
     const hint = document.createElement('div')
-    hint.textContent =
-      `click a card, or press ${upgrades.map((_, i) => i + 1).join(' / ')}`
+    hint.textContent = small
+      ? 'tap a card'
+      : `click a card, or press ${upgrades.map((_, i) => i + 1).join(' / ')}`
     hint.style.cssText = `color:${M.dim};font-size:14px;margin-top:18px`
     this.root.appendChild(hint)
   }
@@ -123,7 +128,7 @@ export class DraftUI {
     const color = GROUP_COLORS[u.group]
     const card = document.createElement('button')
     card.style.cssText = `
-      width: 212px; min-height: 190px; cursor: pointer; text-align: left;
+      flex: 1 1 150px; max-width: 212px; min-height: ${window.innerHeight < 560 ? 150 : 190}px; box-sizing: border-box; cursor: pointer; text-align: left;
       ${cardCss()}
       padding: 16px; color: ${C('#cfe6f5')}; font: inherit;
       display: flex; flex-direction: column; gap: 9px; transition: all 0.12s ease;

@@ -14,7 +14,13 @@ export class TouchControls {
   private shown = false
   private wanted = true
 
-  constructor(private readonly input: Input, canvas: HTMLElement) {
+  private readonly port: HTMLButtonElement
+  private small: HTMLButtonElement[] = []
+
+  /** True once a finger has touched the screen. The layout changes when it does. */
+  get active() { return this.shown }
+
+  constructor(private readonly input: Input, canvas: HTMLElement, onActive: () => void) {
     this.root = document.createElement('div')
     this.root.style.cssText = 'position:fixed;inset:0;z-index:20;pointer-events:none;display:none;' +
       'user-select:none;-webkit-user-select:none;touch-action:none'
@@ -38,18 +44,69 @@ export class TouchControls {
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); act() })
     }
 
-    hold(button('◀', 'left:18px;bottom:22px;'), 'left')
-    hold(button('▶', 'left:98px;bottom:22px;'), 'right')
-    tap(button('▲', 'right:18px;bottom:102px;'), () => this.input.tap('sailUp'))
-    tap(button('▼', 'right:18px;bottom:22px;'), () => this.input.tap('sailDown'))
-    tap(button('+', 'right:98px;bottom:102px;', 46), () => this.input.zoomStep(1))
-    tap(button('−', 'right:98px;bottom:22px;', 46), () => this.input.zoomStep(-1))
-    tap(button('Ⅱ', 'left:50%;margin-left:-23px;bottom:22px;', 46), () => this.input.tap('pause'))
+    // One row along the foot of the screen: steering under the left thumb,
+    // sails under the right, and the small ones inboard of them.
+    hold(button('◀', 'left:14px;bottom:16px;'), 'left')
+    hold(button('▶', 'left:92px;bottom:16px;'), 'right')
+    tap(button('▲', 'right:14px;bottom:16px;'), () => this.input.tap('sailUp'))
+    tap(button('▼', 'right:92px;bottom:16px;'), () => this.input.tap('sailDown'))
+    const plus = button('+', '', 46)
+    const minus = button('−', '', 46)
+    const pause = button('Ⅱ', '', 46)
+    tap(plus, () => this.input.zoomStep(1))
+    tap(minus, () => this.input.zoomStep(-1))
+    tap(pause, () => this.input.tap('pause'))
+    this.small = [pause, minus, plus]
+
+    // Shown only while paused: the one thing the pause screen offers that
+    // has no button of its own.
+    this.port = document.createElement('button')
+    this.port.textContent = 'Give up and make port'
+    this.port.style.cssText = `${cardCss()} position:absolute; left:50%; transform:translateX(-50%); bottom:96px;
+      font: bold 15px ui-monospace, monospace; color:${ui().panel.ink}; padding:10px 18px;
+      pointer-events:auto; touch-action:none; display:none; white-space:nowrap;`
+    this.port.addEventListener('pointerdown', (e) => { e.preventDefault(); this.input.tap('reset') })
+    this.root.appendChild(this.port)
+    this.narrow = false
 
     // The first touch anywhere brings them up. A tap on the sea itself also
     // answers the end card, which otherwise asks for a key nobody has.
-    window.addEventListener('touchstart', () => { this.shown = true; this.apply() }, { passive: true })
+    window.addEventListener('touchstart', () => {
+      if (this.shown) return
+      this.shown = true
+      this.apply()
+      onActive()
+    }, { passive: true })
     canvas.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') this.input.tap('confirm') })
+  }
+
+  /**
+   * Where the three small buttons go. On a wide screen they sit in the row,
+   * inboard of the big ones; on a narrow one there is no room for that, so
+   * they take a second row above.
+   */
+  set narrow(on: boolean) {
+    const [pause, minus, plus] = this.small
+    const place = (b: HTMLButtonElement, side: 'left' | 'right', px: number, bottom: number) => {
+      b.style.left = b.style.right = ''
+      b.style[side] = `${px}px`
+      b.style.bottom = `${bottom}px`
+    }
+    if (on) {
+      place(pause, 'left', 14, 98)
+      place(minus, 'right', 68, 98)
+      place(plus, 'right', 14, 98)
+    } else {
+      place(pause, 'left', 172, 16)
+      place(minus, 'right', 226, 16)
+      place(plus, 'right', 172, 16)
+    }
+    this.port.style.bottom = on ? '160px' : '96px'
+  }
+
+  /** While paused, the way back to port is offered. */
+  set paused(on: boolean) {
+    this.port.style.display = on ? 'block' : 'none'
   }
 
   /** Hidden while a menu is up, so they never sit on top of a card. */

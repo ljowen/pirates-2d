@@ -44,10 +44,24 @@ export class Camera {
     this.trauma = Math.min(1, this.trauma + amount)
   }
 
+  /**
+   * The instrument layer may be drawn smaller than the screen. Anything it
+   * pins to a point in the world asks for that point in its own units.
+   */
+  overlayScale = 1
+  /** How far below the middle of the screen the followed ship is drawn, in pixels. */
+  focusY = 0
+  /** On a small screen the sea is drawn a little smaller, so as much of it is in view. */
+  private screenScale = 1
+
   resize(w: number, h: number) {
     this.viewW = w
     this.viewH = h
+    this.screenScale = Math.max(0.6, Math.min(1, Math.sqrt(Math.min(w / 1280, h / 720))))
   }
+
+  /** World units to instrument-layer units. */
+  get overlayZoom() { return this.zoom / this.overlayScale }
 
   follow(ship: Ship, dt: number) {
     this.trauma = Math.max(0, this.trauma - dt * 2.6)
@@ -65,7 +79,7 @@ export class Camera {
     this.pos.x = damp(this.pos.x, target.x, T.cameraSmoothing, dt)
     this.pos.y = damp(this.pos.y, target.y, T.cameraSmoothing, dt)
 
-    this.targetZoom = T.cameraZoom * this.userZoom / (1 + (speed / 220) * T.cameraZoomOut)
+    this.targetZoom = T.cameraZoom * this.screenScale * this.userZoom / (1 + (speed / 220) * T.cameraZoomOut)
     // The player's zoom answers quickly; the speed zoom-out drifts.
     const settled = Math.abs(Math.log(this.zoom / this.targetZoom)) < 0.08
     this.zoom = damp(this.zoom, this.targetZoom, settled ? 2 : 9, dt)
@@ -77,8 +91,8 @@ export class Camera {
 
   worldToScreen(p: Vec2): Vec2 {
     return {
-      x: (p.x - this.pos.x) * this.zoom + this.viewW / 2 + this.shake.x,
-      y: (p.y - this.pos.y) * this.zoom + this.viewH / 2 + this.shake.y,
+      x: ((p.x - this.pos.x) * this.zoom + this.viewW / 2 + this.shake.x) / this.overlayScale,
+      y: ((p.y - this.pos.y) * this.zoom + this.viewH / 2 + this.focusY + this.shake.y) / this.overlayScale,
     }
   }
 }

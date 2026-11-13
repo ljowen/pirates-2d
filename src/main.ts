@@ -19,6 +19,7 @@ import { P, PALETTES, paletteFromLocation, setPalette } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
 import { TouchControls } from './ui/touch'
+import { layoutFor } from './ui/layout'
 import { LEVELS_BY_ID } from './sim/levels'
 import { PortUI } from './ui/port'
 import type { ShipClass } from './sim/shipClasses'
@@ -126,7 +127,7 @@ async function main() {
   // Browsers refuse to start an AudioContext without a gesture, so every input
   // doubles as permission to make noise. Both listeners are harmless repeats
   // after the first.
-  for (const event of ['keydown', 'pointerdown'] as const) {
+  for (const event of ['keydown', 'pointerdown', 'touchend'] as const) {
     window.addEventListener(event, () => audio.resume())
   }
 
@@ -208,7 +209,6 @@ async function main() {
   })
 
   tuner.launcherVisible = DEV
-  const touch = new TouchControls(input, app.canvas)
 
   let showDebug = false
   let lastFired = 0
@@ -217,15 +217,28 @@ async function main() {
   let turbo = false
   let fps = 60
 
+  // Made before the first layout, which depends on whether fingers are in use,
+  // and laid out again the moment the first one lands.
+  const touch = new TouchControls(input, app.canvas, () => resize())
   const resize = () => {
     const w = window.innerWidth
     const h = window.innerHeight
     const dpr = Math.min(window.devicePixelRatio, 2)
+    // The instruments are laid out in their own units and the whole layer is
+    // scaled to the screen: its box is the size it thinks it is, shrunk by a
+    // transform, and its pixels are the screen's so nothing is blurred.
+    const layout = layoutFor(w, h, touch.active)
+    hud.layout = layout
+    camera.overlayScale = layout.scale
+    camera.focusY = layout.focusY
+    touch.narrow = layout.compact && layout.top > 20
     overlay.width = w * dpr
     overlay.height = h * dpr
-    overlay.style.width = `${w}px`
-    overlay.style.height = `${h}px`
-    octx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    overlay.style.width = `${w / layout.scale}px`
+    overlay.style.height = `${h / layout.scale}px`
+    overlay.style.transformOrigin = '0 0'
+    overlay.style.transform = `scale(${layout.scale})`
+    octx.setTransform(dpr * layout.scale, 0, 0, dpr * layout.scale, 0, 0)
     camera.resize(w, h)
     water.resize(w, h)
   }
@@ -352,7 +365,7 @@ async function main() {
       worldLayer.scale.set(camera.zoom)
       worldLayer.position.set(
         -camera.pos.x * camera.zoom + camera.viewW / 2 + camera.shake.x,
-        -camera.pos.y * camera.zoom + camera.viewH / 2 + camera.shake.y,
+        -camera.pos.y * camera.zoom + camera.viewH / 2 + camera.focusY + camera.shake.y,
       )
       app.renderer.render(app.stage)
 
@@ -366,6 +379,7 @@ async function main() {
       hud.draw(world, camera, paused, turbo, audio.muted || !audio.ready, ledger, menu)
       tuner.legendVisible = !menu
       touch.visible = !menu
+      touch.paused = paused && !menu
       if (showDebug) debug.draw(world.player, playerWind, camera, fps)
     },
     120,

@@ -174,31 +174,38 @@ export class PortUI {
    */
   private renderWelcome() {
     const key = (k: string) => `<span style="${keyCss()};color:${ui().panel.ink};display:inline-block;padding:1px 8px;margin:0 2px;font-weight:bold">${k}</span>`
+    // On a phone the label sits over its line, and the button comes before
+    // the orders so that it is on the first screenful.
+    const narrow = window.innerWidth < 560
+    const short = window.innerHeight < 620
     const order = (head: string, body: string) => `
-      <div style="display:flex;gap:14px;align-items:baseline;margin:10px 0">
+      <div style="display:flex;gap:${narrow ? 2 : 14}px;align-items:baseline;margin:10px 0;${narrow ? 'flex-direction:column' : ''}">
         <span style="color:${ui().rubric};letter-spacing:1.5px;font-size:14px;width:128px;flex:none">${head}</span>
         <span style="font-size:15px;line-height:1.55">${body}</span>
       </div>`
-    const sheet = el('div', `${cardCss()} color:${INK}; width:min(640px, calc(100% - 40px)); box-sizing:border-box;
-      padding:30px 34px 26px; margin:auto 0; text-align:left`)
-    sheet.innerHTML = `
-      <div style="text-align:center">
-        <div style="font-family:${headingFamily()};font-size:64px;line-height:1;color:${INK}">Pirates</div>
-        <div style="font-size:15px;opacity:0.75;margin:10px 0 20px">
-          Five minutes of sea, a small ship, and everyone else has more guns than you.
-        </div>
-      </div>
+    const sheet = el('div', `${cardCss()} color:${INK}; width:min(640px, calc(100% - 28px)); box-sizing:border-box;
+      padding:${short || narrow ? '18px 20px 18px' : '30px 34px 26px'}; margin:auto 0; text-align:left`)
+    const orders = `
       ${order('THE WIND', `You cannot sail straight into it. ${key('&larr;')}${key('&rarr;')} steer; keep the wind on your side or behind you.`)}
       ${order('THE SAILS', `${key('&uarr;')} makes sail, ${key('&darr;')} takes it in. With every sail furled you stop, and the crew mends the ship.`)}
       ${order('THE GUNS', 'They fire by themselves. Turn side-on to an enemy and the broadside goes when she is in the arc.')}
-      ${order('THE PLUNDER', 'Sail over what a beaten ship leaves behind. It is banked as doubloons even if you sink.')}
-      <div style="text-align:center;margin-top:22px">
+      ${order('THE PLUNDER', 'Sail over what a beaten ship leaves behind. It is banked as doubloons even if you sink.')}`
+    const go = `
+      <div style="text-align:center;margin:${short || narrow ? '4px 0 12px' : '22px 0 0'}">
         <button data-sail style="${callCss()};font:inherit;font-size:17px;font-weight:bold;cursor:pointer;padding:9px 26px;border-radius:5px">
-          Set sail &nbsp;${key('Enter')}
+          Set sail${short || narrow ? '' : ` &nbsp;${key('Enter')}`}
         </button>
-        <div style="margin-top:14px"><button data-port style="background:none;border:none;font:inherit;font-size:14px;
+        <div style="margin-top:${short || narrow ? 8 : 14}px"><button data-port style="background:none;border:none;font:inherit;font-size:14px;
           color:${INK};opacity:0.6;cursor:pointer;text-decoration:underline">or look round the port first</button></div>
       </div>`
+    sheet.innerHTML = `
+      <div style="text-align:center">
+        <div style="font-family:${headingFamily()};font-size:${short || narrow ? 44 : 64}px;line-height:1;color:${INK}">Pirates</div>
+        <div style="font-size:15px;opacity:0.75;margin:10px 0 ${short || narrow ? 12 : 20}px">
+          Five minutes of sea, a small ship, and everyone else has more guns than you.
+        </div>
+      </div>
+      ${short || narrow ? go + orders : orders + go}`
     ;(sheet.querySelector('[data-sail]') as HTMLButtonElement).onclick = () => this.hullAction(SLOOP)
     ;(sheet.querySelector('[data-port]') as HTMLButtonElement).onclick = () => { this.skippedWelcome = true; this.render() }
     this.root.appendChild(sheet)
@@ -289,7 +296,7 @@ export class PortUI {
 
     this.root.appendChild(this.notoriety())
 
-    const tabs = el('div', 'display:flex;gap:6px;margin:18px 0 18px')
+    const tabs = el('div', 'display:flex;gap:6px;margin:18px 0 18px;flex-wrap:wrap;justify-content:center;padding:0 12px')
     for (const t of TABS) {
       const active = t.id === this.tab
       const b = el('button', `

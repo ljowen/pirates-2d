@@ -12,6 +12,7 @@ import { outmatches, toKnots } from '../sim/stats'
 import { iconImage } from '../ui/icons'
 import { Minimap } from './minimap'
 import { Coach } from '../ui/coach'
+import type { Layout } from '../ui/layout'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
 import { notorietyName } from '../sim/voyage'
 import {
@@ -37,6 +38,8 @@ const ROW = 22
 export class Hud {
   private readonly minimap = new Minimap()
   private readonly coach = new Coach()
+  /** How the panels are arranged on this screen. Set whenever the screen changes. */
+  layout: Layout = { scale: 1, top: 20, compact: false, slim: false, foot: 0, focusY: 0 }
   /** What the player's ship is called, when the career has named her. */
   private shipName: string | null = null
   private lastDraw = 0
@@ -61,17 +64,29 @@ export class Hud {
     // The rose shows the wind where the player actually is, not the ambient
     // average — otherwise local weather would be invisible to them.
     const localWind = world.windAt(player.pos)
-    this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 100, 100, 62)
-    // The chart sits under the rose, clear of the wind's label.
-    this.minimap.draw(ctx, world, w - 20 - 196, 216, 196)
+    const { top, compact, slim } = this.layout
+    if (compact) {
+      // A smaller rose and chart, so the column ends above the thumbs.
+      this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 80, top + 58, 44)
+      if (!slim) this.minimap.draw(ctx, world, w - 20 - 150, top + 150, 150)
+    } else {
+      this.drawRose(player, localWind, world.wind.describe(localWind.strength), w - 100, top + 80, 62)
+      // The chart sits under the rose, clear of the wind's label.
+      this.minimap.draw(ctx, world, w - 20 - 196, top + 196, 196)
+    }
     // Stacked by each panel's real height, so a panel can grow — the sails
     // panel gains a line while mending — without colliding with the next.
-    let col = 20
+    let col = top
     col += this.drawSailIndicator(player, 20, col) + 10
-    col += this.drawReadouts(player, 20, col) + 10
+    if (!slim) col += this.drawReadouts(player, 20, col) + 10
     col += this.drawCondition(player, 20, col) + 10
-    col += this.drawBroadsides(player, world, 20, col) + 10
-    this.drawUpgrades(world, 20, col)
+    // On a touch screen the foot of the column is where the thumbs are, so
+    // the two panels that can be read off the water are left out: the arcs
+    // drawn round the ship already show which broadside is loaded.
+    if (!compact) {
+      col += this.drawBroadsides(player, world, 20, col) + 10
+      this.drawUpgrades(world, 20, col)
+    }
     this.drawShoalWarning(player)
     this.drawSquallWarning(world, player)
 
@@ -81,7 +96,7 @@ export class Hud {
       ctx.textAlign = 'right'
       ctx.textBaseline = 'top'
       ctx.fillStyle = C('rgba(207,230,245,0.45)')
-      plaque(ctx, 'sound off — M', w - 24, ctx.canvas.clientHeight - 48)
+      if (!compact) plaque(ctx, 'sound off — M', w - 24, ctx.canvas.clientHeight - 48)
       ctx.restore()
     }
 
@@ -103,7 +118,7 @@ export class Hud {
       ctx.font = F(15, true)
       ctx.textAlign = 'center'
       ctx.fillStyle = ui().panel.ink
-      plaque(ctx, order.text, w / 2, 126)
+      this.notice(order.text, w, this.noticeY(0))
       ctx.restore()
     }
 
@@ -115,7 +130,7 @@ export class Hud {
       ctx.font = Fh(24)
       ctx.textAlign = 'center'
       ctx.fillStyle = C('rgb(255,122,107)', fade)
-      plaque(ctx, world.director.announcement, w / 2, 186)
+      this.notice(world.director.announcement, w, this.noticeY(1))
       ctx.restore()
     }
   }
@@ -145,7 +160,7 @@ export class Hud {
     // screen and reads as two stray diagonals instead of an arc. What this needs
     // to communicate is *direction* — whether the target bears is already on the
     // broadside panel.
-    const r = T.gunRange * 0.32 * camera.zoom
+    const r = T.gunRange * 0.32 * camera.overlayZoom
 
     for (const battery of [0, 1] as const) {
       const bearing = batteryBearing(player, battery)
@@ -418,7 +433,7 @@ export class Hud {
       ctx.textAlign = 'center'
       ctx.fillStyle = C('rgb(255,122,107)', 0.55 + 0.45 * Math.sin(performance.now() * 0.006))
       plaque(ctx, 'IN IRONS — bear away',
-        ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 64)
+        ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - this.layout.foot - 64)
       ctx.restore()
     }
     return 136
@@ -451,7 +466,7 @@ export class Hud {
       : C('rgb(255,214,138)', (0.35 + 0.45 * pulse) * (0.4 + 0.6 * urgency))
     plaque(ctx,
       touching ? 'AGROUND' : 'SHALLOW — about to run aground',
-      ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 92,
+      ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - this.layout.foot - 92,
     )
     ctx.restore()
   }
@@ -490,7 +505,7 @@ export class Hud {
     const where = coming && near ? ` ${compassName(near.bearing)}` : ''
     plaque(ctx,
       splitting ? 'CANVAS SPLITTING — shorten sail' : `SQUALL BEARING${where}`,
-      ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - 116,
+      ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight - this.layout.foot - 116,
     )
     ctx.restore()
   }
@@ -700,14 +715,52 @@ export class Hud {
     ctx.restore()
   }
 
+  /**
+   * Where a line of news goes: under the clock where there is room beside
+   * the panels, and low on the screen, above the warnings, where the panels
+   * fill the top. `row` 0 is a sailing order, 1 an announcement.
+   */
+  private noticeY(row: number): number {
+    if (this.layout.top <= 20) return 126 + row * 60
+    return this.ctx.canvas.clientHeight - this.layout.foot - 160 - row * 56
+  }
+
+  /** A line of news on a paper plate, broken in two if the screen is too narrow for it. */
+  private notice(text: string, w: number, y: number) {
+    const ctx = this.ctx
+    const room = w - 56
+    let lines = [text]
+    if (ctx.measureText(text).width > room) {
+      // Break at the space nearest the middle.
+      const mid = text.length / 2
+      let at = -1
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] === ' ' && (at < 0 || Math.abs(i - mid) < Math.abs(at - mid))) at = i
+      }
+      if (at > 0) lines = [text.slice(0, at).replace(/[·\s]+$/, ''), text.slice(at + 1).replace(/^[·\s]+/, '')]
+    }
+    const m = ctx.measureText('Mg')
+    const lineH = (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent || 16) + 8
+    const width = Math.min(room, Math.max(...lines.map((l) => ctx.measureText(l).width)))
+    const fill = ctx.fillStyle
+    panel(ctx, w / 2 - width / 2 - 12, y - lineH + 2, width + 24, lines.length * lineH + 10)
+    ctx.fillStyle = fill
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
+    lines.forEach((line, i) => ctx.fillText(line, w / 2, y + i * lineH, room))
+  }
+
   /** Paused: the word, and under it every key a player has, since this is where they look for them. */
   private pausePanel(w: number) {
     const ctx = this.ctx
-    const rows: [string, string][] = [
-      ['← →', 'steer'], ['↑ ↓', 'make or shorten sail'], ['+ −', 'zoom, or the mouse wheel'],
-      ['M', 'sound on or off'], ['P', 'carry on'], ['R', 'give up the voyage and make port'],
-    ]
-    const top = 150
+    // The same buttons a finger has, named as they are drawn on the screen.
+    const rows: [string, string][] = this.layout.compact
+      ? [['◀ ▶', 'steer'], ['▲ ▼', 'make or shorten sail'], ['+ −', 'zoom'], ['Ⅱ', 'carry on']]
+      : [
+          ['← →', 'steer'], ['↑ ↓', 'make or shorten sail'], ['+ −', 'zoom, or the mouse wheel'],
+          ['M', 'sound on or off'], ['P', 'carry on'], ['R', 'give up the voyage and make port'],
+        ]
+    const top = Math.max(16, Math.min(150, (ctx.canvas.clientHeight - this.layout.foot - (86 + rows.length * 30)) / 2))
     const height = 86 + rows.length * 30
     ctx.save()
     ctx.fillStyle = ui().overlay
@@ -882,7 +935,8 @@ export class Hud {
     ctx.fillStyle = ui().overlay
     ctx.fillRect(0, 0, w, h)
     // The card is a sheet of paper of its own.
-    panel(ctx, cx - 380, top, 760, height)
+    const sheet = Math.min(760, w - 24)
+    panel(ctx, cx - sheet / 2, top, sheet, height)
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -891,7 +945,8 @@ export class Hud {
       if (line.text) {
         ctx.font = line.font
         ctx.fillStyle = line.color
-        ctx.fillText(line.text, cx, y + line.height / 2)
+        // Squeezed to the sheet where a line is longer than a narrow screen.
+        ctx.fillText(line.text, cx, y + line.height / 2, sheet - 36)
       }
       y += line.height
     }
@@ -900,7 +955,11 @@ export class Hud {
     ctx.font = F(14)
     ctx.fillStyle = C('rgba(255,255,255,0.85)')
     const ky = y + keysHeight / 2
-    if (won) {
+    if (this.layout.compact) {
+      // No keys on a touch screen: the sea itself is the button.
+      ctx.textAlign = 'center'
+      ctx.fillText('tap the sea to make port', cx, ky)
+    } else if (won) {
       keyHint(ctx, 'C', 'sail on, endless', cx - 130, ky)
       keyHint(ctx, 'Enter', 'make port', cx + 130, ky)
     } else {

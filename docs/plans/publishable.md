@@ -52,8 +52,10 @@ Found while working through the list, and not fixed:
 - **Not played by a person.** Everything here was checked in a headless browser and against
   the scripted pilot. The hints' wording and timing, the feel of the shake, the difficulty of
   the eased voyages and every sound need a human.
-- **Phones.** Touch buttons exist, but the instrument panels are sized for a laptop and will
-  crowd a phone held sideways.
+- **Phones are emulated only.** The instrument layer now scales to the screen, with a slim
+  set of panels and a second row of buttons when a phone is held upright, and the whole game
+  was driven by touch in an emulated iPhone in both orientations and an iPad. It has not been
+  held in a hand: thumb reach, button size and text size at arm's length are unjudged.
 - **Lumpy coasts.** Big islands are visibly made of overlapping rounds.
 - **Frame rate is unmeasured.** The map is culled now, but nothing has been profiled on a
   slow machine.
