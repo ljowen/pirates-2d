@@ -1,9 +1,25 @@
 import type { World } from '../sim/world'
+import type { Wind, WindSample } from '../sim/wind'
+import type { Vec2 } from '../core/math'
 import type { Splash } from '../sim/combat'
 import type { Audio } from './audio'
 import type { Ship } from '../sim/ship'
 import type { RunState } from '../sim/run'
 import { T } from '../sim/tuning'
+
+/**
+ * What there is to hear on any sea, a voyage's or the open one: hulls, shot,
+ * sinkings and the wind. The voyage's own sounds — plunder, prizes, the
+ * run's fortunes — need the whole `World`.
+ */
+export interface Heard {
+  ships: Ship[]
+  player: Ship
+  splashes: Splash[]
+  drainSunk(): Ship[]
+  wind: Wind
+  windAt(p: Vec2): WindSample
+}
 
 /**
  * Watches the simulation and turns state changes into sound. Lives here rather
@@ -45,8 +61,21 @@ export class AudioDirector {
     this.ambience(world)
   }
 
+  /** The open sea: everything but the voyage's own bookkeeping. */
+  updateSea(sea: Heard, cameraX: number, cameraY: number, halfWidth: number) {
+    this.audio.beginFrame()
+    this.audio.setListener(cameraX, cameraY, halfWidth)
+    this.gunfire(sea)
+    this.impacts(sea)
+    this.sinkings(sea)
+    this.rigging(sea)
+    this.grounding(sea)
+    this.playerShip(sea)
+    this.ambience(sea)
+  }
+
   /** Enemies giving up, and enemies taken. */
-  private prizes(world: World) {
+  private prizes(world: Heard) {
     for (const ship of world.ships) {
       if (ship.faction !== 'enemy' || ship.sunk) continue
       if (ship.struck && !this.taken.has(ship)) {
@@ -61,7 +90,7 @@ export class AudioDirector {
   }
 
   /** A thud as the player takes the ground, and a scrape for as long as she sits on it. */
-  private grounding(world: World) {
+  private grounding(world: Heard) {
     const p = world.player
     const now = performance.now()
     const aground = p.aground && !p.sunk
@@ -100,7 +129,7 @@ export class AudioDirector {
   }
 
   /** The player's own ship: guns loaded again, the boom coming across, and fire. */
-  private playerShip(world: World) {
+  private playerShip(world: Heard) {
     const p = world.player
     const now = performance.now()
     const dt = Math.min(0.1, (now - this.lastTime) / 1000)
@@ -129,7 +158,7 @@ export class AudioDirector {
     }
   }
 
-  private gunfire(world: World) {
+  private gunfire(world: Heard) {
     for (const ship of world.ships) {
       for (const battery of [0, 1] as const) {
         const key = `${ship.id}:${battery}`
@@ -146,7 +175,7 @@ export class AudioDirector {
     }
   }
 
-  private impacts(world: World) {
+  private impacts(world: Heard) {
     for (const splash of world.splashes) {
       if (this.heard.has(splash)) continue
       this.heard.add(splash)
@@ -158,13 +187,13 @@ export class AudioDirector {
     }
   }
 
-  private sinkings(world: World) {
+  private sinkings(world: Heard) {
     for (const ship of world.drainSunk()) {
       this.audio.sinking(ship.pos.x, ship.pos.y)
     }
   }
 
-  private rigging(world: World) {
+  private rigging(world: Heard) {
     const order = world.player.sailOrder
     if (order !== this.lastSailOrder) {
       this.audio.sailChange(order > this.lastSailOrder)
@@ -172,7 +201,7 @@ export class AudioDirector {
     }
   }
 
-  private ambience(world: World) {
+  private ambience(world: Heard) {
     const p = world.player
     // Shivering canvas: sails that are up but not drawing. This is the bed that
     // lets you hear yourself sailing too close to the wind.

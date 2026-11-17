@@ -1,0 +1,26 @@
+# The open sea: accounts, chat and the shared world, plus the built game as
+# static assets, all from one Worker on one origin.
+name = "pirates-2d"
+main = "server/worker.ts"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+# Only these reach the Worker; every other path is served straight from dist/.
+run_worker_first = ["/api/*", "/ws"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pirates-2d"
+# Created by `wrangler d1 create pirates-2d`.
+database_id = "cac2da64-d72d-4cce-a6a2-23963f1a6fd0"
+migrations_dir = "migrations"
+
+[[durable_objects.bindings]]
+name = "SEA"
+class_name = "Sea"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Sea"]

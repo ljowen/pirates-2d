@@ -10,7 +10,8 @@ import { UPGRADES_BY_ID, type Upgrade } from '../sim/upgrades'
 import { draughtDepth } from '../sim/terrain'
 import { outmatches, toKnots } from '../sim/stats'
 import { iconImage } from '../ui/icons'
-import { Minimap } from './minimap'
+import { Minimap, type ChartMark, type Charted } from './minimap'
+import type { BoardRow, MissionSnap, SettlementSnap, YouSnap } from '../net/protocol'
 import { Coach } from '../ui/coach'
 import type { Layout } from '../ui/layout'
 import { nextPurchase, payoutFor, type Ledger } from '../meta/career'
@@ -34,6 +35,24 @@ const PW = 236
 const IN = 14
 /** One row of a list: a 14px label beside a gauge. */
 const ROW = 22
+
+/** Who the guns are for: the player and everyone she may fire on. */
+interface Foes { player: Ship; enemies: Ship[] }
+
+/** The open sea, as the instruments need it. `SeaMirror` is one. */
+export type SeaInstruments = Foes & Charted & {
+  windAt(p: { x: number; y: number }): WindSample
+  /** This captain has a hull on the water. */
+  afloat: boolean
+  you: YouSnap
+  board: BoardRow[]
+  me: number
+  names: Map<number, string>
+  captainOf: Map<number, number>
+  missions: MissionSnap[]
+  settlements: SettlementSnap[]
+  nameOf(ship: Ship): string
+}
 
 export class Hud {
   private readonly minimap = new Minimap()
@@ -136,11 +155,232 @@ export class Hud {
   }
 
   /**
+   * The open sea's instruments: the same rose, sails and condition as a
+   * voyage, with the run's clock and cards swapped for who is out there and
+   * how they stand.
+   */
+  drawSea(sea: SeaInstruments, camera: Camera, connected: boolean, silent: boolean, menu: boolean) {
+    const ctx = this.ctx
+    const w = ctx.canvas.clientWidth
+    const h = ctx.canvas.clientHeight
+    const player = sea.player
+    this.shipName = null
+    const { top, compact, slim } = this.layout
+
+    this.drawNameTags(sea, camera, sea.afloat)
+    if (sea.afloat) {
+      this.drawGunArcs(sea, camera)
+      this.drawEnemyMarkers(sea, camera)
+    }
+
+    this.drawTowns(sea, camera)
+    this.drawMissionArrows(sea, camera)
+
+    const marks: ChartMark[] = sea.settlements.map((s) => ({ x: s.x, y: s.y, kind: s.burning ? 'burning' : 'town' }))
+    for (const m of sea.missions) {
+      if (m.state === 'active' && m.at) marks.push({ ...m.at, kind: m.crew.includes(sea.me) ? 'crew' : 'mission' })
+    }
+    const localWind = sea.windAt(player.pos)
+    let right = top
+    if (compact) {
+      this.drawRose(player, localWind, sea.wind.describe(localWind.strength), w - 80, top + 58, 44)
+      right = top + 150
+      if (!slim) right += this.minimap.draw(ctx, sea, w - 20 - 150, top + 150, 150, marks) + 10
+    } else {
+      this.drawRose(player, localWind, sea.wind.describe(localWind.strength), w - 100, top + 80, 62)
+      right = top + 196 + this.minimap.draw(ctx, sea, w - 20 - 196, top + 196, 196, marks) + 10
+    }
+    if (!slim) this.drawMissions(sea, w - 20 - PW, right, compact)
+
+    if (sea.afloat) {
+      let col = top
+      col += this.drawSailIndicator(player, 20, col) + 10
+      if (!slim) col += this.drawReadouts(player, 20, col) + 10
+      col += this.drawCondition(player, 20, col) + 10
+      if (!compact) this.drawBroadsides(player, sea, 20, col)
+      this.drawShoalWarning(player)
+    }
+
+    this.drawBoard(sea, w, compact)
+
+    if (menu) return
+    if (!connected) this.banner('Reconnecting…', C('#ffd28a'), h / 2 - 40)
+    else if (!sea.afloat) {
+      const left = Math.ceil(sea.you.respawn)
+      this.banner(left > 0 ? 'Sunk' : 'Making sail', C('#ff7a6b'), h / 2 - 40)
+      if (left > 0) {
+        ctx.save()
+        ctx.font = F(16, true)
+        ctx.textAlign = 'center'
+        ctx.fillStyle = ui().panel.ink
+        plaque(ctx, `Raised again in ${left}s`, w / 2, h / 2 + 4)
+        ctx.restore()
+      }
+    }
+
+    if (!compact) {
+      ctx.save()
+      ctx.font = F(14)
+      ctx.textAlign = 'center'
+      ctx.fillStyle = C('rgba(255,255,255,0.8)')
+      plaque(ctx, `R — make port   ·   Enter — chat${silent ? '   ·   sound off — M' : ''}`, w / 2, h - 24)
+      ctx.restore()
+    }
+  }
+
+  /**
+   * Every captain's name over her hull, so a fight is between people. A
+   * rival's goes above the marker the guns draw for her (her hull and her
+   * three pools); your own, and everyone's while you wait to be raised,
+   * where that marker would be.
+   */
+  private drawNameTags(sea: SeaInstruments, camera: Camera, markers: boolean) {
+    const ctx = this.ctx
+    ctx.save()
+    ctx.font = F(14, true)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
+    for (const ship of sea.ships) {
+      if (ship.sunk) continue
+      const s = camera.worldToScreen(ship.pos)
+      const mine = ship.faction === 'player'
+      // Rivals carry the gun marker; the name goes over it.
+      const lift = mine || !markers || ship.faction !== 'rival' ? 56 : 74
+      const color = mine ? ui().menu.gold
+        : ship.faction === 'ally' ? ui().menu.good
+          : ship.faction === 'neutral' ? ui().menu.dim : ui().menu.text
+      seaLabel(ctx, sea.nameOf(ship), s.x, s.y - lift, color)
+    }
+    ctx.restore()
+  }
+
+  /** Each town's name over it, and how its walls stand, or how long until it is rebuilt. */
+  private drawTowns(sea: SeaInstruments, camera: Camera) {
+    const ctx = this.ctx
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
+    for (const town of sea.settlements) {
+      const at = {
+        x: town.x + Math.cos(town.land) * 200,
+        y: town.y + Math.sin(town.land) * 200,
+      }
+      const s = camera.worldToScreen(at)
+      if (s.x < -100 || s.y < -100 || s.x > ctx.canvas.clientWidth + 100 || s.y > ctx.canvas.clientHeight + 100) continue
+      ctx.font = Fh(22)
+      seaLabel(ctx, town.name, s.x, s.y - 92, ui().menu.text)
+      ctx.font = F(14, true)
+      if (town.burning) {
+        seaLabel(ctx, `burning · rebuilt in ${town.rebuild}s`, s.x, s.y - 72, '#ff9a6b')
+      } else {
+        bar(ctx, s.x - 40, s.y - 82, 80, 7, town.walls, C('#ff7a6b'))
+      }
+    }
+    ctx.restore()
+  }
+
+  /** Gold arrows at the screen's edge toward work that is off it. */
+  private drawMissionArrows(sea: SeaInstruments, camera: Camera) {
+    const ctx = this.ctx
+    const w = ctx.canvas.clientWidth
+    const h = ctx.canvas.clientHeight
+    for (const m of sea.missions) {
+      if (m.state !== 'active' || !m.at) continue
+      const s = camera.worldToScreen(m.at)
+      if (s.x > 60 && s.x < w - 60 && s.y > 60 && s.y < h - 60) continue
+      const a = Math.atan2(s.y - h / 2, s.x - w / 2)
+      const margin = 70
+      const x = Math.max(margin, Math.min(w - margin, w / 2 + Math.cos(a) * w))
+      const y = Math.max(margin, Math.min(h - margin, h / 2 + Math.sin(a) * h))
+      const crew = m.crew.includes(sea.me)
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(a)
+      ctx.beginPath()
+      ctx.moveTo(14, 0)
+      ctx.lineTo(-7, -9)
+      ctx.lineTo(-3, 0)
+      ctx.lineTo(-7, 9)
+      ctx.closePath()
+      ctx.fillStyle = crew ? '#f0c14b' : 'rgba(240,193,75,0.6)'
+      ctx.fill()
+      ctx.lineWidth = 2
+      ctx.strokeStyle = ui().panel.ink
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+
+  /** What the sea has on: each mission, how it stands, and whether you are in it. */
+  private drawMissions(sea: SeaInstruments, x: number, y: number, compact: boolean) {
+    const ctx = this.ctx
+    const missions = sea.missions.slice(0, compact ? 2 : 4)
+    const rowH = 50
+    const height = 36 + Math.max(1, missions.length) * rowH + 4
+    ctx.save()
+    ctx.translate(x, y)
+    panel(ctx, 0, 0, PW, height)
+    ctx.textBaseline = 'top'
+    ctx.textAlign = 'left'
+    label(ctx, 'WORK AT SEA', IN, 12)
+    if (missions.length === 0) {
+      ctx.font = F(14)
+      ctx.fillStyle = C('rgba(255,255,255,0.6)')
+      ctx.fillText('Nothing doing yet.', IN, 38)
+    }
+    missions.forEach((m, i) => {
+      const my = 36 + i * rowH
+      const crew = m.crew.includes(sea.me)
+      ctx.globalAlpha = m.state === 'active' ? 1 : 0.6
+      ctx.font = F(14, crew)
+      ctx.fillStyle = crew ? C('#ffd98a') : C('rgba(255,255,255,0.9)')
+      let title = (crew ? '★ ' : '') + m.title
+      while (ctx.measureText(title).width > PW - IN * 2 && title.length > 4) title = title.slice(0, -2) + '…'
+      ctx.fillText(title, IN, my)
+      ctx.font = F(14)
+      ctx.fillStyle = C('rgba(255,255,255,0.6)')
+      ctx.fillText(missionLine(m, crew), IN, my + 18)
+      if (m.state === 'active') {
+        bar(ctx, IN, my + 37, PW - IN * 2, 5, m.progress, m.kind === 'defend' ? C('#ff7a6b') : C('#ffd98a'))
+      }
+      ctx.globalAlpha = 1
+    })
+    ctx.restore()
+  }
+
+  /** Who is out here, by ships sunk. */
+  private drawBoard(sea: SeaInstruments, w: number, compact: boolean) {
+    const ctx = this.ctx
+    const rows = sea.board.slice(0, compact ? 4 : 8)
+    const width = 280
+    const height = 40 + Math.max(1, rows.length) * 20 + 8
+    const x = w / 2 - width / 2
+    const y = this.layout.top
+    ctx.save()
+    panel(ctx, x, y, width, height)
+    ctx.textBaseline = 'top'
+    ctx.textAlign = 'left'
+    label(ctx, `THE OPEN SEA · ${sea.board.length}`, x + IN, y + 12)
+    ctx.font = F(14)
+    rows.forEach((row, i) => {
+      const ry = y + 38 + i * 20
+      const mine = row.id === sea.me
+      ctx.fillStyle = mine ? C('#ffd98a') : C('rgba(255,255,255,0.85)')
+      ctx.font = F(14, mine)
+      ctx.textAlign = 'left'
+      ctx.fillText(row.name, x + IN, ry)
+      ctx.textAlign = 'right'
+      ctx.fillText(`${row.sinkings} sunk · ${Math.floor(row.plunder)}`, x + width - IN, ry)
+    })
+    ctx.restore()
+  }
+
+  /**
    * Faint wedges showing where the guns bear, brightening when a target is
    * actually inside one. This teaches the broadside mechanic without a word of
    * tutorial: you can see the ship has to come abeam.
    */
-  private drawGunArcs(world: World, camera: Camera) {
+  private drawGunArcs(world: Foes, camera: Camera) {
     const player = world.player
     if (player.sunk) return
 
@@ -191,7 +431,7 @@ export class Hud {
   }
 
   /** Condition bars over visible enemies, direction arrows for the rest. */
-  private drawEnemyMarkers(world: World, camera: Camera) {
+  private drawEnemyMarkers(world: Foes, camera: Camera) {
     const ctx = this.ctx
     const w = ctx.canvas.clientWidth
     const h = ctx.canvas.clientHeight
@@ -611,7 +851,7 @@ export class Hud {
   }
 
   /** Reload state per battery, and whether anything is actually in the arc. */
-  private drawBroadsides(ship: Ship, world: World, x: number, y: number): number {
+  private drawBroadsides(ship: Ship, world: Foes, x: number, y: number): number {
     const ctx = this.ctx
     const arc = (T.gunArcDegrees * Math.PI) / 180
 
@@ -1019,4 +1259,19 @@ export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.arcTo(x, y + h, x, y, r)
   ctx.arcTo(x, y, x + w, y, r)
   ctx.closePath()
+}
+
+/** The second line of a mission's entry: what it takes, or how it is going. */
+function missionLine(m: MissionSnap, crew: boolean): string {
+  if (m.state === 'won') return 'Done — paid'
+  if (m.state === 'lost') return 'Failed'
+  const time = `${Math.floor(m.left / 60)}:${String(m.left % 60).padStart(2, '0')}`
+  switch (m.kind) {
+    case 'bounty':
+      return crew ? `${m.engaged} of ${m.need} on her · ${time}` : `needs ${m.need} · pays ${m.reward} · ${time}`
+    case 'escort':
+      return `${Math.round(m.progress * 100)}% of the way · ${time}`
+    case 'defend':
+      return `walls ${Math.round(m.progress * 100)}% · ${time}`
+  }
 }

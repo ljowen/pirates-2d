@@ -15,6 +15,7 @@ import { PlunderView } from './render/plunderView'
 import { TerrainView } from './render/terrainView'
 import { SquallView } from './render/squallView'
 import { GullView } from './render/gullView'
+import { SettlementView } from './render/settlementView'
 import { P, PALETTES, paletteFromLocation, setPalette } from './render/palette'
 import { HULL_STYLES, hullStyleFromLocation } from './render/hullStyle'
 import { DraftUI } from './ui/draft'
@@ -32,6 +33,13 @@ import { Audio } from './audio/audio'
 import { AudioDirector } from './audio/director'
 import { T } from './sim/tuning'
 import { Ledger, chartOf, loadCareer, saveCareer, freshCareer, voyageOf } from './meta/career'
+import { Accounts, SEA_ENABLED } from './net/api'
+import { SeaClient } from './net/seaClient'
+import { SeaMirror } from './net/seaMirror'
+import { ChatPanel } from './ui/chat'
+import { renderSeaPage } from './ui/seaPort'
+import { SAIL_FIGHTING, SAIL_STATES } from './sim/ship'
+import type { Ship } from './sim/ship'
 
 /**
  * Developer tools: the tuning panel, the debug overlay, the keys that spawn
@@ -79,19 +87,20 @@ async function main() {
   const terrainView = new TerrainView()
   const squallView = new SquallView()
   const gulls = new GullView()
+  const towns = new SettlementView()
   // Land sits on the water; the shadow of a squall falls across both. Wake
   // above that so a ship's trail is never buried, then plunder, hulls, shot
   // and smoke — and the rain last of all, thin enough to see through.
   worldLayer.addChild(
-    terrainView.view, squallView.shadow, wake.view, plunderView.view,
+    terrainView.view, towns.view, squallView.shadow, wake.view, plunderView.view,
     shipLayer, combat.view, squallView.rain, gulls.view,
   )
   app.stage.addChild(water.view, worldLayer)
 
   // One view per ship, created on sight and dropped once she has gone under.
   const shipViews = new Map<number, ShipView>()
-  const syncShipViews = (dt: number, alpha: number) => {
-    for (const ship of world.ships) {
+  const syncShipViews = (ships: Ship[], dt: number, alpha: number) => {
+    for (const ship of ships) {
       let view = shipViews.get(ship.id)
       if (!view) {
         // Never raise a view for a hull that has already gone down: doing so
@@ -106,7 +115,7 @@ async function main() {
     // Drop a view when its hull has finished going under *or* has left the
     // world by any other route. Keying only on the sinking animation leaked a
     // view for every trader that escaped, since those are removed alive.
-    const present = new Set(world.ships.map((s) => s.id))
+    const present = new Set(ships.map((s) => s.id))
     for (const [id, view] of shipViews) {
       if (!view.finishedSinking && present.has(id)) continue
       shipLayer.removeChild(view.view)
@@ -152,6 +161,20 @@ async function main() {
   /** False until a hull has been chosen, so the idle sea behind the first quayside is never paid. */
   let atSea = false
 
+  /** Forget everything drawn on the sea that was, before drawing another. */
+  const clearViews = () => {
+    dropAllShipViews()
+    wake.clear()
+    combat.clear()
+    plunderView.clear()
+    terrainView.clear()
+    squallView.clear()
+    gulls.clear()
+    towns.clear()
+    pickupText.clear()
+    audioDirector.reset()
+  }
+
   /**
    * Put to sea in this hull. Reached from port, and straight from the tuning
    * panel, which skips port so a hull or a refit can be tried in one click.
@@ -174,15 +197,7 @@ async function main() {
       tuner.themeChanged()
     }
     world.reset(Math.floor(Math.random() * 0xffffff), cls, voyageOf(ledger.career))
-    dropAllShipViews()
-    wake.clear()
-    combat.clear()
-    plunderView.clear()
-    terrainView.clear()
-    squallView.clear()
-    gulls.clear()
-    pickupText.clear()
-    audioDirector.reset()
+    clearViews()
     camera.snapTo(world.player.pos)
   }
 
@@ -217,6 +232,9 @@ async function main() {
   let turbo = false
   let fps = 60
 
+  // The open sea's chat. Made here because the layout below places it.
+  const chat = new ChatPanel()
+
   // Made before the first layout, which depends on whether fingers are in use,
   // and laid out again the moment the first one lands.
   const touch = new TouchControls(input, app.canvas, () => resize())
@@ -232,6 +250,7 @@ async function main() {
     camera.overlayScale = layout.scale
     camera.focusY = layout.focusY
     touch.narrow = layout.compact && layout.top > 20
+    chat.lifted = touch.active
     overlay.width = w * dpr
     overlay.height = h * dpr
     overlay.style.width = `${w / layout.scale}px`
@@ -246,12 +265,202 @@ async function main() {
   resize()
   camera.snapTo(world.player.pos)
 
+
+  // --- The open sea -----------------------------------------------------------
+  //
+  // A second mode beside the voyage. The server runs the world; this browser
+  // sends its helm and sail orders and draws a mirror of what comes back.
+  // The voyage's `World` sits untouched underneath, so making port drops
+  // straight back into the career.
+  let mode: 'solo' | 'sea' = 'solo'
+  let sea: SeaMirror | null = null
+  /** The sail order this captain has given, sent with every input. */
+  let seaSail = SAIL_FIGHTING
+  let lastRaised = -1
+  let lastSteerSent = NaN
+  let lastSailSent = -1
+  let lastInputAt = 0
+  const accounts = new Accounts()
+  const seaClient = new SeaClient()
+
+  const startSea = (cls: ShipClass) => {
+    if (atSea) ledger.settle(world.run)
+    atSea = false
+    port.hide()
+    draft.hide()
+    mode = 'sea'
+    chat.enterOpens = true
+    seaSail = SAIL_FIGHTING
+    lastRaised = -1
+    const theme = (sea?.level ?? LEVELS_BY_ID.get('windward-cays'))?.theme
+    if (!forcedStyle && theme && P().id !== theme) {
+      setPalette(theme)
+      water.retheme()
+      tuner.themeChanged()
+    }
+    clearViews()
+    seaClient.join(cls.id)
+  }
+
+  const leaveSea = () => {
+    if (mode !== 'sea') return
+    seaClient.leave()
+    mode = 'solo'
+    chat.enterOpens = false
+    clearViews()
+    camera.snapTo(world.player.pos)
+    chooseShip()
+  }
+
+  if (SEA_ENABLED) {
+    port.seaPage = (body) => renderSeaPage(body, {
+      accounts,
+      link: () => seaClient.link,
+      sail: startSea,
+      redraw: () => port.refresh(),
+    })
+    accounts.onChange = () => {
+      if (accounts.account && accounts.token) {
+        seaClient.connect(accounts.token)
+        chat.show()
+      } else {
+        leaveSea()
+        seaClient.disconnect()
+        sea = null
+        chat.hide()
+      }
+      port.refresh()
+    }
+    seaClient.onLink = () => port.refresh()
+    // A line that will not stay up may mean the session has gone; check it.
+    seaClient.onTrouble = () => { void accounts.restore() }
+    seaClient.onMessage = (msg) => {
+      switch (msg.t) {
+        case 'hello':
+          chat.reset(msg.chat)
+          sea = new SeaMirror(msg)
+          if (mode === 'sea') { clearViews(); lastRaised = -1 }
+          break
+        case 'chat':
+          chat.add(msg.msg)
+          break
+        case 'error':
+          chat.notice(msg.message)
+          break
+        default:
+          sea?.receive(msg)
+      }
+    }
+    chat.onSend = (body) => seaClient.send({ t: 'chat', body })
+    // A hidden tab stops drawing, and with it the helm's heartbeat; the
+    // server would hold her rudder over for as long as the tab is away.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && mode === 'sea') {
+        seaClient.send({ t: 'input', steer: 0, sail: seaSail })
+        lastSteerSent = 0
+      }
+    })
+    void accounts.restore()
+  }
+
+  /** One frame of the open sea: read the helm, send it, draw what the server says. */
+  const renderSea = (frameDt: number) => {
+    // Keys that mean something only in a voyage are swallowed, not queued.
+    for (const k of ['pause', 'turbo', 'debug', 'spawnEnemy', 'spawnSquall', 'continue', 'confirm', 'styleNext', 'hullNext']) {
+      input.consumePress(k)
+    }
+    if (DEV && input.consumePress('tuner')) tuner.toggle()
+    if (input.consumePress('mute')) audio.muted = !audio.muted
+    const afloat = sea?.afloat ?? false
+    if (input.consumePress('sailUp') && afloat) seaSail = Math.min(SAIL_STATES.length - 1, seaSail + 1)
+    if (input.consumePress('sailDown') && afloat) seaSail = Math.max(0, seaSail - 1)
+    if (input.consumePress('reset') && !port.open) { input.endFrame(); leaveSea(); return }
+    input.endFrame()
+
+    // Helm on every change, and a heartbeat so a lost packet never leaves the rudder stuck.
+    const now = performance.now()
+    const steer = input.steer
+    if (steer !== lastSteerSent || seaSail !== lastSailSent || now - lastInputAt > 250) {
+      seaClient.send({ t: 'input', steer, sail: seaSail })
+      lastSteerSent = steer
+      lastSailSent = seaSail
+      lastInputAt = now
+    }
+
+    loop.timeScale = 1
+    const dt = frameDt
+    const ctx = octx
+    ctx.clearRect(0, 0, overlay.clientWidth, overlay.clientHeight)
+    if (!sea) {
+      app.renderer.render(app.stage)
+      ctx.save()
+      ctx.font = '16px ' + 'ui-monospace, monospace'
+      ctx.textAlign = 'center'
+      ctx.fillStyle = '#fff'
+      ctx.fillText('Reaching the open sea…', overlay.clientWidth / 2, overlay.clientHeight / 2)
+      ctx.restore()
+      return
+    }
+
+    sea.update(dt)
+    const p = sea.player
+    // Her sails answer the order at once on this screen; the server catches up a moment later.
+    if (sea.afloat) p.sailOrder = seaSail
+    if (sea.raised !== lastRaised) {
+      lastRaised = sea.raised
+      seaSail = SAIL_FIGHTING
+      camera.snapTo(p.pos)
+      lastFired = p.shotCount[0] + p.shotCount[1]
+      lastSinceHit = p.sinceHit
+    }
+
+    const fired = p.shotCount[0] + p.shotCount[1]
+    if (fired > lastFired) camera.kick(0.32)
+    lastFired = fired
+    if (p.sinceHit < lastSinceHit) camera.kick(0.5)
+    lastSinceHit = p.sinceHit
+    camera.zoomBy(input.consumeZoom(frameDt))
+    camera.follow(p, frameDt)
+
+    const cameraWind = sea.windAt(camera.pos)
+    water.update(camera, cameraWind, frameDt)
+    water.updateGusts(camera, (q) => sea!.windAt(q), frameDt)
+    terrainView.update(sea.terrain, camera)
+    towns.update(sea.settlements, sea.terrain, cameraWind, dt)
+    gulls.update(camera, dt)
+    wake.update(sea.ships, dt)
+    syncShipViews(sea.ships, dt, 1)
+    combat.update(sea.ships, sea.projectiles, sea.splashes, cameraWind, dt)
+    plunderView.update(sea.plunder, dt)
+
+    audio.masterVolume = T.masterVolume
+    audioDirector.updateSea(sea, camera.pos.x, camera.pos.y, camera.viewW / 2 / camera.zoom)
+
+    worldLayer.scale.set(camera.zoom)
+    worldLayer.position.set(
+      -camera.pos.x * camera.zoom + camera.viewW / 2 + camera.shake.x,
+      -camera.pos.y * camera.zoom + camera.viewH / 2 + camera.focusY + camera.shake.y,
+    )
+    app.renderer.render(app.stage)
+
+    pickupText.update(sea, dt)
+    pickupText.draw(ctx, camera)
+    const menu = port.open
+    hud.drawSea(sea, camera, seaClient.link === 'open', audio.muted || !audio.ready, menu)
+    tuner.legendVisible = false
+    touch.visible = !menu
+    touch.paused = false
+  }
+
   const loop = new GameLoop(
     (dt) => {
+      // On the open sea the server steps the world; this browser only draws it.
+      if (mode === 'sea') return
       world.steerInput = input.steer
       world.step(dt)
     },
     (alpha, frameDt) => {
+      if (mode === 'sea') { renderSea(frameDt); return }
       if (input.consumePress('pause')) paused = !paused
       if (DEV && input.consumePress('turbo')) turbo = !turbo
       if (DEV && input.consumePress('debug')) showDebug = !showDebug
@@ -355,7 +564,7 @@ async function main() {
       squallView.update(world.wind.weather, camera, frameDt)
       gulls.update(camera, dt)
       wake.update(world.ships, dt)
-      syncShipViews(dt, alpha)
+      syncShipViews(world.ships, dt, alpha)
       combat.update(world.ships, world.projectiles, world.splashes, cameraWind, dt)
       plunderView.update(world.plunder, dt)
 
@@ -406,6 +615,8 @@ async function main() {
     simulateRun: (seed: number) => { loop.stop(); return simulateRun(world, seed) },
     port,
     autoPilot,
+    // The open sea, for poking at from the console.
+    sea: () => sea, seaClient, accounts,
   }
 }
 

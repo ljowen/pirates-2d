@@ -127,12 +127,13 @@ export const STOCK_MODS: ShipMods = {
 export type PointOfSail =
   | 'In Irons' | 'Close Hauled' | 'Close Reach' | 'Beam Reach' | 'Broad Reach' | 'Running'
 
-export type Faction = 'player' | 'enemy'
+/** 'player' and 'enemy' in a voyage; one per captain on the open sea. */
+export type Faction = 'player' | 'enemy' | (string & {})
 
 let nextShipId = 1
 
 export class Ship {
-  readonly id = nextShipId++
+  readonly id: number
   faction: Faction = 'enemy'
   /** The hull. Effective stat = tuning baseline × class × mods. */
   cls: ShipClass = SLOOP
@@ -253,8 +254,13 @@ export class Ship {
   lateralSpeed = 0
   turnRate = 0
 
-  constructor(polar: PolarCurve) {
+  /**
+   * `id` is given only for a copy of a hull that lives elsewhere — the open
+   * sea's mirror of the server's ships — which must answer to the same name.
+   */
+  constructor(polar: PolarCurve, id = nextShipId++) {
     this.polar = polar
+    this.id = id
   }
 
   get speed() { return Math.hypot(this.vel.x, this.vel.y) }

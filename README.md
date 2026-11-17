@@ -15,6 +15,7 @@ npm install
 npm run dev     # http://localhost:5173
 npm run build   # typecheck + production build
 npm run bench   # headless balance run: scripted pilot, every hull, 16 seeds
+npm run arena   # headless open-sea check: two captains fight, one sinks and is raised
 ```
 
 ## How to play
@@ -47,6 +48,19 @@ each remembers your best voyage.
 
 The career is kept in `localStorage`; add `?career=new` to the URL to start over.
 `npm run bench` measures the whole arc, from a first voyage to the top of the ladder.
+
+## The open sea
+
+In the Cloudflare build, the port has an **Open sea** tab. Sign in with a name and a four-digit
+PIN (no email, no reset), pick any hull, and every other ship out there is another captain.
+There's one chat channel for everyone signed in: press Enter at sea, or / anywhere. R makes port.
+
+There's work at sea too: bounties (some take several captains to bring down), merchants to
+escort between the two towns, and raids on those towns to beat off. Sail into one to join its
+crew; crewmates are allies until it's done. It pays plunder, and renown on the leaderboard.
+
+How it works, running it locally and deploying it are covered in
+[docs/MULTIPLAYER.md](docs/MULTIPLAYER.md).
 
 ## Controls
 

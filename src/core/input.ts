@@ -9,6 +9,12 @@
  * Sail keys are edge-triggered: each press steps one sail state, matching the
  * original rather than ramping continuously while held.
  */
+/** True when a key is going into a text box rather than to the game. */
+export function isTyping(e: Event): boolean {
+  const t = e.target as HTMLElement | null
+  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+}
+
 export class Input {
   private readonly down = new Set<string>()
   private readonly pressed = new Set<string>()
@@ -20,6 +26,8 @@ export class Input {
   constructor(target: HTMLElement) {
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return
+      // Typing a name, a PIN or a chat line is not sailing.
+      if (isTyping(e)) return
       // Ctrl/Cmd with + and - is the browser's own zoom; leave it alone.
       if (e.ctrlKey || e.metaKey) return
       const k = this.normalize(e)

@@ -39,6 +39,8 @@ export interface WindSample {
  * This class stays pure: islands blanketing the wind in their lee is handled
  * by `World.windAt`, which is the layer that knows about terrain.
  */
+export interface WindState { t: number; px: number; py: number }
+
 export class Wind {
   /** Heading the wind blows FROM, in world radians. */
   from: number
@@ -56,6 +58,12 @@ export class Wind {
   /** The weather pattern itself travels downwind. */
   private patternX = 0
   private patternY = 0
+  /**
+   * Whether squalls form at all. A squall makes up to windward of *the*
+   * player, which has no meaning on a sea with many captains, so the open sea
+   * sails without them.
+   */
+  squalls = true
 
   constructor(seed = 1337, meanFromDeg = -45) {
     this.meanFrom = (meanFromDeg * Math.PI) / 180
@@ -68,19 +76,40 @@ export class Wind {
 
   step(dt: number, focus: Vec2 = ORIGIN) {
     this.t += dt
-
-    const swing = this.swingNoise.fbm(this.t * T.windSwingRate, 3)
-    this.from = wrapAngle(this.meanFrom + swing * (T.windSwingDegrees * Math.PI) / 180)
-
-    const gust = this.gustNoise.fbm(this.t * T.windGustRate, 3)
-    this.strength = clamp(T.windBaseStrength * (1 + gust * T.windGustAmount), 0.1, 3)
+    this.ambientFromClock()
 
     // Weather moves with the wind, so a patch of calm drifts across the map
     // rather than sitting over one stretch of water forever.
     this.patternX -= Math.cos(this.to) * T.windPatternDrift * dt
     this.patternY -= Math.sin(this.to) * T.windPatternDrift * dt
 
-    this.weather.step(dt, this.to, this.from, focus)
+    if (this.squalls) this.weather.step(dt, this.to, this.from, focus)
+  }
+
+  /** The wandering mean direction and the gusts are functions of the clock alone. */
+  private ambientFromClock() {
+    const swing = this.swingNoise.fbm(this.t * T.windSwingRate, 3)
+    this.from = wrapAngle(this.meanFrom + swing * (T.windSwingDegrees * Math.PI) / 180)
+
+    const gust = this.gustNoise.fbm(this.t * T.windGustRate, 3)
+    this.strength = clamp(T.windBaseStrength * (1 + gust * T.windGustAmount), 0.1, 3)
+  }
+
+  /**
+   * Everything the wind field depends on besides its seed. The drift of the
+   * pattern is integrated over the wind's whole history, so a client cannot
+   * reproduce it by keeping its own clock; the server sends this instead.
+   */
+  get state(): WindState {
+    return { t: this.t, px: this.patternX, py: this.patternY }
+  }
+
+  /** Put the wind exactly where another copy of it is. Weather is left alone. */
+  restore(state: WindState) {
+    this.t = state.t
+    this.patternX = state.px
+    this.patternY = state.py
+    this.ambientFromClock()
   }
 
   /**

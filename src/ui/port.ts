@@ -1,4 +1,5 @@
 import { icon } from './icons'
+import { isTyping } from '../core/input'
 import { shipPortrait } from '../render/shipPortrait'
 import { PLAYER_CLASSES, type ShipClass } from '../sim/shipClasses'
 import {
@@ -14,13 +15,14 @@ import {
   C, bodyFamily, callCss, cardPressedCss, keyCss, cardCss, cardHoverCss, cardInk, displayFamily, headingFamily, quietCss, ui,
 } from './theme'
 
-type Tab = 'yard' | 'refit' | 'chart' | 'log'
+type Tab = 'yard' | 'refit' | 'chart' | 'log' | 'sea'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'yard', label: 'Shipyard' },
   { id: 'refit', label: 'Refits' },
   { id: 'chart', label: 'Charts' },
   { id: 'log', label: "Captain's log" },
 ]
+const SEA_TAB: { id: Tab; label: string } = { id: 'sea', label: 'Open sea' }
 
 // Two sets of ink: the menu's, drawn straight onto the backdrop, and the
 // card's, drawn onto paper — dark ink on light.
@@ -54,6 +56,13 @@ export class PortUI {
   private readonly root: HTMLDivElement
   private onSail: ((cls: ShipClass) => void) | null = null
   private tab: Tab = 'yard'
+  /**
+   * Draws the open sea's page, when this build has one. Set by the game;
+   * the port knows nothing of accounts or the network.
+   */
+  seaPage: ((body: HTMLElement) => void) | null = null
+
+  private get tabs() { return this.seaPage ? [...TABS, SEA_TAB] : TABS }
 
   constructor(private readonly ledger: Ledger) {
     this.root = document.createElement('div')
@@ -68,12 +77,14 @@ export class PortUI {
 
     window.addEventListener('keydown', (e) => {
       if (!this.onSail) return
+      if (isTyping(e)) return
       // Keys pressed while working the tuning panel are the panel's.
       if ((e.target as HTMLElement | null)?.closest?.('[data-tuner]')) return
       if (e.code === 'Tab') {
         e.preventDefault()
-        const i = TABS.findIndex((t) => t.id === this.tab)
-        this.tab = TABS[(i + (e.shiftKey ? TABS.length - 1 : 1)) % TABS.length].id
+        const tabs = this.tabs
+        const i = tabs.findIndex((t) => t.id === this.tab)
+        this.tab = tabs[(i + (e.shiftKey ? tabs.length - 1 : 1)) % tabs.length].id
         this.onSound('flick')
         this.render()
         return
@@ -89,14 +100,14 @@ export class PortUI {
         return
       }
       // Enter sails the hull last taken out, so going again is one key.
-      if (e.code === 'Enter') {
+      if (e.code === 'Enter' && this.tab !== 'sea') {
         e.preventDefault()
         const last = PLAYER_CLASSES.find((c) => c.id === this.ledger.career.lastHull)
         if (last && owns(this.ledger.career, last)) this.hullAction(last)
         return
       }
       const digit = /^Digit([1-9])$/.exec(e.code)
-      if (!digit) return
+      if (!digit || this.tab === 'sea') return
       e.preventDefault()
       const index = Number(digit[1]) - 1
       if (this.tab === 'yard') {
@@ -297,7 +308,7 @@ export class PortUI {
     this.root.appendChild(this.notoriety())
 
     const tabs = el('div', 'display:flex;gap:6px;margin:18px 0 18px;flex-wrap:wrap;justify-content:center;padding:0 12px')
-    for (const t of TABS) {
+    for (const t of this.tabs) {
       const active = t.id === this.tab
       const b = el('button', `
         font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
@@ -325,6 +336,11 @@ export class PortUI {
       for (const [i, refit] of REFITS.entries()) body.appendChild(this.refitCard(refit, i))
     } else if (this.tab === 'chart') {
       for (const [i, level] of LEVELS.entries()) body.appendChild(this.chartCard(level, i))
+    } else if (this.tab === 'sea' && this.seaPage) {
+      body.style.flexDirection = 'column'
+      body.style.alignItems = 'center'
+      body.style.width = 'min(1000px, 100%)'
+      this.seaPage(body)
     } else {
       body.style.flexDirection = 'column'
       body.style.gap = '6px'

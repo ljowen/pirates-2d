@@ -15,12 +15,21 @@ const LAND = '#a88e58'
  * off-screen canvas and stamped each frame; only the marks are live. There is
  * no chart on the endless sea, which has no whole to show.
  */
+/** What a chart needs to know: a voyage's world, or the open sea's. */
+export type Charted = Pick<World, 'terrain' | 'level' | 'wind' | 'ships' | 'player'>
+
+/** Something worth a mark on the chart besides a hull: a town, or where work is. */
+export interface ChartMark { x: number; y: number; kind: 'town' | 'burning' | 'mission' | 'crew' }
+
 export class Minimap {
   private chart: HTMLCanvasElement | null = null
   private chartOf: TerrainMap | null = null
 
   /** Draws the panel with its top-left at (x, y) and returns its height. */
-  draw(ctx: CanvasRenderingContext2D, world: World, x: number, y: number, side: number): number {
+  draw(
+    ctx: CanvasRenderingContext2D, world: Charted, x: number, y: number, side: number,
+    marks: ChartMark[] = [],
+  ): number {
     const map = world.terrain.map
     const size = world.terrain.size
     if (!map || size <= 0) return 0
@@ -65,17 +74,38 @@ export class Minimap {
     }
 
     for (const e of world.ships) {
-      if (e.faction !== 'enemy' || e.sunk) continue
+      if (e.faction === 'player' || e.sunk) continue
       const [ex, ey] = at(e.pos)
       const r = e.isHunter || e.isBoss ? 3.6 : 2.4
       ctx.beginPath()
       ctx.arc(ex, ey, r, 0, Math.PI * 2)
-      // A ship that has given up is a prize, marked pale rather than red.
-      ctx.fillStyle = e.yielding ? '#fbf3dc' : ui().ink.bad
+      // A ship that has given up is a prize, marked pale rather than red; on
+      // the open sea, so is a merchant, and a crewmate is marked as a friend.
+      ctx.fillStyle = e.faction === 'ally' ? ui().ink.good
+        : e.yielding || e.faction === 'neutral' ? '#fbf3dc' : ui().ink.bad
       ctx.fill()
       ctx.lineWidth = 1
       ctx.strokeStyle = t.ink
       ctx.stroke()
+    }
+
+    for (const m of marks) {
+      const [mx, my] = at(m)
+      ctx.lineWidth = 1.5
+      ctx.strokeStyle = t.ink
+      if (m.kind === 'town' || m.kind === 'burning') {
+        ctx.fillStyle = m.kind === 'burning' ? '#e0602a' : '#fbf3dc'
+        ctx.fillRect(mx - 4, my - 4, 8, 8)
+        ctx.strokeRect(mx - 4, my - 4, 8, 8)
+      } else {
+        // Work to be had: a gold diamond, solid once you are crew on it.
+        ctx.beginPath()
+        ctx.moveTo(mx, my - 6); ctx.lineTo(mx + 6, my); ctx.lineTo(mx, my + 6); ctx.lineTo(mx - 6, my)
+        ctx.closePath()
+        ctx.fillStyle = m.kind === 'crew' ? '#f0c14b' : 'rgba(240,193,75,0.45)'
+        ctx.fill()
+        ctx.stroke()
+      }
     }
 
     const player = world.player

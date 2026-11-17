@@ -295,6 +295,8 @@ export interface CombatEvents {
   splashes: Splash[]
   /** Ships that went down this step. */
   sunk: Ship[]
+  /** Who fired the ball that sent each of them down, when someone is listening. */
+  kills?: { victim: Ship; by: number }[]
 }
 
 /** Advance every ball and resolve hits. */
@@ -304,6 +306,8 @@ export function stepProjectiles(
   terrain: Terrain,
   dt: number,
   events: CombatEvents,
+  /** True when shot from `ownerId` should pass harmlessly by `victim`: an ally on the open sea. */
+  spares?: (ownerId: number, victim: Ship) => boolean,
 ): Projectile[] {
   const alive: Projectile[] = []
 
@@ -331,6 +335,7 @@ export function stepProjectiles(
       // Only shot from the other side does damage; a melee between enemies
       // should not dissolve into friendly fire.
       if (ship.faction === p.ownerFaction) continue
+      if (spares?.(p.ownerId, ship)) continue
       const radius = HIT_RADIUS * ship.cls.scale
       if (Math.hypot(ship.pos.x - p.pos.x, ship.pos.y - p.pos.y) > radius) continue
 
@@ -349,7 +354,10 @@ export function stepProjectiles(
       events.splashes.push({
         pos: { ...p.pos }, life: 0.35, maxLife: 0.35, hit: true, victimFaction: ship.faction,
       })
-      if (wentDown) events.sunk.push(ship)
+      if (wentDown) {
+        events.sunk.push(ship)
+        events.kills?.push({ victim: ship, by: p.ownerId })
+      }
       struck = true
       break
     }

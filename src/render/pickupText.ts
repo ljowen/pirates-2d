@@ -1,4 +1,4 @@
-import type { World } from '../sim/world'
+import type { Pickup } from '../sim/plunder'
 import { F } from '../ui/theme'
 import type { FlotsamKind } from '../sim/plunder'
 import type { Camera } from './camera'
@@ -42,7 +42,7 @@ export class PickupText {
   private readonly items: Floater[] = []
 
   /** Drain the simulation's pickups and advance what is already on screen. */
-  update(world: World, dt: number) {
+  update(world: { drainPickups(): Pickup[] }, dt: number) {
     for (const p of world.drainPickups()) {
       // A wreck's worth arrives as several pieces over several frames. Shown
       // separately that is a cloud of "+1.2"s climbing over each other; merged

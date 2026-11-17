@@ -11,12 +11,20 @@ import { draughtDepth, landRadius, type Island, type Terrain } from './terrain'
  * handicap the player alone pays. Because these captains have to tack too, the
  * wind reads as a law of the world, and running upwind becomes a real escape.
  */
+/**
+ * What a captain is doing with her target. `fight` is the voyage's every
+ * captain; `make-for` treats the target as a place to reach — a merchant
+ * bound for port — and simply sails for it, tacking and clearing land as
+ * any captain does.
+ */
+export type AiMode = 'fight' | 'make-for'
+
 export class CaptainAI {
   /** Which side of the wind we are currently clawing up on: -1 or +1. */
   private tackSide: -1 | 1 = 1
   private sinceTack = 99
 
-  think(self: Ship, target: Ship, wind: WindSample, terrain: Terrain, dt: number) {
+  think(self: Ship, target: Ship, wind: WindSample, terrain: Terrain, dt: number, mode: AiMode = 'fight') {
     this.sinceTack += dt
     if (self.sunk || self.struck) return
     // Flying the white flag: she lets fly her sheets and waits to be boarded
@@ -32,7 +40,7 @@ export class CaptainAI {
     const dist = Math.hypot(dx, dy)
     const bearing = Math.atan2(dy, dx)
 
-    const desired = this.desiredHeading(self, bearing, dist, wind)
+    const desired = mode === 'make-for' ? bearing : this.desiredHeading(self, bearing, dist, wind)
     const sailable = this.nearestSailable(desired, bearing, wind)
     // Land overrides everything. A captain who holds a perfect firing course
     // onto a reef is not a captain.
@@ -46,7 +54,8 @@ export class CaptainAI {
     // Shorten sail for the knife fight; crack on when there is ground to make.
     // A runner never shortens sail — her whole plan is speed.
     const station = this.station(self)
-    self.sailOrder = self.cls.behaviour === 'trader' || self.breakingOff || dist > station * 1.25
+    self.sailOrder = mode === 'make-for' || self.cls.behaviour === 'trader' || self.breakingOff ||
+      dist > station * 1.25
       ? SAIL_FULL : SAIL_FIGHTING
     // ...but no captain carries a full suit into a squall. Without this the
     // weather would simply mow the fleet down, since enemies never repair:
