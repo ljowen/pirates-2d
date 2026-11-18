@@ -3,7 +3,7 @@
  
 Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
 
-Everyone (EXCEPT BLAIR) is permitted to copy and distribute verbatim or modified
+Everyone (**EXCEPT BLAIR**) is permitted to copy and distribute verbatim or modified
 copies of this license document, and changing it is allowed as long
 as the name is changed.
  
